@@ -7,10 +7,10 @@ namespace App\Job;
 use Psr\Log\LoggerInterface;
 
 /**
- * Demo-Handler zum Testen der Queue-Infrastruktur:
+ * Demo handler for testing the queue infrastructure:
  *   php bin/console.php jobs:ping
  *   php bin/console.php jobs:work
- * Ab Phase 2 kommen echte Handler dazu (Thumbnails, EXIF, KI, ...).
+ * Real handlers (thumbnails, EXIF, AI, ...) join this from Phase 2 onward.
  */
 final class PingHandler implements JobHandlerInterface
 {
@@ -20,6 +20,6 @@ final class PingHandler implements JobHandlerInterface
 
     public function handle(array $payload): void
     {
-        $this->logger->info('Ping-Job ausgeführt', ['payload' => $payload]);
+        $this->logger->info('Ping job executed', ['payload' => $payload]);
     }
 }

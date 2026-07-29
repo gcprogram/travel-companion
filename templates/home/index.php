@@ -1,22 +1,22 @@
 <?php /** @var list<array<string, mixed>> $trips */ ?>
 
-<h1>Unsere Reisen</h1>
+<h1><?= e(t('home.title')) ?></h1>
 
 <?php if ($trips === []): ?>
   <div class="empty-state">
-    <p>Noch keine Reisen hier.</p>
+    <p><?= e(t('home.empty')) ?></p>
     <?php if (!empty($currentUser)): ?>
-      <a class="btn btn-primary" href="/reisen/neu">Erste Reise anlegen</a>
+      <a class="btn btn-primary" href="/trips/new"><?= e(t('home.create_first')) ?></a>
     <?php endif; ?>
   </div>
 <?php else: ?>
   <div class="trip-list">
     <?php foreach ($trips as $trip): ?>
-      <a class="card trip-card" href="/reise/<?= e($trip['slug']) ?>">
+      <a class="card trip-card" href="/trip/<?= e($trip['slug']) ?>">
         <h2 class="trip-card__title">
           <?= e($trip['title']) ?>
           <?php if ($trip['visibility'] === 'private'): ?>
-            <span class="trip-card__badge">privat</span>
+            <span class="trip-card__badge"><?= e(t('trip.badge_private')) ?></span>
           <?php endif; ?>
         </h2>
         <div class="trip-card__meta">

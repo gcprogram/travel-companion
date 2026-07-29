@@ -51,16 +51,18 @@ composer run serve
 können, da externe Paket-Quellen wie Packagist dort gesperrt sind – jede
 Datei ist aber `php -l`-geprüft):
 
-1. `/registrieren` → Konto anlegen (der erste registrierte Benutzer wird
+1. `/register` → Konto anlegen (der erste registrierte Benutzer wird
    automatisch `admin`)
-2. `/reisen/neu` → Reise mit ein paar Routenstationen anlegen
-3. Reise auf der Startseite und unter `/reise/<slug>` ansehen
+2. `/trips/new` → Reise mit ein paar Routenstationen anlegen
+3. Reise auf der Startseite und unter `/trip/<slug>` ansehen
 4. Bearbeiten und Löschen prüfen
-5. `/passwort-vergessen` → mit `APP_ENV=development` landet die Mail nur im
+5. `/forgot-password` → mit `APP_ENV=development` landet die Mail nur im
    Log (`var/log/app.log`), nicht im Postfach
 6. Job-Queue: `php bin/console.php jobs:ping` gefolgt von
-   `php bin/console.php jobs:work` – sollte im Log „Ping-Job ausgeführt"
+   `php bin/console.php jobs:work` – sollte im Log „Ping job executed"
    zeigen
+7. Sprachumschalter (EN/DE) oben rechts prüfen; UI-Texte sollten sich
+   komplett übersetzen
 
 ## Deployment auf Bitpalast (Shared Hosting)
 

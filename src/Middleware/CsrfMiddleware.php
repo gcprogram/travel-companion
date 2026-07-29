@@ -12,8 +12,8 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Slim\Psr7\Response;
 
 /**
- * Prüft bei allen zustandsändernden Requests (POST/PUT/PATCH/DELETE)
- * das _csrf-Feld aus dem Formular.
+ * Checks the _csrf form field on every state-changing request
+ * (POST/PUT/PATCH/DELETE).
  */
 final class CsrfMiddleware implements MiddlewareInterface
 {
@@ -29,9 +29,7 @@ final class CsrfMiddleware implements MiddlewareInterface
 
             if (!$this->csrf->isValid($submitted)) {
                 $response = new Response();
-                $response->getBody()->write(
-                    'Ungültiges oder abgelaufenes Formular. Bitte zurückgehen, die Seite neu laden und erneut absenden.'
-                );
+                $response->getBody()->write(t('errors.csrf_invalid'));
                 return $response->withStatus(419)->withHeader('Content-Type', 'text/plain; charset=utf-8');
             }
         }

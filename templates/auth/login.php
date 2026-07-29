@@ -5,7 +5,7 @@ $errors ??= [];
 $old ??= [];
 ?>
 
-<h1>Anmelden</h1>
+<h1><?= e(t('auth.login.title')) ?></h1>
 
 <?php if ($errors !== []): ?>
   <div class="errors"><ul><?php foreach ($errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?></ul></div>
@@ -15,20 +15,20 @@ $old ??= [];
   <?= $csrf->field() ?>
 
   <div class="field">
-    <label for="email">E-Mail-Adresse</label>
+    <label for="email"><?= e(t('auth.login.email')) ?></label>
     <input type="email" id="email" name="email" required autocomplete="username"
            value="<?= e($old['email'] ?? '') ?>">
   </div>
 
   <div class="field">
-    <label for="password">Passwort</label>
+    <label for="password"><?= e(t('auth.login.password')) ?></label>
     <input type="password" id="password" name="password" required autocomplete="current-password">
   </div>
 
-  <button type="submit" class="btn btn-primary btn-block">Anmelden</button>
+  <button type="submit" class="btn btn-primary btn-block"><?= e(t('auth.login.submit')) ?></button>
 
   <p class="field-hint">
-    <a href="/passwort-vergessen">Passwort vergessen?</a> ·
-    <a href="/registrieren">Konto erstellen</a>
+    <a href="/forgot-password"><?= e(t('auth.login.forgot')) ?></a> ·
+    <a href="/register"><?= e(t('auth.login.register')) ?></a>
   </p>
 </form>

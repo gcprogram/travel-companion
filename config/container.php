@@ -34,7 +34,7 @@ return [
     Worker::class => static function (ContainerInterface $c): Worker {
         $worker = new Worker($c->get(JobRepository::class), $c->get(LoggerInterface::class));
 
-        // Hier alle Job-Handler registrieren. Neue Typen: eine Zeile pro Handler.
+        // Register all job handlers here. New types: one line per handler.
         $worker->register('demo.ping', $c->get(PingHandler::class));
         $worker->register('weather.fetch', $c->get(WeatherFetchHandler::class));
 

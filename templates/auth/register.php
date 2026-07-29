@@ -5,38 +5,38 @@ $errors ??= [];
 $old ??= [];
 ?>
 
-<h1>Konto erstellen</h1>
+<h1><?= e(t('auth.register.title')) ?></h1>
 
 <?php if ($errors !== []): ?>
   <div class="errors"><ul><?php foreach ($errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?></ul></div>
 <?php endif; ?>
 
-<form class="auth-form" method="post" action="/registrieren">
+<form class="auth-form" method="post" action="/register">
   <?= $csrf->field() ?>
 
   <div class="field">
-    <label for="name">Name</label>
+    <label for="name"><?= e(t('auth.register.name')) ?></label>
     <input type="text" id="name" name="name" required value="<?= e($old['name'] ?? '') ?>">
   </div>
 
   <div class="field">
-    <label for="email">E-Mail-Adresse</label>
+    <label for="email"><?= e(t('auth.register.email')) ?></label>
     <input type="email" id="email" name="email" required autocomplete="username"
            value="<?= e($old['email'] ?? '') ?>">
   </div>
 
   <div class="field">
-    <label for="password">Passwort</label>
+    <label for="password"><?= e(t('auth.register.password')) ?></label>
     <input type="password" id="password" name="password" required autocomplete="new-password" minlength="10">
-    <p class="field-hint">Mindestens 10 Zeichen.</p>
+    <p class="field-hint"><?= e(t('auth.register.password_hint')) ?></p>
   </div>
 
   <div class="field">
-    <label for="password_repeat">Passwort wiederholen</label>
+    <label for="password_repeat"><?= e(t('auth.register.password_repeat')) ?></label>
     <input type="password" id="password_repeat" name="password_repeat" required autocomplete="new-password">
   </div>
 
-  <button type="submit" class="btn btn-primary btn-block">Konto erstellen</button>
+  <button type="submit" class="btn btn-primary btn-block"><?= e(t('auth.register.submit')) ?></button>
 
-  <p class="field-hint">Schon ein Konto? <a href="/login">Anmelden</a></p>
+  <p class="field-hint"><?= e(t('auth.register.has_account')) ?> <a href="/login"><?= e(t('auth.register.login_link')) ?></a></p>
 </form>

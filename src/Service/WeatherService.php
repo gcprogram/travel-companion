@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace App\Service;
 
 /**
- * Holt Tageswetter (Mitteltemperatur + WMO-Wettercode) von Open-Meteo.
- * Kostenlos, ohne API-Key. Der Forecast-Endpunkt (statt des Archiv-
- * Endpunkts) wird bewusst verwendet, weil das ERA5-Archiv erst nach ca.
- * 5 Tagen befüllt wird – Tagebucheinträge entstehen aber meist während
- * oder direkt nach der Reise.
+ * Fetches daily weather (mean temperature + WMO weather code) from Open-Meteo.
+ * Free, no API key. The forecast endpoint (rather than the archive endpoint)
+ * is used deliberately, because the ERA5 archive only fills in after about
+ * 5 days – diary entries are usually written during or right after the trip.
  */
 final class WeatherService
 {
@@ -41,10 +40,10 @@ final class WeatherService
         curl_close($ch);
 
         if ($body === false) {
-            throw new \RuntimeException('Open-Meteo-Anfrage fehlgeschlagen: ' . $error);
+            throw new \RuntimeException('Open-Meteo request failed: ' . $error);
         }
         if ($status !== 200) {
-            throw new \RuntimeException('Open-Meteo antwortete mit Status ' . $status . ': ' . $body);
+            throw new \RuntimeException('Open-Meteo responded with status ' . $status . ': ' . $body);
         }
 
         $data = json_decode((string) $body, true, 512, JSON_THROW_ON_ERROR);
@@ -52,7 +51,7 @@ final class WeatherService
         $code = $data['daily']['weathercode'][0] ?? null;
 
         if ($temp === null || $code === null) {
-            return null; // Für dieses Datum liegen (noch) keine Daten vor.
+            return null; // No data available (yet) for this date.
         }
 
         return ['temp_c' => (float) $temp, 'code' => (int) $code];

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 /**
- * Einmal-Nachrichten über Redirects hinweg (success/error/info).
+ * One-time messages that survive a redirect (success/error/info).
  */
 final class Flash
 {

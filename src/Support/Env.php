@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Support;
 
 /**
- * Minimaler .env-Loader ohne externe Abhängigkeit.
- * Unterstützt KEY=value, Kommentare (#) und "quoted values".
+ * Minimal .env loader with no external dependency.
+ * Supports KEY=value, comments (#), and "quoted values".
  */
 final class Env
 {
@@ -16,7 +16,7 @@ final class Env
     public static function load(string $path): void
     {
         if (!is_readable($path)) {
-            return; // .env ist optional; Werte können auch echte Umgebungsvariablen sein.
+            return; // .env is optional; values can also be real environment variables.
         }
 
         foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
@@ -51,7 +51,7 @@ final class Env
     {
         $value = self::get($key);
         if ($value === null || $value === "") {
-            throw new \RuntimeException(sprintf("Umgebungsvariable \"%s\" fehlt (siehe .env.example).", $key));
+            throw new \RuntimeException(sprintf("Environment variable \"%s\" is missing (see .env.example).", $key));
         }
         return $value;
     }

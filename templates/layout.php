@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="<?= e(current_locale()) ?>">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,15 +12,20 @@
       <a class="site-header__brand" href="/">🧭 <?= e($appName ?? 'Travel Companion') ?></a>
       <nav class="site-header__nav">
         <?php if (!empty($currentUser)): ?>
-          <a href="/reisen/neu">Neue Reise</a>
+          <a href="/trips/new"><?= e(t('nav.new_trip')) ?></a>
           <span><?= e($currentUser['name']) ?></span>
           <form method="post" action="/logout">
             <?= $csrf->field() ?>
-            <button type="submit" class="btn btn-ghost">Abmelden</button>
+            <button type="submit" class="btn btn-ghost"><?= e(t('nav.logout')) ?></button>
           </form>
         <?php else: ?>
-          <a href="/login">Anmelden</a>
+          <a href="/login"><?= e(t('nav.login')) ?></a>
         <?php endif; ?>
+        <div class="lang-switch">
+          <?php foreach (\App\Support\Translator::supportedLocales() as $locale): ?>
+            <a href="/lang/<?= e($locale) ?>" class="<?= current_locale() === $locale ? 'is-active' : '' ?>"><?= e(strtoupper($locale)) ?></a>
+          <?php endforeach; ?>
+        </div>
       </nav>
     </div>
   </header>
@@ -34,7 +39,7 @@
   </main>
 
   <footer class="site-footer">
-    <?= e($appName ?? 'Travel Companion') ?> — dein digitales Reisetagebuch.
+    <?= e($appName ?? 'Travel Companion') ?> — <?= e(t('footer.tagline')) ?>
   </footer>
 </body>
 </html>

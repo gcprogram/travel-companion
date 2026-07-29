@@ -14,7 +14,7 @@ final class PasswordResetRepository
 
     public function create(int $userId, string $tokenHash, \DateTimeImmutable $expiresAt): void
     {
-        // Alte Tokens des Benutzers verwerfen, es gilt immer nur das neueste.
+        // Discard the user's old tokens, only the newest one is ever valid.
         $this->pdo->prepare('DELETE FROM password_resets WHERE user_id = ?')->execute([$userId]);
 
         $stmt = $this->pdo->prepare(

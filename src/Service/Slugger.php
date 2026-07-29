@@ -13,14 +13,14 @@ final class Slugger
     }
 
     /**
-     * "Norwegen 2026 – Fjorde & Städte" -> "norwegen-2026-fjorde-staedte"
-     * Bei Kollision wird -2, -3, ... angehängt.
+     * "Norway 2026 – Fjords & Cities" -> "norway-2026-fjords-cities"
+     * On collision, -2, -3, ... is appended.
      */
     public function uniqueTripSlug(string $title, ?int $exceptTripId = null): string
     {
         $base = $this->slugify($title);
         if ($base === '') {
-            $base = 'reise';
+            $base = 'trip';
         }
 
         $slug = $base;
@@ -37,7 +37,7 @@ final class Slugger
         $text = mb_strtolower(trim($text));
         $text = strtr($text, ['ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss']);
 
-        // Weitere Diakritika nach ASCII überführen, wenn intl verfügbar ist (auf dem Hosting: ja).
+        // Transliterate remaining diacritics to ASCII when intl is available (it is on our hosting).
         if (function_exists('transliterator_transliterate')) {
             $converted = transliterator_transliterate('Any-Latin; Latin-ASCII', $text);
             if (is_string($converted)) {

@@ -38,7 +38,7 @@ final class TripController
 
         $user = $request->getAttribute('user');
         if (!$this->access->canView($trip, $user)) {
-            // Private Reisen für Fremde wie "nicht vorhanden" behandeln.
+            // Treat private trips as "doesn't exist" for strangers.
             throw new HttpNotFoundException($request);
         }
 
@@ -75,8 +75,8 @@ final class TripController
         $tripId = $this->trips->create((int) $user['id'], $data);
         $this->stations->replaceForTrip($tripId, $stations);
 
-        $this->flash->add('success', 'Reise angelegt.');
-        return $response->withHeader('Location', '/reise/' . $data['slug'])->withStatus(302);
+        $this->flash->add('success', t('flash.trip_created'));
+        return $response->withHeader('Location', '/trip/' . $data['slug'])->withStatus(302);
     }
 
     public function edit(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -103,7 +103,7 @@ final class TripController
             ], status: 422);
         }
 
-        // Slug stabil halten, solange sich der Titel nicht ändert (Links bleiben gültig).
+        // Keep the slug stable as long as the title doesn't change (links stay valid).
         $data['slug'] = $data['title'] === $trip['title']
             ? $trip['slug']
             : $this->slugger->uniqueTripSlug($data['title'], (int) $trip['id']);
@@ -111,8 +111,8 @@ final class TripController
         $this->trips->update((int) $trip['id'], $data);
         $this->stations->replaceForTrip((int) $trip['id'], $stations);
 
-        $this->flash->add('success', 'Reise gespeichert.');
-        return $response->withHeader('Location', '/reise/' . $data['slug'])->withStatus(302);
+        $this->flash->add('success', t('flash.trip_updated'));
+        return $response->withHeader('Location', '/trip/' . $data['slug'])->withStatus(302);
     }
 
     public function delete(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -120,7 +120,7 @@ final class TripController
         $trip = $this->requireEditable($request, (int) $args['id']);
         $this->trips->delete((int) $trip['id']);
 
-        $this->flash->add('success', 'Reise gelöscht.');
+        $this->flash->add('success', t('flash.trip_deleted'));
         return $response->withHeader('Location', '/')->withStatus(302);
     }
 
@@ -140,7 +140,7 @@ final class TripController
     }
 
     /**
-     * Normalisiert und validiert die Formulardaten.
+     * Normalizes and validates the form data.
      *
      * @param array<string, mixed> $body
      * @return array{0: array<string, mixed>, 1: list<array{name: string, arrival_date: ?string, notes: ?string}>, 2: list<string>}
@@ -160,13 +160,13 @@ final class TripController
         ];
 
         if (mb_strlen($data['title']) < 3) {
-            $errors[] = 'Bitte einen Titel mit mindestens 3 Zeichen angeben.';
+            $errors[] = t('validation.trip_title_min_length');
         }
         if ($data['date_start'] !== null && $data['date_end'] !== null && $data['date_end'] < $data['date_start']) {
-            $errors[] = 'Das Enddatum liegt vor dem Startdatum.';
+            $errors[] = t('validation.trip_end_before_start');
         }
 
-        // Stationen: parallele Arrays aus dem Formular (station_name[], station_date[], station_notes[])
+        // Stations: parallel arrays from the form (station_name[], station_date[], station_notes[])
         $stations = [];
         $names = (array) ($body['station_name'] ?? []);
         $dates = (array) ($body['station_date'] ?? []);
@@ -174,7 +174,7 @@ final class TripController
         foreach ($names as $i => $name) {
             $name = trim((string) $name);
             if ($name === '') {
-                continue; // leere Zeilen (z.B. die Vorlagezeile) überspringen
+                continue; // Skip empty rows (e.g. the template row)
             }
             $stations[] = [
                 'name' => mb_substr($name, 0, 190),

@@ -17,7 +17,7 @@ use Slim\Exception\HttpNotFoundException;
 
 final class DayEntryController
 {
-    private const MOODS = ['sehr_schlecht', 'schlecht', 'neutral', 'gut', 'sehr_gut'];
+    private const MOODS = ['very_bad', 'bad', 'neutral', 'good', 'very_good'];
 
     public function __construct(
         private readonly View $view,
@@ -55,8 +55,8 @@ final class DayEntryController
         $id = $this->entries->create((int) $trip['id'], $data);
         $this->dispatchWeatherJobIfPossible($id, $data);
 
-        $this->flash->add('success', 'Tagebucheintrag gespeichert.');
-        return $response->withHeader('Location', '/reise/' . $trip['slug'])->withStatus(302);
+        $this->flash->add('success', t('flash.entry_saved'));
+        return $response->withHeader('Location', '/trip/' . $trip['slug'])->withStatus(302);
     }
 
     public function edit(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -86,8 +86,8 @@ final class DayEntryController
         $this->entries->update((int) $entry['id'], $data);
         $this->dispatchWeatherJobIfPossible((int) $entry['id'], $data);
 
-        $this->flash->add('success', 'Tagebucheintrag gespeichert.');
-        return $response->withHeader('Location', '/reise/' . $trip['slug'])->withStatus(302);
+        $this->flash->add('success', t('flash.entry_saved'));
+        return $response->withHeader('Location', '/trip/' . $trip['slug'])->withStatus(302);
     }
 
     public function delete(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -95,8 +95,8 @@ final class DayEntryController
         [$trip, $entry] = $this->requireEditableEntry($request, (int) $args['id']);
         $this->entries->delete((int) $entry['id']);
 
-        $this->flash->add('success', 'Tagebucheintrag gelöscht.');
-        return $response->withHeader('Location', '/reise/' . $trip['slug'])->withStatus(302);
+        $this->flash->add('success', t('flash.entry_deleted'));
+        return $response->withHeader('Location', '/trip/' . $trip['slug'])->withStatus(302);
     }
 
     /**
@@ -153,10 +153,10 @@ final class DayEntryController
         ];
 
         if ($data['entry_date'] === null) {
-            $errors[] = 'Bitte ein gültiges Datum angeben.';
+            $errors[] = t('validation.entry_date_invalid');
         }
         if ($data['body'] === null) {
-            $errors[] = 'Bitte einen Text zum Tag eingeben.';
+            $errors[] = t('validation.entry_body_required');
         }
 
         $lat = trim((string) ($body['lat'] ?? ''));

@@ -9,8 +9,8 @@ use App\Service\WeatherService;
 use Psr\Log\LoggerInterface;
 
 /**
- * Job-Typ "weather.fetch". Payload: {"day_entry_id": int}.
- * Wird beim Speichern eines Tagebucheintrags mit Standort eingereiht.
+ * Job type "weather.fetch". Payload: {"day_entry_id": int}.
+ * Enqueued when a diary entry with a location is saved.
  */
 final class WeatherFetchHandler implements JobHandlerInterface
 {
@@ -27,12 +27,12 @@ final class WeatherFetchHandler implements JobHandlerInterface
         $entry = $this->entries->findById($entryId);
 
         if ($entry === null || $entry['lat'] === null || $entry['lng'] === null) {
-            return; // Eintrag zwischenzeitlich gelöscht oder ohne Standort.
+            return; // Entry was deleted in the meantime, or has no location.
         }
 
         $result = $this->weather->fetchDaily((float) $entry['lat'], (float) $entry['lng'], (string) $entry['entry_date']);
         if ($result === null) {
-            $this->logger->info('Kein Wetter für Tagebucheintrag verfügbar', ['id' => $entryId]);
+            $this->logger->info('No weather available for diary entry', ['id' => $entryId]);
             return;
         }
 

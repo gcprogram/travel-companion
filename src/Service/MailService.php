@@ -8,13 +8,12 @@ use App\Support\Env;
 use Psr\Log\LoggerInterface;
 
 /**
- * Versand über PHP mail() – auf dem Hosting ist sendmail konfiguriert.
- * In der Entwicklungsumgebung (APP_ENV=development) werden Mails nur geloggt,
- * damit Passwort-Reset & Co. ohne Mailserver testbar sind.
+ * Sends via PHP mail() – sendmail is configured on the hosting.
+ * In the development environment (APP_ENV=development), mail is only
+ * logged, so password reset & co. are testable without a mail server.
  *
- * Bewusst schmal gehalten; sollte später HTML-Mail oder SMTP nötig werden,
- * wird die Implementierung gegen Symfony Mailer getauscht – die Aufrufer
- * kennen nur send().
+ * Deliberately kept narrow; if HTML mail or SMTP is needed later, the
+ * implementation gets swapped for Symfony Mailer – callers only know send().
  */
 final class MailService
 {
@@ -25,7 +24,7 @@ final class MailService
     public function send(string $to, string $subject, string $textBody): bool
     {
         if (Env::get('APP_ENV', 'production') === 'development') {
-            $this->logger->info('Mail (nur geloggt, development)', [
+            $this->logger->info('Mail (logged only, development)', [
                 'to' => $to,
                 'subject' => $subject,
                 'body' => $textBody,
@@ -48,7 +47,7 @@ final class MailService
 
         $ok = mail($to, $encodedSubject, $textBody, $headers);
         if (!$ok) {
-            $this->logger->error('Mailversand fehlgeschlagen', ['to' => $to, 'subject' => $subject]);
+            $this->logger->error('Failed to send mail', ['to' => $to, 'subject' => $subject]);
         }
         return $ok;
     }

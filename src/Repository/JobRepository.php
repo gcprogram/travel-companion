@@ -33,8 +33,8 @@ final class JobRepository
     }
 
     /**
-     * Nächsten fälligen Job atomar reservieren (kein doppelter Zugriff,
-     * auch wenn zwei Worker parallel laufen sollten).
+     * Atomically reserves the next due job (no double-claiming, even if
+     * two workers happen to run in parallel).
      *
      * @return array<string, mixed>|null
      */
@@ -43,8 +43,8 @@ final class JobRepository
         $now = gmdate('Y-m-d H:i:s');
         $token = bin2hex(random_bytes(8));
 
-        // Atomarer Claim per bedingtem UPDATE auf genau eine Zeile;
-        // das eindeutige Token identifiziert anschließend exakt diesen Job.
+        // Atomic claim via a conditional UPDATE on exactly one row;
+        // the unique token then identifies precisely this job.
         $update = $this->pdo->prepare(
             "UPDATE jobs SET status = 'running', attempts = attempts + 1, claim_token = ?, updated_at = ?
              WHERE status = 'pending' AND run_after <= ?
@@ -70,7 +70,7 @@ final class JobRepository
 
     public function markFailed(int $id, int $attempts, int $maxAttempts, string $error): void
     {
-        // Vor endgültigem Scheitern mit Backoff erneut versuchen: 2, 4, 8 Minuten ...
+        // Retry with backoff before final failure: 2, 4, 8 minutes ...
         if ($attempts < $maxAttempts) {
             $delayMinutes = 2 ** $attempts;
             $stmt = $this->pdo->prepare(
