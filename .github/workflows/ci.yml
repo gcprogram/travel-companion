@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP einrichten
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, pdo, pdo_mysql, json, curl
+
+      - name: Composer-Abhängigkeiten installieren
+        run: composer install --no-progress --prefer-dist
+
+      - name: PHP-Syntaxprüfung
+        run: |
+          find src public config bin -name "*.php" -print0 | xargs -0 -n1 php -l
+
+      - name: Composer-Manifest validieren
+        run: composer validate --strict
