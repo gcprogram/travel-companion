@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Repository\DayEntryRepository;
 use App\Repository\StationRepository;
 use App\Repository\TripRepository;
 use App\Service\Slugger;
+use App\Service\TripAccess;
 use App\Support\Flash;
 use App\Support\View;
 use Psr\Http\Message\ResponseInterface;
@@ -20,7 +22,9 @@ final class TripController
         private readonly View $view,
         private readonly TripRepository $trips,
         private readonly StationRepository $stations,
+        private readonly DayEntryRepository $entries,
         private readonly Slugger $slugger,
+        private readonly TripAccess $access,
         private readonly Flash $flash,
     ) {
     }
@@ -33,7 +37,7 @@ final class TripController
         }
 
         $user = $request->getAttribute('user');
-        if (!$this->canView($trip, $user)) {
+        if (!$this->access->canView($trip, $user)) {
             // Private Reisen für Fremde wie "nicht vorhanden" behandeln.
             throw new HttpNotFoundException($request);
         }
@@ -41,7 +45,8 @@ final class TripController
         return $this->view->render($response, 'trips/show', [
             'trip' => $trip,
             'stations' => $this->stations->findByTrip((int) $trip['id']),
-            'canEdit' => $this->canEdit($trip, $user),
+            'entries' => $this->entries->findByTrip((int) $trip['id']),
+            'canEdit' => $this->access->canEdit($trip, $user),
         ]);
     }
 
@@ -120,30 +125,6 @@ final class TripController
     }
 
     /**
-     * @param array<string, mixed> $trip
-     * @param array<string, mixed>|null $user
-     */
-    private function canView(array $trip, ?array $user): bool
-    {
-        if ($trip['visibility'] === 'public') {
-            return true;
-        }
-        return $this->canEdit($trip, $user);
-    }
-
-    /**
-     * @param array<string, mixed> $trip
-     * @param array<string, mixed>|null $user
-     */
-    private function canEdit(array $trip, ?array $user): bool
-    {
-        if ($user === null) {
-            return false;
-        }
-        return $user['role'] === 'admin' || (int) $user['id'] === (int) $trip['user_id'];
-    }
-
-    /**
      * @return array<string, mixed>
      */
     private function requireEditable(ServerRequestInterface $request, int $tripId): array
@@ -152,7 +133,7 @@ final class TripController
         if ($trip === null) {
             throw new HttpNotFoundException($request);
         }
-        if (!$this->canEdit($trip, $request->getAttribute('user'))) {
+        if (!$this->access->canEdit($trip, $request->getAttribute('user'))) {
             throw new HttpForbiddenException($request);
         }
         return $trip;

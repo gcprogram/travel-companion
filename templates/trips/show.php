@@ -1,6 +1,7 @@
 <?php
 /** @var array<string, mixed> $trip */
 /** @var list<array<string, mixed>> $stations */
+/** @var list<array<string, mixed>> $entries */
 /** @var bool $canEdit */
 ?>
 
@@ -39,17 +40,69 @@
   </ul>
 <?php endif; ?>
 
+<h2>Tagebuch</h2>
+
+<?php if ($entries !== []): ?>
+  <ul class="day-entry-list">
+    <?php foreach ($entries as $entry): ?>
+      <li class="day-entry-card">
+        <div class="day-entry-card__header">
+          <span class="day-entry-card__date"><?= e(format_date($entry['entry_date'])) ?></span>
+          <?php if (!empty($entry['title'])): ?>
+            <span class="day-entry-card__title"><?= e($entry['title']) ?></span>
+          <?php endif; ?>
+          <?php if ($entry['mood'] !== null): ?>
+            <span class="day-entry-card__mood" title="<?= e(mood_label($entry['mood'])) ?>"><?= mood_emoji($entry['mood']) ?></span>
+          <?php endif; ?>
+          <?php if ($entry['rating'] !== null): ?>
+            <span class="day-entry-card__rating"><?= str_repeat('★', (int) $entry['rating']) . str_repeat('☆', 5 - (int) $entry['rating']) ?></span>
+          <?php endif; ?>
+        </div>
+
+        <?php if (!empty($entry['body'])): ?>
+          <p><?= nl2br(e($entry['body'])) ?></p>
+        <?php endif; ?>
+
+        <?php if ($entry['weather_temp_c'] !== null): ?>
+          <p class="day-entry-card__weather">
+            <?= e(weather_description((int) $entry['weather_code'])) ?>, <?= e(number_format((float) $entry['weather_temp_c'], 1, ',', '.')) ?> °C
+          </p>
+        <?php endif; ?>
+
+        <?php if ($canEdit): ?>
+          <div class="page-actions">
+            <a class="btn btn-ghost" href="/tagebuch/<?= (int) $entry['id'] ?>/bearbeiten">Bearbeiten</a>
+            <form method="post" action="/tagebuch/<?= (int) $entry['id'] ?>/loeschen"
+                  onsubmit="return confirm('Diesen Tagebucheintrag wirklich löschen?');">
+              <?= $csrf->field() ?>
+              <button type="submit" class="btn btn-danger">Löschen</button>
+            </form>
+          </div>
+        <?php endif; ?>
+      </li>
+    <?php endforeach; ?>
+  </ul>
+<?php elseif (!$canEdit): ?>
+  <p class="empty-state">Noch keine Tagebucheinträge.</p>
+<?php endif; ?>
+
+<?php if ($canEdit): ?>
+  <div class="page-actions">
+    <a class="btn btn-primary" href="/reisen/<?= (int) $trip['id'] ?>/tagebuch/neu">+ Tagebucheintrag</a>
+  </div>
+<?php endif; ?>
+
 <div class="empty-state">
-  <p>Tagesblogs, Fotos und Videos kommen in Phase 2 dazu.</p>
+  <p>Fotos und Videos kommen als Nächstes dazu.</p>
 </div>
 
 <?php if ($canEdit): ?>
   <div class="page-actions">
-    <a class="btn btn-ghost" href="/reisen/<?= (int) $trip['id'] ?>/bearbeiten">Bearbeiten</a>
+    <a class="btn btn-ghost" href="/reisen/<?= (int) $trip['id'] ?>/bearbeiten">Reise bearbeiten</a>
     <form method="post" action="/reisen/<?= (int) $trip['id'] ?>/loeschen"
           onsubmit="return confirm('Diese Reise wirklich löschen?');">
       <?= $csrf->field() ?>
-      <button type="submit" class="btn btn-danger">Löschen</button>
+      <button type="submit" class="btn btn-danger">Reise löschen</button>
     </form>
   </div>
 <?php endif; ?>
