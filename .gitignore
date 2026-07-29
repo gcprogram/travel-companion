@@ -1,5 +1,9 @@
-/vendor
-/node_modules
-/storage/logs
-/storage/framework
-.env
+/vendor/
+/.env
+/var/log/*
+/var/cache/*
+!/var/log/.gitkeep
+!/var/cache/.gitkeep
+/storage/
+composer.phar
+.phpunit.result.cache
