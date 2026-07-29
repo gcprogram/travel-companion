@@ -38,7 +38,7 @@ final class AuthController
         }
 
         return $this->view->render($response, 'auth/login', [
-            'errors' => ['E-Mail-Adresse oder Passwort ist falsch.'],
+            'errors' => [t('auth.login.invalid')],
             'old' => ['email' => $email],
         ], status: 422);
     }
@@ -49,7 +49,7 @@ final class AuthController
             return $this->redirect($response, '/');
         }
         if (!Env::bool('REGISTRATION_OPEN', true)) {
-            $this->flash->add('info', 'Die Registrierung ist derzeit geschlossen.');
+            $this->flash->add('info', t('flash.registration_closed'));
             return $this->redirect($response, '/login');
         }
         return $this->view->render($response, 'auth/register');
@@ -73,7 +73,7 @@ final class AuthController
             ], status: 422);
         }
 
-        $this->flash->add('success', 'Willkommen! Dein Konto wurde erstellt.');
+        $this->flash->add('success', t('flash.welcome'));
         return $this->redirect($response, '/');
     }
 
@@ -93,8 +93,8 @@ final class AuthController
         $body = (array) $request->getParsedBody();
         $this->auth->requestPasswordReset((string) ($body['email'] ?? ''));
 
-        // Immer dieselbe Antwort, unabhängig davon, ob die Adresse existiert.
-        $this->flash->add('info', 'Wenn ein Konto mit dieser Adresse existiert, ist ein Reset-Link unterwegs.');
+        // Always the same response, regardless of whether the address exists.
+        $this->flash->add('info', t('flash.password_reset_requested'));
         return $this->redirect($response, '/login');
     }
 
@@ -102,7 +102,7 @@ final class AuthController
     {
         $token = (string) ($request->getQueryParams()['token'] ?? '');
         if ($token === '') {
-            return $this->redirect($response, '/passwort-vergessen');
+            return $this->redirect($response, '/forgot-password');
         }
         return $this->view->render($response, 'auth/reset', ['token' => $token]);
     }
@@ -125,7 +125,7 @@ final class AuthController
             ], status: 422);
         }
 
-        $this->flash->add('success', 'Passwort geändert. Du kannst dich jetzt anmelden.');
+        $this->flash->add('success', t('flash.password_changed'));
         return $this->redirect($response, '/login');
     }
 

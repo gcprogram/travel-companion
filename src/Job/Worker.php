@@ -8,12 +8,12 @@ use App\Repository\JobRepository;
 use Psr\Log\LoggerInterface;
 
 /**
- * Arbeitet fällige Jobs ab. Gedacht für den Minuten-Cron auf dem Hosting:
+ * Works off due jobs. Meant for the minute-cron on the hosting:
  *
- *   * * * * * php /pfad/zur/app/bin/console.php jobs:work --max-runtime=50
+ *   * * * * * php /path/to/app/bin/console.php jobs:work --max-runtime=50
  *
- * --max-runtime hält den Prozess unter dem nächsten Cron-Start; die
- * max_execution_time des Webservers gilt für CLI nicht, wir begrenzen selbst.
+ * --max-runtime keeps the process under the next cron start; the web
+ * server's max_execution_time doesn't apply to CLI, so we cap it ourselves.
  */
 final class Worker
 {
@@ -39,7 +39,7 @@ final class Worker
         while (time() < $deadline) {
             $job = $this->jobs->claimNext();
             if ($job === null) {
-                break; // Nichts fällig – Prozess beenden, der nächste Cron übernimmt.
+                break; // Nothing due – stop the process, the next cron run takes over.
             }
 
             $id = (int) $job['id'];
@@ -47,22 +47,22 @@ final class Worker
 
             try {
                 $handler = $this->handlers[$type]
-                    ?? throw new \RuntimeException(sprintf('Kein Handler für Job-Typ "%s" registriert.', $type));
+                    ?? throw new \RuntimeException(sprintf('No handler registered for job type "%s".', $type));
 
                 /** @var array<string, mixed> $payload */
                 $payload = json_decode((string) $job['payload'], true, 512, JSON_THROW_ON_ERROR);
 
                 $handler->handle($payload);
                 $this->jobs->markDone($id);
-                $this->logger->info('Job erledigt', ['id' => $id, 'type' => $type]);
+                $this->logger->info('Job done', ['id' => $id, 'type' => $type]);
             } catch (\Throwable $e) {
                 $this->jobs->markFailed(
                     $id,
-                    (int) $job['attempts'], // claimNext liefert die Zeile nach dem Claim, attempts ist bereits erhöht
+                    (int) $job['attempts'], // claimNext returns the row after the claim, attempts is already incremented
                     (int) $job['max_attempts'],
                     $e->getMessage() . "\n" . $e->getTraceAsString(),
                 );
-                $this->logger->error('Job fehlgeschlagen', ['id' => $id, 'type' => $type, 'error' => $e->getMessage()]);
+                $this->logger->error('Job failed', ['id' => $id, 'type' => $type, 'error' => $e->getMessage()]);
             }
 
             $processed++;

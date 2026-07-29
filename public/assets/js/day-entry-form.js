@@ -1,6 +1,7 @@
 /**
- * Standort-Erfassung fürs Tagebuch-Formular über die Browser-Geolocation-API.
- * Ohne JS bzw. ohne Erlaubnis bleibt das Formular nutzbar, nur ohne GPS-Daten.
+ * Location capture for the diary entry form via the browser Geolocation API.
+ * Without JS, or without permission, the form still works, just without GPS data.
+ * User-facing strings come from data-msg-* attributes set by the (translated) template.
  */
 document.addEventListener('DOMContentLoaded', function () {
   var button = document.querySelector('[data-geolocate]');
@@ -14,21 +15,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
   button.addEventListener('click', function () {
     if (!('geolocation' in navigator)) {
-      status.textContent = 'Standorterfassung wird von diesem Browser nicht unterstützt.';
+      status.textContent = button.dataset.msgUnsupported;
       return;
     }
 
-    status.textContent = 'Standort wird ermittelt …';
+    status.textContent = button.dataset.msgLocating;
     navigator.geolocation.getCurrentPosition(
       function (position) {
         var lat = position.coords.latitude.toFixed(6);
         var lng = position.coords.longitude.toFixed(6);
         latInput.value = lat;
         lngInput.value = lng;
-        status.textContent = 'Erfasst: ' + lat + ', ' + lng;
+        status.textContent = button.dataset.msgCaptured
+          .replace(':lat', lat)
+          .replace(':lng', lng);
       },
       function (error) {
-        status.textContent = 'Standort konnte nicht ermittelt werden (' + error.message + ').';
+        status.textContent = button.dataset.msgError.replace(':error', error.message);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );

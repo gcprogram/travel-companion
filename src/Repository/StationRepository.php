@@ -25,9 +25,9 @@ final class StationRepository
     }
 
     /**
-     * Ersetzt alle Stationen einer Reise atomar durch die übergebene Liste.
-     * Einfach und robust für den Formular-Workflow; feingranulare Updates
-     * lohnen sich erst, wenn Stationen eigene Kind-Daten bekommen.
+     * Atomically replaces all stations of a trip with the given list.
+     * Simple and robust for the form workflow; fine-grained updates
+     * would only pay off once stations get their own child data.
      *
      * @param list<array{name: string, arrival_date: ?string, notes: ?string}> $stations
      */

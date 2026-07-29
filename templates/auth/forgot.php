@@ -1,14 +1,14 @@
-<h1>Passwort vergessen</h1>
+<h1><?= e(t('auth.forgot.title')) ?></h1>
 
-<p>Gib deine E-Mail-Adresse ein. Wenn dazu ein Konto existiert, schicken wir dir einen Link zum Zurücksetzen.</p>
+<p><?= e(t('auth.forgot.intro')) ?></p>
 
-<form class="auth-form" method="post" action="/passwort-vergessen">
+<form class="auth-form" method="post" action="/forgot-password">
   <?= $csrf->field() ?>
 
   <div class="field">
-    <label for="email">E-Mail-Adresse</label>
+    <label for="email"><?= e(t('auth.forgot.email')) ?></label>
     <input type="email" id="email" name="email" required autocomplete="username">
   </div>
 
-  <button type="submit" class="btn btn-primary btn-block">Link anfordern</button>
+  <button type="submit" class="btn btn-primary btn-block"><?= e(t('auth.forgot.submit')) ?></button>
 </form>

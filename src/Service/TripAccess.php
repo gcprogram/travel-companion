@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Service;
 
 /**
- * Sicht-/Bearbeitungsrechte für eine Reise (und alles, was an ihr hängt,
- * z.B. Tagebucheinträge). Zentral gehalten, damit TripController und
- * DayEntryController nicht auseinanderlaufen können.
+ * View/edit permissions for a trip (and anything hanging off it, e.g. diary
+ * entries). Kept central so TripController and DayEntryController can't
+ * drift apart.
  */
 final class TripAccess
 {

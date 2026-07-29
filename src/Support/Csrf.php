@@ -17,7 +17,7 @@ final class Csrf
     }
 
     /**
-     * Verstecktes Formularfeld, in jedes POST-Formular einbauen.
+     * Hidden form field to include in every POST form.
      */
     public function field(): string
     {

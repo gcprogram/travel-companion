@@ -4,19 +4,13 @@
 /** @var list<string> $errors */
 $errors ??= [];
 $isEdit = $entry !== null && isset($entry['id']);
-$action = $isEdit ? '/tagebuch/' . (int) $entry['id'] : '/reisen/' . (int) $trip['id'] . '/tagebuch';
-$moods = [
-    'sehr_schlecht' => '😞 Sehr schlecht',
-    'schlecht' => '🙁 Schlecht',
-    'neutral' => '😐 Neutral',
-    'gut' => '🙂 Gut',
-    'sehr_gut' => '😄 Sehr gut',
-];
+$action = $isEdit ? '/entries/' . (int) $entry['id'] : '/trips/' . (int) $trip['id'] . '/entries';
+$moods = ['very_bad', 'bad', 'neutral', 'good', 'very_good'];
 $lat = $entry['lat'] ?? null;
 $lng = $entry['lng'] ?? null;
 ?>
 
-<h1><?= $isEdit ? 'Tagebucheintrag bearbeiten' : 'Neuer Tagebucheintrag' ?></h1>
+<h1><?= $isEdit ? e(t('entry.form.title_edit')) : e(t('entry.form.title_new')) ?></h1>
 <p class="field-hint"><?= e($trip['title']) ?></p>
 
 <?php if ($errors !== []): ?>
@@ -27,36 +21,36 @@ $lng = $entry['lng'] ?? null;
   <?= $csrf->field() ?>
 
   <div class="field">
-    <label for="entry_date">Datum</label>
+    <label for="entry_date"><?= e(t('entry.form.date_label')) ?></label>
     <input type="date" id="entry_date" name="entry_date" required
            value="<?= e($entry['entry_date'] ?? date('Y-m-d')) ?>">
   </div>
 
   <div class="field">
-    <label for="title">Titel (optional)</label>
+    <label for="title"><?= e(t('entry.form.title_label')) ?></label>
     <input type="text" id="title" name="title" value="<?= e($entry['title'] ?? '') ?>">
   </div>
 
   <div class="field">
-    <label for="body">Was ist heute passiert?</label>
+    <label for="body"><?= e(t('entry.form.body_label')) ?></label>
     <textarea id="body" name="body" required><?= e($entry['body'] ?? '') ?></textarea>
   </div>
 
   <div class="field">
-    <label>Stimmung</label>
+    <label><?= e(t('entry.form.mood_label')) ?></label>
     <div class="field-radio-group field-radio-group--mood">
-      <?php foreach ($moods as $value => $label): ?>
+      <?php foreach ($moods as $value): ?>
         <label>
           <input type="radio" name="mood" value="<?= e($value) ?>"
             <?= (($entry['mood'] ?? null) === $value) ? 'checked' : '' ?>>
-          <?= e($label) ?>
+          <?= mood_emoji($value) ?> <?= e(t('mood.' . $value)) ?>
         </label>
       <?php endforeach; ?>
     </div>
   </div>
 
   <div class="field">
-    <label>Bewertung</label>
+    <label><?= e(t('entry.form.rating_label')) ?></label>
     <div class="rating-input">
       <?php for ($i = 5; $i >= 1; $i--): ?>
         <input type="radio" id="rating-<?= $i ?>" name="rating" value="<?= $i ?>"
@@ -67,11 +61,17 @@ $lng = $entry['lng'] ?? null;
   </div>
 
   <div class="field">
-    <label>Standort</label>
+    <label><?= e(t('entry.form.location_label')) ?></label>
     <div class="location-input">
-      <button type="button" class="btn btn-ghost" data-geolocate>📍 Standort erfassen</button>
+      <button type="button" class="btn btn-ghost" data-geolocate
+              data-msg-unsupported="<?= e(t('entry.form.geo_unsupported')) ?>"
+              data-msg-locating="<?= e(t('entry.form.geo_locating')) ?>"
+              data-msg-error="<?= e(t('entry.form.geo_error')) ?>"
+              data-msg-captured="<?= e(t('entry.form.location_captured')) ?>">📍 <?= e(t('entry.form.locate_button')) ?></button>
       <span class="field-hint" data-geolocate-status>
-        <?= $lat !== null ? 'Erfasst: ' . e((string) $lat) . ', ' . e((string) $lng) : 'Noch kein Standort erfasst.' ?>
+        <?= $lat !== null
+          ? e(t('entry.form.location_captured', ['lat' => (string) $lat, 'lng' => (string) $lng]))
+          : e(t('entry.form.location_none')) ?>
       </span>
       <input type="hidden" id="lat" name="lat" value="<?= e((string) ($lat ?? '')) ?>">
       <input type="hidden" id="lng" name="lng" value="<?= e((string) ($lng ?? '')) ?>">
@@ -79,8 +79,8 @@ $lng = $entry['lng'] ?? null;
   </div>
 
   <div class="page-actions">
-    <button type="submit" class="btn btn-primary">Speichern</button>
-    <a class="btn btn-ghost" href="/reise/<?= e($trip['slug']) ?>">Abbrechen</a>
+    <button type="submit" class="btn btn-primary"><?= e(t('entry.form.save')) ?></button>
+    <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>"><?= e(t('entry.form.cancel')) ?></a>
   </div>
 </form>
 

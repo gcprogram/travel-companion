@@ -1,10 +1,10 @@
 /*
-  Travel Companion – Basis-Stylesheet.
-  Mobile-First: alles ohne @media gilt für schmale Bildschirme,
-  @media (min-width: ...) schaltet für größere Screens zu.
+  Travel Companion – base stylesheet.
+  Mobile-first: everything without @media applies to narrow screens,
+  @media (min-width: ...) kicks in for larger screens.
 
-  Bewusst ohne Framework/Build-Step: eine Datei, direkt einsatzbereit
-  auf Shared Hosting, kein npm-Build nötig.
+  Deliberately without a framework/build step: one file, ready to use
+  directly on shared hosting, no npm build needed.
 */
 
 :root {
@@ -14,7 +14,7 @@
   --color-line: #e2dccf;
   --color-brand: #2f6f5e;      /* Tanne – Route, Aktionen */
   --color-brand-dark: #234f42;
-  --color-accent: #c56a3c;     /* Terrakotta – Sonnenuntergang, Wärme */
+  --color-accent: #c56a3c;     /* terracotta – sunset, warmth */
   --color-muted: #6b6357;
   --color-danger: #b3432b;
   --color-success: #2f6f5e;
@@ -75,7 +75,7 @@ select:focus-visible {
   padding: 0 var(--space-2);
 }
 
-/* --- Kopfzeile --- */
+/* --- Header --- */
 
 .site-header {
   background: var(--color-surface);
@@ -111,7 +111,11 @@ select:focus-visible {
 .site-header__nav a { text-decoration: none; }
 .site-header__nav form { margin: 0; }
 
-/* --- Buttons & Formulare --- */
+.lang-switch { display: flex; gap: 0.4rem; font-size: 0.8rem; }
+.lang-switch a { color: var(--color-muted); font-weight: 600; }
+.lang-switch a.is-active { color: var(--color-ink); text-decoration: underline; }
+
+/* --- Buttons & forms --- */
 
 .btn {
   display: inline-block;
@@ -172,7 +176,7 @@ select:focus-visible {
 
 form.auth-form { max-width: 420px; }
 
-/* --- Karten/Listen --- */
+/* --- Cards/lists --- */
 
 .card {
   background: var(--color-surface);
@@ -236,7 +240,7 @@ form.auth-form { max-width: 420px; }
 
 .station-row__remove { justify-self: start; }
 
-/* --- Tagebuch --- */
+/* --- Diary --- */
 
 .day-entry-list { list-style: none; margin: 0 0 var(--space-2); padding: 0; }
 
@@ -264,7 +268,7 @@ form.auth-form { max-width: 420px; }
 
 .field-radio-group--mood { flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
 
-/* Reine CSS-Sterne-Bewertung: Markup läuft 5..1, row-reverse dreht die Anzeige um. */
+/* Pure-CSS star rating: markup runs 5..1, row-reverse flips the display order. */
 .rating-input {
   display: flex;
   flex-direction: row-reverse;
@@ -280,7 +284,7 @@ form.auth-form { max-width: 420px; }
 
 .location-input { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
 
-/* --- Flash-Meldungen --- */
+/* --- Flash messages --- */
 
 .flash { border-radius: var(--radius); padding: var(--space-1) var(--space-2); margin-bottom: var(--space-2); font-size: 0.92rem; }
 .flash-success { background: #e4efe9; color: var(--color-brand-dark); }
@@ -301,7 +305,7 @@ form.auth-form { max-width: 420px; }
   padding: var(--space-4) var(--space-2);
 }
 
-/* --- Ab Tablet-Breite: geräumigere Fläche --- */
+/* --- From tablet width up: more breathing room --- */
 @media (min-width: 640px) {
   .container { padding: 0 var(--space-3); }
   h1 { font-size: 2.1rem; }

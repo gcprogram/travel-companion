@@ -28,30 +28,30 @@ final class AuthService
         $errors = [];
 
         if (!Env::bool('REGISTRATION_OPEN', true)) {
-            return ['ok' => false, 'errors' => ['Die Registrierung ist derzeit geschlossen.']];
+            return ['ok' => false, 'errors' => [t('flash.registration_closed')]];
         }
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'Bitte eine gültige E-Mail-Adresse angeben.';
+            $errors[] = t('validation.email_invalid');
         }
         if (mb_strlen(trim($name)) < 2) {
-            $errors[] = 'Bitte einen Namen angeben (mindestens 2 Zeichen).';
+            $errors[] = t('validation.name_required');
         }
         if (mb_strlen($password) < self::MIN_PASSWORD_LENGTH) {
-            $errors[] = sprintf('Das Passwort braucht mindestens %d Zeichen.', self::MIN_PASSWORD_LENGTH);
+            $errors[] = t('validation.password_min_length', ['min' => self::MIN_PASSWORD_LENGTH]);
         }
         if ($password !== $passwordRepeat) {
-            $errors[] = 'Die Passwörter stimmen nicht überein.';
+            $errors[] = t('validation.password_mismatch');
         }
         if ($errors === []) {
             if ($this->users->findByEmail($email) !== null) {
-                $errors[] = 'Für diese E-Mail-Adresse existiert bereits ein Konto.';
+                $errors[] = t('validation.email_taken');
             }
         }
         if ($errors !== []) {
             return ['ok' => false, 'errors' => $errors];
         }
 
-        // Der allererste Benutzer wird Admin, alle weiteren bekommen die Standardrolle.
+        // The very first user becomes admin, everyone after that gets the default role.
         $role = $this->users->countAll() === 0
             ? 'admin'
             : (in_array(Env::get('DEFAULT_ROLE', 'author'), ['author', 'visitor'], true)
@@ -74,7 +74,7 @@ final class AuthService
         $user = $this->users->findByEmail($email);
 
         if ($user === null || !(bool) $user['is_active'] || !password_verify($password, (string) $user['password_hash'])) {
-            // Timing-Angriffe erschweren und Brute-Force verlangsamen.
+            // Slow down timing attacks and brute-forcing.
             usleep(300_000);
             return false;
         }
@@ -110,8 +110,8 @@ final class AuthService
     }
 
     /**
-     * Verschickt bei bekannter Adresse einen Reset-Link. Nach außen ist die
-     * Antwort immer gleich, damit sich keine Konten "erraten" lassen.
+     * Sends a reset link if the address is known. The response to the caller
+     * is always the same, so accounts can't be "guessed" from the outside.
      */
     public function requestPasswordReset(string $email): void
     {
@@ -127,14 +127,11 @@ final class AuthService
             new \DateTimeImmutable('+1 hour', new \DateTimeZone('UTC')),
         );
 
-        $link = rtrim((string) Env::get('APP_URL', ''), '/') . '/passwort-reset?token=' . $token;
+        $link = rtrim((string) Env::get('APP_URL', ''), '/') . '/reset-password?token=' . $token;
         $this->mail->send(
             (string) $user['email'],
-            'Passwort zurücksetzen',
-            "Hallo {$user['name']},\n\n"
-            . "für dein Konto wurde ein neues Passwort angefordert. Über diesen Link kannst du eines setzen (1 Stunde gültig):\n\n"
-            . $link . "\n\n"
-            . "Falls du das nicht warst, kannst du diese E-Mail ignorieren.\n",
+            t('mail.password_reset_subject'),
+            t('mail.password_reset_body', ['name' => (string) $user['name'], 'link' => $link]),
         );
     }
 
@@ -145,10 +142,10 @@ final class AuthService
     {
         $errors = [];
         if (mb_strlen($password) < self::MIN_PASSWORD_LENGTH) {
-            $errors[] = sprintf('Das Passwort braucht mindestens %d Zeichen.', self::MIN_PASSWORD_LENGTH);
+            $errors[] = t('validation.password_min_length', ['min' => self::MIN_PASSWORD_LENGTH]);
         }
         if ($password !== $passwordRepeat) {
-            $errors[] = 'Die Passwörter stimmen nicht überein.';
+            $errors[] = t('validation.password_mismatch');
         }
         if ($errors !== []) {
             return ['ok' => false, 'errors' => $errors];
@@ -156,7 +153,7 @@ final class AuthService
 
         $reset = $this->resets->findValidByTokenHash(hash('sha256', $token));
         if ($reset === null) {
-            return ['ok' => false, 'errors' => ['Der Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.']];
+            return ['ok' => false, 'errors' => [t('validation.reset_link_invalid')]];
         }
 
         $userId = (int) $reset['user_id'];
@@ -168,7 +165,7 @@ final class AuthService
 
     private function loginSession(int $userId): void
     {
-        session_regenerate_id(true); // Session-Fixation verhindern
+        session_regenerate_id(true); // Prevent session fixation
         $_SESSION[self::SESSION_USER_KEY] = $userId;
     }
 }

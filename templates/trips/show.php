@@ -8,7 +8,7 @@
 <h1>
   <?= e($trip['title']) ?>
   <?php if ($trip['visibility'] === 'private'): ?>
-    <span class="trip-card__badge">privat</span>
+    <span class="trip-card__badge"><?= e(t('trip.badge_private')) ?></span>
   <?php endif; ?>
 </h1>
 
@@ -16,7 +16,7 @@
   <?= e(format_date_range($trip['date_start'], $trip['date_end'])) ?>
   <?php if (!empty($trip['country'])): ?> · <?= e($trip['country']) ?><?php endif; ?>
   <?php if (!empty($trip['operator'])): ?> · <?= e($trip['operator']) ?><?php endif; ?>
-  · von <?= e($trip['author_name']) ?>
+  · <?= e(t('trip.show.by')) ?> <?= e($trip['author_name']) ?>
 </p>
 
 <?php if (!empty($trip['description'])): ?>
@@ -24,7 +24,7 @@
 <?php endif; ?>
 
 <?php if ($stations !== []): ?>
-  <h2>Route</h2>
+  <h2><?= e(t('trip.show.route_heading')) ?></h2>
   <ul class="route">
     <?php foreach ($stations as $station): ?>
       <li>
@@ -40,7 +40,7 @@
   </ul>
 <?php endif; ?>
 
-<h2>Tagebuch</h2>
+<h2><?= e(t('trip.show.diary_heading')) ?></h2>
 
 <?php if ($entries !== []): ?>
   <ul class="day-entry-list">
@@ -71,11 +71,11 @@
 
         <?php if ($canEdit): ?>
           <div class="page-actions">
-            <a class="btn btn-ghost" href="/tagebuch/<?= (int) $entry['id'] ?>/bearbeiten">Bearbeiten</a>
-            <form method="post" action="/tagebuch/<?= (int) $entry['id'] ?>/loeschen"
-                  onsubmit="return confirm('Diesen Tagebucheintrag wirklich löschen?');">
+            <a class="btn btn-ghost" href="/entries/<?= (int) $entry['id'] ?>/edit"><?= e(t('entry.edit')) ?></a>
+            <form method="post" action="/entries/<?= (int) $entry['id'] ?>/delete"
+                  onsubmit="return confirm('<?= e(t('entry.delete_confirm')) ?>');">
               <?= $csrf->field() ?>
-              <button type="submit" class="btn btn-danger">Löschen</button>
+              <button type="submit" class="btn btn-danger"><?= e(t('entry.delete')) ?></button>
             </form>
           </div>
         <?php endif; ?>
@@ -83,26 +83,26 @@
     <?php endforeach; ?>
   </ul>
 <?php elseif (!$canEdit): ?>
-  <p class="empty-state">Noch keine Tagebucheinträge.</p>
+  <p class="empty-state"><?= e(t('trip.show.no_entries')) ?></p>
 <?php endif; ?>
 
 <?php if ($canEdit): ?>
   <div class="page-actions">
-    <a class="btn btn-primary" href="/reisen/<?= (int) $trip['id'] ?>/tagebuch/neu">+ Tagebucheintrag</a>
+    <a class="btn btn-primary" href="/trips/<?= (int) $trip['id'] ?>/entries/new"><?= e(t('trip.show.add_entry')) ?></a>
   </div>
 <?php endif; ?>
 
 <div class="empty-state">
-  <p>Fotos und Videos kommen als Nächstes dazu.</p>
+  <p><?= e(t('trip.show.photos_note')) ?></p>
 </div>
 
 <?php if ($canEdit): ?>
   <div class="page-actions">
-    <a class="btn btn-ghost" href="/reisen/<?= (int) $trip['id'] ?>/bearbeiten">Reise bearbeiten</a>
-    <form method="post" action="/reisen/<?= (int) $trip['id'] ?>/loeschen"
-          onsubmit="return confirm('Diese Reise wirklich löschen?');">
+    <a class="btn btn-ghost" href="/trips/<?= (int) $trip['id'] ?>/edit"><?= e(t('trip.show.edit')) ?></a>
+    <form method="post" action="/trips/<?= (int) $trip['id'] ?>/delete"
+          onsubmit="return confirm('<?= e(t('trip.show.delete_confirm')) ?>');">
       <?= $csrf->field() ?>
-      <button type="submit" class="btn btn-danger">Reise löschen</button>
+      <button type="submit" class="btn btn-danger"><?= e(t('trip.show.delete')) ?></button>
     </form>
   </div>
 <?php endif; ?>

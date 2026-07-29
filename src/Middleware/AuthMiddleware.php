@@ -14,8 +14,8 @@ use Psr\Http\Server\RequestHandlerInterface;
 
 
 /**
- * Stellt den aktuellen Benutzer als Request-Attribut "user" bereit
- * (oder null) und macht ihn den Templates global verfügbar.
+ * Provides the current user as the "user" request attribute (or null),
+ * and makes them globally available to templates.
  */
 final class AuthMiddleware implements MiddlewareInterface
 {

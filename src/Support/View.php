@@ -7,14 +7,14 @@ namespace App\Support;
 use Psr\Http\Message\ResponseInterface;
 
 /**
- * Schlanker PHP-Template-Renderer mit Layout-Unterstützung.
- * Templates liegen unter /templates und sind reine .php-Dateien.
+ * Lean PHP template renderer with layout support.
+ * Templates live under /templates and are plain .php files.
  */
 final class View
 {
     public function __construct(
         private readonly string $templateDir,
-        /** @var array<string, mixed> global verfügbare Daten (z.B. aktueller User) */
+        /** @var array<string, mixed> globally available data (e.g. the current user) */
         private array $shared = [],
     ) {
     }
@@ -54,7 +54,7 @@ final class View
     {
         $file = $this->templateDir . '/' . $template . '.php';
         if (!is_file($file)) {
-            throw new \RuntimeException(sprintf('Template "%s" nicht gefunden.', $template));
+            throw new \RuntimeException(sprintf('Template "%s" not found.', $template));
         }
 
         extract($this->shared, EXTR_SKIP);

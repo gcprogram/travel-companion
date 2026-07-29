@@ -24,7 +24,7 @@ final class Connection
 
         if (str_starts_with(Env::require('DB_DSN'), 'mysql:')) {
             $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
-            $pdo->exec("SET time_zone = '+00:00'"); // Alle Zeitstempel in UTC speichern
+            $pdo->exec("SET time_zone = '+00:00'"); // Store all timestamps in UTC
         }
 
         return $pdo;

@@ -1,7 +1,7 @@
 /**
- * Progressive Enhancement fürs Reiseformular: Stationen-Zeilen
- * hinzufügen/entfernen, ohne Server-Rundtrip. Ohne JS funktioniert
- * das Formular weiterhin (die Server-Validierung ignoriert leere Zeilen).
+ * Progressive enhancement for the trip form: add/remove station rows
+ * without a server round-trip. Without JS the form still works
+ * (server-side validation ignores empty rows).
  */
 document.addEventListener('DOMContentLoaded', function () {
   var list = document.querySelector('[data-station-list]');

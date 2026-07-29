@@ -12,8 +12,8 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Slim\Psr7\Response;
 
 /**
- * Blockt nicht angemeldete Zugriffe und leitet zum Login um.
- * Pro Route/Gruppe hinzufügen: ->add(RequireLogin::class)
+ * Blocks unauthenticated access and redirects to login.
+ * Add per route/group: ->add(RequireLogin::class)
  */
 final class RequireLogin implements MiddlewareInterface
 {
@@ -24,7 +24,7 @@ final class RequireLogin implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         if ($request->getAttribute('user') === null) {
-            $this->flash->add('info', 'Bitte melde dich an.');
+            $this->flash->add('info', t('flash.please_login'));
             return (new Response())
                 ->withHeader('Location', '/login')
                 ->withStatus(302);

@@ -7,8 +7,8 @@ namespace App\Job;
 interface JobHandlerInterface
 {
     /**
-     * Führt den Job aus. Wirft bei Fehlern eine Exception –
-     * der Worker kümmert sich um Retry/Backoff.
+     * Runs the job. Throw an exception on failure –
+     * the Worker takes care of retry/backoff.
      *
      * @param array<string, mixed> $payload
      */

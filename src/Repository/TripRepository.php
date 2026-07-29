@@ -13,8 +13,8 @@ final class TripRepository
     }
 
     /**
-     * Alle Reisen, die der (ggf. nicht angemeldete) Betrachter sehen darf,
-     * neueste zuerst nach Reisebeginn.
+     * All trips the (possibly logged-out) viewer is allowed to see,
+     * newest first by trip start date.
      *
      * @return list<array<string, mixed>>
      */

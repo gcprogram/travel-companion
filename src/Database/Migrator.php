@@ -7,8 +7,8 @@ namespace App\Database;
 use PDO;
 
 /**
- * Führt nummerierte .sql-Dateien aus /migrations genau einmal aus.
- * Angewendete Migrationen werden in der Tabelle `migrations` protokolliert.
+ * Runs numbered .sql files from /migrations exactly once.
+ * Applied migrations are logged in the `migrations` table.
  */
 final class Migrator
 {
@@ -19,7 +19,7 @@ final class Migrator
     }
 
     /**
-     * @return list<string> Dateinamen der neu angewendeten Migrationen
+     * @return list<string> Filenames of the newly applied migrations
      */
     public function migrate(): array
     {
@@ -57,8 +57,9 @@ final class Migrator
     }
 
     /**
-     * Naive, aber für unsere eigenen Migrationsdateien ausreichende Statement-Trennung:
-     * Semikolon am Zeilenende trennt Statements; Zeilen mit '--' sind Kommentare.
+     * Naive but good enough statement splitting for our own migration files:
+     * a semicolon at the end of a line ends a statement; lines starting with
+     * '--' are comments.
      *
      * @return list<string>
      */
