@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Controller\AuthController;
+use App\Controller\DayEntryController;
 use App\Controller\HomeController;
 use App\Controller\TripController;
 use App\Middleware\RequireLogin;
@@ -30,6 +31,13 @@ return static function (App $app): void {
         $group->get('/reisen/{id:[0-9]+}/bearbeiten', [TripController::class, 'edit']);
         $group->post('/reisen/{id:[0-9]+}', [TripController::class, 'update']);
         $group->post('/reisen/{id:[0-9]+}/loeschen', [TripController::class, 'delete']);
+
+        // Tagesblog: Anlegen hängt an der Reise, Bearbeiten/Löschen am Eintrag selbst.
+        $group->get('/reisen/{tripId:[0-9]+}/tagebuch/neu', [DayEntryController::class, 'create']);
+        $group->post('/reisen/{tripId:[0-9]+}/tagebuch', [DayEntryController::class, 'store']);
+        $group->get('/tagebuch/{id:[0-9]+}/bearbeiten', [DayEntryController::class, 'edit']);
+        $group->post('/tagebuch/{id:[0-9]+}', [DayEntryController::class, 'update']);
+        $group->post('/tagebuch/{id:[0-9]+}/loeschen', [DayEntryController::class, 'delete']);
     })->add(RequireLogin::class);
 
     $app->get('/reise/{slug}', [TripController::class, 'show']);

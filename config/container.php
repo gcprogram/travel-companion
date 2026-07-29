@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Database\Connection;
 use App\Job\PingHandler;
+use App\Job\WeatherFetchHandler;
 use App\Job\Worker;
 use App\Repository\JobRepository;
 use App\Support\Env;
@@ -35,6 +36,7 @@ return [
 
         // Hier alle Job-Handler registrieren. Neue Typen: eine Zeile pro Handler.
         $worker->register('demo.ping', $c->get(PingHandler::class));
+        $worker->register('weather.fetch', $c->get(WeatherFetchHandler::class));
 
         return $worker;
     },

@@ -30,6 +30,62 @@ if (!function_exists('format_date')) {
     }
 }
 
+if (!function_exists('mood_emoji')) {
+    /**
+     * Stimmungswert (day_entries.mood) -> Emoji für die Anzeige.
+     */
+    function mood_emoji(?string $mood): string
+    {
+        return match ($mood) {
+            'sehr_schlecht' => '😞',
+            'schlecht' => '🙁',
+            'neutral' => '😐',
+            'gut' => '🙂',
+            'sehr_gut' => '😄',
+            default => '',
+        };
+    }
+}
+
+if (!function_exists('mood_label')) {
+    /**
+     * Stimmungswert (day_entries.mood) -> deutsches Label (z.B. für title-Attribute).
+     */
+    function mood_label(?string $mood): string
+    {
+        return match ($mood) {
+            'sehr_schlecht' => 'Sehr schlecht',
+            'schlecht' => 'Schlecht',
+            'neutral' => 'Neutral',
+            'gut' => 'Gut',
+            'sehr_gut' => 'Sehr gut',
+            default => '',
+        };
+    }
+}
+
+if (!function_exists('weather_description')) {
+    /**
+     * WMO-Wettercode (Open-Meteo) -> kurze deutsche Beschreibung.
+     * Grobe Gruppierung, nicht jeder der ~30 Codes braucht einen eigenen Text.
+     */
+    function weather_description(int $code): string
+    {
+        return match (true) {
+            $code === 0 => 'Klar',
+            $code <= 3 => 'Bewölkt',
+            $code === 45 || $code === 48 => 'Nebel',
+            $code >= 51 && $code <= 57 => 'Nieselregen',
+            $code >= 61 && $code <= 67 => 'Regen',
+            $code >= 71 && $code <= 77 => 'Schnee',
+            $code >= 80 && $code <= 82 => 'Regenschauer',
+            $code >= 85 && $code <= 86 => 'Schneeschauer',
+            $code >= 95 => 'Gewitter',
+            default => 'Wechselhaft',
+        };
+    }
+}
+
 if (!function_exists('format_date_range')) {
     /**
      * Zeitraum kompakt darstellen: "01.06. – 14.06.2026" bzw. über Jahresgrenzen voll.
