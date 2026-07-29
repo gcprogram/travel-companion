@@ -1,0 +1,136 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controller;
+
+use App\Service\AuthService;
+use App\Support\Env;
+use App\Support\Flash;
+use App\Support\View;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+
+final class AuthController
+{
+    public function __construct(
+        private readonly View $view,
+        private readonly AuthService $auth,
+        private readonly Flash $flash,
+    ) {
+    }
+
+    public function showLogin(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if ($request->getAttribute('user') !== null) {
+            return $this->redirect($response, '/');
+        }
+        return $this->view->render($response, 'auth/login');
+    }
+
+    public function login(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+        $email = (string) ($body['email'] ?? '');
+
+        if ($this->auth->attemptLogin($email, (string) ($body['password'] ?? ''))) {
+            return $this->redirect($response, '/');
+        }
+
+        return $this->view->render($response, 'auth/login', [
+            'errors' => ['E-Mail-Adresse oder Passwort ist falsch.'],
+            'old' => ['email' => $email],
+        ], status: 422);
+    }
+
+    public function showRegister(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if ($request->getAttribute('user') !== null) {
+            return $this->redirect($response, '/');
+        }
+        if (!Env::bool('REGISTRATION_OPEN', true)) {
+            $this->flash->add('info', 'Die Registrierung ist derzeit geschlossen.');
+            return $this->redirect($response, '/login');
+        }
+        return $this->view->render($response, 'auth/register');
+    }
+
+    public function register(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+
+        $result = $this->auth->register(
+            (string) ($body['email'] ?? ''),
+            (string) ($body['name'] ?? ''),
+            (string) ($body['password'] ?? ''),
+            (string) ($body['password_repeat'] ?? ''),
+        );
+
+        if (!$result['ok']) {
+            return $this->view->render($response, 'auth/register', [
+                'errors' => $result['errors'],
+                'old' => ['email' => (string) ($body['email'] ?? ''), 'name' => (string) ($body['name'] ?? '')],
+            ], status: 422);
+        }
+
+        $this->flash->add('success', 'Willkommen! Dein Konto wurde erstellt.');
+        return $this->redirect($response, '/');
+    }
+
+    public function logout(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $this->auth->logout();
+        return $this->redirect($response, '/');
+    }
+
+    public function showForgot(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        return $this->view->render($response, 'auth/forgot');
+    }
+
+    public function forgot(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+        $this->auth->requestPasswordReset((string) ($body['email'] ?? ''));
+
+        // Immer dieselbe Antwort, unabhängig davon, ob die Adresse existiert.
+        $this->flash->add('info', 'Wenn ein Konto mit dieser Adresse existiert, ist ein Reset-Link unterwegs.');
+        return $this->redirect($response, '/login');
+    }
+
+    public function showReset(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $token = (string) ($request->getQueryParams()['token'] ?? '');
+        if ($token === '') {
+            return $this->redirect($response, '/passwort-vergessen');
+        }
+        return $this->view->render($response, 'auth/reset', ['token' => $token]);
+    }
+
+    public function reset(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+        $token = (string) ($body['token'] ?? '');
+
+        $result = $this->auth->resetPassword(
+            $token,
+            (string) ($body['password'] ?? ''),
+            (string) ($body['password_repeat'] ?? ''),
+        );
+
+        if (!$result['ok']) {
+            return $this->view->render($response, 'auth/reset', [
+                'errors' => $result['errors'],
+                'token' => $token,
+            ], status: 422);
+        }
+
+        $this->flash->add('success', 'Passwort geändert. Du kannst dich jetzt anmelden.');
+        return $this->redirect($response, '/login');
+    }
+
+    private function redirect(ResponseInterface $response, string $to): ResponseInterface
+    {
+        return $response->withHeader('Location', $to)->withStatus(302);
+    }
+}
