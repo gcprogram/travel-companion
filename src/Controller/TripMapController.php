@@ -9,6 +9,7 @@ use App\Repository\PhotoRepository;
 use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
+use App\Service\TrackSmoothingService;
 use App\Service\TripAccess;
 use App\Support\View;
 use Psr\Http\Message\ResponseInterface;
@@ -24,6 +25,7 @@ final class TripMapController
         private readonly PhotoRepository $photos,
         private readonly VideoRepository $videos,
         private readonly TrackRepository $tracks,
+        private readonly TrackSmoothingService $smoothing,
         private readonly TripAccess $access,
     ) {
     }
@@ -137,13 +139,16 @@ final class TripMapController
             static fn (array $p): bool => (int) $p['seq'] >= $trimStart && (int) $p['seq'] <= $trimEnd,
         ));
 
+        $forSmoothing = array_map(static fn (array $p): array => [
+            'lat' => (float) $p['lat'],
+            'lng' => (float) $p['lng'],
+            'elevation' => $p['elevation_m'] !== null ? (float) $p['elevation_m'] : null,
+            'recordedAt' => $p['recorded_at'],
+            'accuracy' => $p['accuracy_m'] !== null ? (float) $p['accuracy_m'] : null,
+        ], $visible);
+
         return [
-            'points' => array_map(static fn (array $p): array => [
-                'lat' => (float) $p['lat'],
-                'lng' => (float) $p['lng'],
-                'elevation' => $p['elevation_m'] !== null ? (float) $p['elevation_m'] : null,
-                'recordedAt' => $p['recorded_at'],
-            ], $visible),
+            'points' => $this->smoothing->smooth($forSmoothing),
             'totalPoints' => $totalPoints,
             'trimStart' => $trimStart,
             'trimEnd' => $trimEnd,

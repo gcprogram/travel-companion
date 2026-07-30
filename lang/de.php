@@ -123,6 +123,7 @@ return [
     'trip.map.track_delete' => 'Track löschen',
     'trip.map.track_delete_confirm' => 'Diesen Track wirklich löschen?',
     'trip.map.track_deleted' => 'Track gelöscht.',
+    'trip.map.pause_label' => 'Pause',
 
     'entry.edit' => 'Bearbeiten',
     'entry.delete' => 'Löschen',
