@@ -2,6 +2,7 @@
 /** @var array<string, mixed> $trip */
 /** @var list<array<string, mixed>> $stations */
 /** @var list<array<string, mixed>> $entries */
+/** @var array<int, list<array<string, mixed>>> $photosByEntry */
 /** @var bool $canEdit */
 ?>
 
@@ -69,6 +70,19 @@
           </p>
         <?php endif; ?>
 
+        <?php $entryPhotos = array_filter($photosByEntry[(int) $entry['id']] ?? [], static fn (array $p): bool => $p['status'] === 'ready'); ?>
+        <?php if ($entryPhotos !== []): ?>
+          <ul class="photo-gallery">
+            <?php foreach ($entryPhotos as $photo): ?>
+              <li class="photo-gallery__item">
+                <a href="/photos/<?= (int) $photo['id'] ?>/web" target="_blank" rel="noopener">
+                  <img src="/photos/<?= (int) $photo['id'] ?>/thumb" alt="" loading="lazy">
+                </a>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        <?php endif; ?>
+
         <?php if ($canEdit): ?>
           <div class="page-actions">
             <a class="btn btn-ghost" href="/entries/<?= (int) $entry['id'] ?>/edit"><?= e(t('entry.edit')) ?></a>
@@ -93,7 +107,7 @@
 <?php endif; ?>
 
 <div class="empty-state">
-  <p><?= e(t('trip.show.photos_note')) ?></p>
+  <p><?= e(t('trip.show.videos_note')) ?></p>
 </div>
 
 <?php if ($canEdit): ?>

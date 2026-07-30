@@ -63,6 +63,10 @@ Datei ist aber `php -l`-geprüft):
    zeigen
 7. Sprachumschalter (EN/DE) oben rechts prüfen; UI-Texte sollten sich
    komplett übersetzen
+8. Auf einem gespeicherten Tagebucheintrag ein Foto hochladen, danach
+   `php bin/console.php jobs:work` laufen lassen – Thumbnail sollte
+   anschließend erscheinen; Löschen prüfen (löscht auch die Dateien unter
+   `var/uploads/photos/<id>/`)
 
 ## Deployment auf Bitpalast (Shared Hosting)
 

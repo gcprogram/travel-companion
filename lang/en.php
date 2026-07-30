@@ -22,6 +22,7 @@ return [
     'flash.trip_deleted' => 'Trip deleted.',
     'flash.entry_saved' => 'Diary entry saved.',
     'flash.entry_deleted' => 'Diary entry deleted.',
+    'flash.photo_deleted' => 'Photo deleted.',
 
     'auth.login.title' => 'Log in',
     'auth.login.email' => 'Email address',
@@ -97,7 +98,7 @@ return [
     'trip.show.diary_heading' => 'Diary',
     'trip.show.no_entries' => 'No diary entries yet.',
     'trip.show.add_entry' => '+ Diary entry',
-    'trip.show.photos_note' => 'Photos and videos are coming next.',
+    'trip.show.videos_note' => 'Videos are coming next.',
     'trip.show.edit' => 'Edit trip',
     'trip.show.delete' => 'Delete trip',
     'trip.show.delete_confirm' => 'Really delete this trip?',
@@ -122,6 +123,16 @@ return [
     'entry.form.geo_unsupported' => "This browser doesn't support location detection.",
     'entry.form.geo_locating' => 'Getting location…',
     'entry.form.geo_error' => 'Could not determine location (:error).',
+
+    'entry.form.photos_heading' => 'Photos',
+    'entry.form.photos_add' => 'Add photos',
+    'entry.form.photos_hint' => 'JPEG, PNG, or WebP, up to 25 MB each.',
+    'entry.form.photo_processing' => 'Processing…',
+    'entry.form.photo_failed' => 'Processing failed',
+    'entry.form.photo_delete' => 'Delete',
+    'entry.form.photo_delete_confirm' => 'Really delete this photo?',
+    'entry.form.photo_uploading' => 'Uploading photo :current of :total…',
+    'entry.form.photo_upload_error' => 'Upload failed. Please try again.',
 
     'mood.very_bad' => 'Very bad',
     'mood.bad' => 'Bad',

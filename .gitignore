@@ -2,8 +2,10 @@
 /.env
 /var/log/*
 /var/cache/*
+/var/uploads/*
 !/var/log/.gitkeep
 !/var/cache/.gitkeep
+!/var/uploads/.gitkeep
 /storage/
 composer.phar
 .phpunit.result.cache

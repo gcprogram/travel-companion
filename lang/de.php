@@ -22,6 +22,7 @@ return [
     'flash.trip_deleted' => 'Reise gelöscht.',
     'flash.entry_saved' => 'Tagebucheintrag gespeichert.',
     'flash.entry_deleted' => 'Tagebucheintrag gelöscht.',
+    'flash.photo_deleted' => 'Foto gelöscht.',
 
     'auth.login.title' => 'Anmelden',
     'auth.login.email' => 'E-Mail-Adresse',
@@ -97,7 +98,7 @@ return [
     'trip.show.diary_heading' => 'Tagebuch',
     'trip.show.no_entries' => 'Noch keine Tagebucheinträge.',
     'trip.show.add_entry' => '+ Tagebucheintrag',
-    'trip.show.photos_note' => 'Fotos und Videos kommen als Nächstes dazu.',
+    'trip.show.videos_note' => 'Videos kommen als Nächstes dazu.',
     'trip.show.edit' => 'Reise bearbeiten',
     'trip.show.delete' => 'Reise löschen',
     'trip.show.delete_confirm' => 'Diese Reise wirklich löschen?',
@@ -122,6 +123,16 @@ return [
     'entry.form.geo_unsupported' => 'Standorterfassung wird von diesem Browser nicht unterstützt.',
     'entry.form.geo_locating' => 'Standort wird ermittelt …',
     'entry.form.geo_error' => 'Standort konnte nicht ermittelt werden (:error).',
+
+    'entry.form.photos_heading' => 'Fotos',
+    'entry.form.photos_add' => 'Fotos hinzufügen',
+    'entry.form.photos_hint' => 'JPEG, PNG oder WebP, bis zu 25 MB pro Foto.',
+    'entry.form.photo_processing' => 'Wird verarbeitet …',
+    'entry.form.photo_failed' => 'Verarbeitung fehlgeschlagen',
+    'entry.form.photo_delete' => 'Löschen',
+    'entry.form.photo_delete_confirm' => 'Dieses Foto wirklich löschen?',
+    'entry.form.photo_uploading' => 'Foto :current von :total wird hochgeladen …',
+    'entry.form.photo_upload_error' => 'Upload fehlgeschlagen. Bitte erneut versuchen.',
 
     'mood.very_bad' => 'Sehr schlecht',
     'mood.bad' => 'Schlecht',
