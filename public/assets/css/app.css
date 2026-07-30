@@ -425,6 +425,7 @@ form.auth-form { max-width: 420px; }
 }
 .map-view__trim-form label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; color: var(--color-muted); }
 .map-view__trim-form input[type="range"] { width: 140px; }
+.map-view__folder-form { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
 
 .map-view__canvas {
   height: 60vh;
