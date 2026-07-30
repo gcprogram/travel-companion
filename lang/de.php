@@ -154,6 +154,18 @@ return [
     'entry.form.youtube_placeholder' => 'https://youtube.com/watch?v=...',
     'entry.form.youtube_add' => 'Hinzufügen',
     'entry.form.video_youtube_invalid' => 'Das sieht nicht nach einem gültigen YouTube-Link aus.',
+    'entry.form.queued_offline' => 'Auf diesem Gerät gespeichert — wird hochgeladen, sobald wieder online.',
+
+    'offline.sync_pending_one' => '1 Objekt wartet auf Synchronisierung',
+    'offline.sync_pending_many' => ':count Objekte warten auf Synchronisierung',
+    'offline.sync_now' => 'Jetzt synchronisieren',
+    'offline.sync_waiting_wifi' => 'Wartet auf WLAN',
+    'offline.wifi_only_label' => 'Nur über WLAN synchronisieren (vermeidet Kosten für mobile Daten/Roaming)',
+    'offline.queue_remove' => 'Entfernen',
+    'offline.queue_remove_confirm' => 'Dieses Objekt verwerfen? Es wird dann nicht hochgeladen.',
+    'offline.draft_found' => 'Es gibt einen nicht gespeicherten Entwurf für diesen Eintrag.',
+    'offline.draft_restore' => 'Entwurf wiederherstellen',
+    'offline.draft_discard' => 'Verwerfen',
 
     'mood.very_bad' => 'Sehr schlecht',
     'mood.bad' => 'Schlecht',

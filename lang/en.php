@@ -154,6 +154,18 @@ return [
     'entry.form.youtube_placeholder' => 'https://youtube.com/watch?v=...',
     'entry.form.youtube_add' => 'Add',
     'entry.form.video_youtube_invalid' => "That doesn't look like a valid YouTube link.",
+    'entry.form.queued_offline' => 'Saved on this device — will upload once online.',
+
+    'offline.sync_pending_one' => '1 item waiting to sync',
+    'offline.sync_pending_many' => ':count items waiting to sync',
+    'offline.sync_now' => 'Sync now',
+    'offline.sync_waiting_wifi' => 'Waiting for WiFi',
+    'offline.wifi_only_label' => 'Only sync over WiFi (avoids mobile data/roaming charges)',
+    'offline.queue_remove' => 'Remove',
+    'offline.queue_remove_confirm' => 'Discard this item? It will not be uploaded.',
+    'offline.draft_found' => 'You have an unsaved draft for this entry.',
+    'offline.draft_restore' => 'Restore draft',
+    'offline.draft_discard' => 'Discard',
 
     'mood.very_bad' => 'Very bad',
     'mood.bad' => 'Bad',
