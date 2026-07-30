@@ -19,7 +19,15 @@ $lng = $entry['lng'] ?? null;
   <div class="errors"><ul><?php foreach ($errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?></ul></div>
 <?php endif; ?>
 
-<form method="post" action="<?= e($action) ?>">
+<div class="draft-banner" data-draft-banner hidden>
+  <p class="field-hint">
+    <?= e(t('offline.draft_found')) ?>
+    <button type="button" class="btn btn-ghost btn-small" data-draft-restore><?= e(t('offline.draft_restore')) ?></button>
+    <button type="button" class="btn btn-ghost btn-small" data-draft-discard><?= e(t('offline.draft_discard')) ?></button>
+  </p>
+</div>
+
+<form method="post" action="<?= e($action) ?>" data-entry-draft data-draft-key="entry-draft-<?= e($action) ?>">
   <?= $csrf->field() ?>
 
   <div class="field">
@@ -87,41 +95,58 @@ $lng = $entry['lng'] ?? null;
 </form>
 
 <?php if ($isEdit): ?>
+  <div class="sync-status" data-sync-status hidden
+       data-msg-pending-one="<?= e(t('offline.sync_pending_one')) ?>"
+       data-msg-pending-many="<?= e(t('offline.sync_pending_many')) ?>"
+       data-msg-waiting-wifi="<?= e(t('offline.sync_waiting_wifi')) ?>">
+    <p class="field-hint">
+      <span data-sync-count></span>
+      <button type="button" class="btn btn-ghost btn-small" data-sync-now><?= e(t('offline.sync_now')) ?></button>
+    </p>
+    <label class="field-hint sync-status__wifi-toggle">
+      <input type="checkbox" data-wifi-only-toggle>
+      <?= e(t('offline.wifi_only_label')) ?>
+    </label>
+  </div>
+
   <h2><?= e(t('entry.form.photos_heading')) ?></h2>
   <p class="field-hint"><?= e(t('entry.form.photos_hint')) ?></p>
 
-  <?php if ($photos !== []): ?>
-    <ul class="photo-gallery">
-      <?php foreach ($photos as $photo): ?>
-        <li class="photo-gallery__item">
-          <?php if ($photo['status'] === 'ready'): ?>
-            <a href="/photos/<?= (int) $photo['id'] ?>/web" target="_blank" rel="noopener">
-              <img src="/photos/<?= (int) $photo['id'] ?>/thumb" alt="" loading="lazy">
-            </a>
-            <?php if ($photo['lat'] !== null): ?>
-              <span class="geo-badge" title="<?= e(t('media.geotagged_hint')) ?>">📍</span>
-            <?php endif; ?>
-          <?php elseif ($photo['status'] === 'failed'): ?>
-            <div class="photo-gallery__placeholder photo-gallery__placeholder--failed"><?= e(t('entry.form.photo_failed')) ?></div>
-          <?php else: ?>
-            <div class="photo-gallery__placeholder"><?= e(t('entry.form.photo_processing')) ?></div>
+  <ul class="photo-gallery" data-photo-gallery data-entry-id="<?= (int) $entry['id'] ?>"
+      data-msg-queued="<?= e(t('entry.form.queued_offline')) ?>"
+      data-msg-remove="<?= e(t('offline.queue_remove')) ?>"
+      data-msg-remove-confirm="<?= e(t('offline.queue_remove_confirm')) ?>">
+    <?php foreach ($photos as $photo): ?>
+      <li class="photo-gallery__item">
+        <?php if ($photo['status'] === 'ready'): ?>
+          <a href="/photos/<?= (int) $photo['id'] ?>/web" target="_blank" rel="noopener">
+            <img src="/photos/<?= (int) $photo['id'] ?>/thumb" alt="" loading="lazy">
+          </a>
+          <?php if ($photo['lat'] !== null): ?>
+            <span class="geo-badge" title="<?= e(t('media.geotagged_hint')) ?>">📍</span>
           <?php endif; ?>
-          <form method="post" action="/photos/<?= (int) $photo['id'] ?>/delete"
-                data-confirm="<?= e(t('entry.form.photo_delete_confirm')) ?>">
-            <?= $csrf->field() ?>
-            <button type="submit" class="btn btn-ghost photo-gallery__remove"><?= e(t('entry.form.photo_delete')) ?></button>
-          </form>
-        </li>
-      <?php endforeach; ?>
-    </ul>
-  <?php endif; ?>
+        <?php elseif ($photo['status'] === 'failed'): ?>
+          <div class="photo-gallery__placeholder photo-gallery__placeholder--failed"><?= e(t('entry.form.photo_failed')) ?></div>
+        <?php else: ?>
+          <div class="photo-gallery__placeholder"><?= e(t('entry.form.photo_processing')) ?></div>
+        <?php endif; ?>
+        <form method="post" action="/photos/<?= (int) $photo['id'] ?>/delete"
+              data-confirm="<?= e(t('entry.form.photo_delete_confirm')) ?>">
+          <?= $csrf->field() ?>
+          <button type="submit" class="btn btn-ghost photo-gallery__remove"><?= e(t('entry.form.photo_delete')) ?></button>
+        </form>
+      </li>
+    <?php endforeach; ?>
+  </ul>
 
   <div class="field">
     <label class="btn btn-ghost" for="photo-input"><?= e(t('entry.form.photos_add')) ?></label>
     <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" multiple
            data-photo-input
+           data-entry-id="<?= (int) $entry['id'] ?>"
            data-upload-url="/entries/<?= (int) $entry['id'] ?>/photos"
            data-msg-uploading="<?= e(t('entry.form.photo_uploading')) ?>"
+           data-msg-queued="<?= e(t('entry.form.queued_offline')) ?>"
            data-msg-error="<?= e(t('entry.form.photo_upload_error')) ?>"
            class="visually-hidden">
     <p class="field-hint" data-photo-status></p>
@@ -130,46 +155,49 @@ $lng = $entry['lng'] ?? null;
   <h2><?= e(t('entry.form.videos_heading')) ?></h2>
   <p class="field-hint"><?= e(t('entry.form.videos_hint')) ?></p>
 
-  <?php if ($videos !== []): ?>
-    <ul class="photo-gallery">
-      <?php foreach ($videos as $video): ?>
-        <li class="photo-gallery__item">
-          <?php if ($video['type'] === 'youtube'): ?>
-            <a href="https://www.youtube-nocookie.com/watch?v=<?= e((string) $video['youtube_id']) ?>" target="_blank" rel="noopener">
-              <img src="https://i.ytimg.com/vi/<?= e((string) $video['youtube_id']) ?>/hqdefault.jpg" alt="" loading="lazy">
-            </a>
-          <?php elseif ($video['status'] === 'ready'): ?>
-            <a href="/videos/<?= (int) $video['id'] ?>" target="_blank" rel="noopener" class="photo-gallery__video-link">
-              <img src="/videos/<?= (int) $video['id'] ?>/poster" alt="" loading="lazy">
-            </a>
-            <?php if ($video['lat'] !== null): ?>
-              <span class="geo-badge" title="<?= e(t('media.geotagged_hint')) ?>">📍</span>
-            <?php endif; ?>
-          <?php elseif ($video['status'] === 'failed'): ?>
-            <div class="photo-gallery__placeholder photo-gallery__placeholder--failed"><?= e(t('entry.form.video_failed')) ?></div>
-          <?php else: ?>
-            <div class="photo-gallery__placeholder"><?= e(t('entry.form.video_processing')) ?></div>
+  <ul class="photo-gallery" data-video-gallery data-entry-id="<?= (int) $entry['id'] ?>"
+      data-msg-queued="<?= e(t('entry.form.queued_offline')) ?>"
+      data-msg-remove="<?= e(t('offline.queue_remove')) ?>"
+      data-msg-remove-confirm="<?= e(t('offline.queue_remove_confirm')) ?>">
+    <?php foreach ($videos as $video): ?>
+      <li class="photo-gallery__item">
+        <?php if ($video['type'] === 'youtube'): ?>
+          <a href="https://www.youtube-nocookie.com/watch?v=<?= e((string) $video['youtube_id']) ?>" target="_blank" rel="noopener">
+            <img src="https://i.ytimg.com/vi/<?= e((string) $video['youtube_id']) ?>/hqdefault.jpg" alt="" loading="lazy">
+          </a>
+        <?php elseif ($video['status'] === 'ready'): ?>
+          <a href="/videos/<?= (int) $video['id'] ?>" target="_blank" rel="noopener" class="photo-gallery__video-link">
+            <img src="/videos/<?= (int) $video['id'] ?>/poster" alt="" loading="lazy">
+          </a>
+          <?php if ($video['lat'] !== null): ?>
+            <span class="geo-badge" title="<?= e(t('media.geotagged_hint')) ?>">📍</span>
           <?php endif; ?>
-          <form method="post" action="/videos/<?= (int) $video['id'] ?>/delete"
-                data-confirm="<?= e(t('entry.form.video_delete_confirm')) ?>">
-            <?= $csrf->field() ?>
-            <button type="submit" class="btn btn-ghost photo-gallery__remove"><?= e(t('entry.form.video_delete')) ?></button>
-          </form>
-        </li>
-      <?php endforeach; ?>
-    </ul>
-  <?php endif; ?>
+        <?php elseif ($video['status'] === 'failed'): ?>
+          <div class="photo-gallery__placeholder photo-gallery__placeholder--failed"><?= e(t('entry.form.video_failed')) ?></div>
+        <?php else: ?>
+          <div class="photo-gallery__placeholder"><?= e(t('entry.form.video_processing')) ?></div>
+        <?php endif; ?>
+        <form method="post" action="/videos/<?= (int) $video['id'] ?>/delete"
+              data-confirm="<?= e(t('entry.form.video_delete_confirm')) ?>">
+          <?= $csrf->field() ?>
+          <button type="submit" class="btn btn-ghost photo-gallery__remove"><?= e(t('entry.form.video_delete')) ?></button>
+        </form>
+      </li>
+    <?php endforeach; ?>
+  </ul>
 
   <div class="field">
     <label class="btn btn-ghost" for="video-input"><?= e(t('entry.form.videos_add')) ?></label>
     <input type="file" id="video-input" accept="video/*"
            data-video-input
+           data-entry-id="<?= (int) $entry['id'] ?>"
            data-upload-url="/entries/<?= (int) $entry['id'] ?>/videos"
            data-msg-unsupported="<?= e(t('entry.form.video_unsupported')) ?>"
            data-msg-compressing="<?= e(t('entry.form.video_compressing')) ?>"
            data-msg-uploading="<?= e(t('entry.form.video_uploading')) ?>"
            data-msg-too-long="<?= e(t('entry.form.video_too_long')) ?>"
            data-msg-codec-unsupported="<?= e(t('entry.form.video_codec_unsupported')) ?>"
+           data-msg-queued="<?= e(t('entry.form.queued_offline')) ?>"
            data-msg-error="<?= e(t('entry.form.video_upload_error')) ?>"
            class="visually-hidden">
     <p class="field-hint" data-video-status></p>
@@ -185,6 +213,8 @@ $lng = $entry['lng'] ?? null;
   </form>
 
   <script src="/assets/js/chunked-upload.js"></script>
+  <script src="/assets/js/offline-queue.js"></script>
+  <script src="/assets/js/offline-gallery.js"></script>
   <script src="/assets/js/photo-upload.js"></script>
   <script src="/assets/js/vendor/mp4-muxer.js"></script>
   <script src="/assets/js/video-compress.js"></script>

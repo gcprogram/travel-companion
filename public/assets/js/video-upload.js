@@ -3,6 +3,10 @@
  * WebCodecs) before handing the result to the shared ChunkedUpload helper.
  * Browsers without WebCodecs support get the file input disabled with an
  * explanatory message pointing at the YouTube-link form instead.
+ *
+ * Compression itself needs no network (it's pure in-browser WebCodecs), so
+ * it runs the same whether online or not. Only the upload step falls back
+ * to OfflineQueue when the connection isn't there.
  */
 document.addEventListener('DOMContentLoaded', function () {
   var input = document.querySelector('[data-video-input]');
@@ -20,6 +24,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   var uploadUrl = input.dataset.uploadUrl;
+  var entryId = parseInt(input.dataset.entryId, 10);
 
   input.addEventListener('change', function () {
     var file = input.files[0];
@@ -54,12 +59,7 @@ document.addEventListener('DOMContentLoaded', function () {
           extraFields.lat = String(geotag.lat);
           extraFields.lng = String(geotag.lng);
         }
-        return ChunkedUpload.upload(result.blob, 'video.mp4', uploadUrl, csrfField.value, {
-          onProgress: function (fraction) {
-            status.textContent = input.dataset.msgUploading + ' ' + Math.round(fraction * 100) + '%';
-          },
-          extraFields: extraFields,
-        });
+        return uploadOrQueue(result.blob, extraFields);
       })
       .then(function () {
         window.location.reload();
@@ -76,4 +76,41 @@ document.addEventListener('DOMContentLoaded', function () {
         input.disabled = false;
       });
   });
+
+  function uploadOrQueue(blob, extraFields) {
+    if (!navigator.onLine) {
+      return queueBlob(blob, extraFields);
+    }
+    return ChunkedUpload.upload(blob, 'video.mp4', uploadUrl, csrfField.value, {
+      onProgress: function (fraction) {
+        status.textContent = input.dataset.msgUploading + ' ' + Math.round(fraction * 100) + '%';
+      },
+      extraFields: extraFields,
+    }).catch(function (err) {
+      if (isNetworkError(err)) {
+        return queueBlob(blob, extraFields);
+      }
+      throw err;
+    });
+  }
+
+  function queueBlob(blob, extraFields) {
+    if (!window.OfflineQueue) {
+      throw new Error('offline_unsupported');
+    }
+    return OfflineQueue.add({
+      type: 'video',
+      entryId: entryId,
+      uploadUrl: uploadUrl,
+      filename: 'video.mp4',
+      blob: blob,
+      extraFields: extraFields,
+    }).then(function () {
+      status.textContent = input.dataset.msgQueued || '';
+    });
+  }
+
+  function isNetworkError(err) {
+    return !err || typeof err.status === 'undefined';
+  }
 });

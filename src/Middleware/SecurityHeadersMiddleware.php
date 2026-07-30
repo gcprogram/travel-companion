@@ -20,6 +20,10 @@ use Psr\Http\Server\RequestHandlerInterface;
  * picked into an off-screen <video> via URL.createObjectURL() to read
  * frames for compression — without it every video upload fails immediately
  * on selection, before compression even starts.
+ * worker-src/manifest-src are listed explicitly (even though they'd fall
+ * back to default-src/script-src 'self' anyway) rather than trusting that
+ * fallback chain blind — the media-src gap above already burned us once
+ * this project from assuming a directive wasn't needed without checking.
  */
 final class SecurityHeadersMiddleware implements MiddlewareInterface
 {
@@ -35,6 +39,8 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
                 "frame-src https://www.youtube-nocookie.com",
                 "style-src 'self'",
                 "script-src 'self'",
+                "worker-src 'self'",
+                "manifest-src 'self'",
                 "form-action 'self'",
                 "frame-ancestors 'none'",
                 "base-uri 'none'",

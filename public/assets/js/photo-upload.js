@@ -2,7 +2,10 @@
  * Photo upload: hands each selected file to the shared ChunkedUpload helper
  * (chunked-upload.js) one at a time. Processing (thumbnails) happens async
  * on the server; we just reload once every file has been uploaded so the
- * gallery picks up the new entries.
+ * gallery picks up the new entries. Files that can't reach the server
+ * (offline, or the connection drops mid-upload) go into OfflineQueue
+ * instead of failing outright — offline-gallery.js renders them and syncs
+ * them later.
  */
 document.addEventListener('DOMContentLoaded', function () {
   var input = document.querySelector('[data-photo-input]');
@@ -14,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   var uploadUrl = input.dataset.uploadUrl;
+  var entryId = parseInt(input.dataset.entryId, 10);
 
   input.addEventListener('change', function () {
     var files = Array.prototype.slice.call(input.files);
@@ -36,8 +40,44 @@ document.addEventListener('DOMContentLoaded', function () {
         status.textContent = input.dataset.msgUploading
           .replace(':current', String(index + 1))
           .replace(':total', String(files.length));
-        return ChunkedUpload.upload(file, file.name, uploadUrl, csrfField.value);
+        return uploadOrQueue(file);
       });
     }, Promise.resolve());
+  }
+
+  function uploadOrQueue(file) {
+    if (!navigator.onLine) {
+      return queueFile(file);
+    }
+    return ChunkedUpload.upload(file, file.name, uploadUrl, csrfField.value).catch(function (err) {
+      if (isNetworkError(err)) {
+        return queueFile(file);
+      }
+      throw err;
+    });
+  }
+
+  function queueFile(file) {
+    if (!window.OfflineQueue) {
+      throw new Error('offline_unsupported');
+    }
+    return OfflineQueue.add({
+      type: 'photo',
+      entryId: entryId,
+      uploadUrl: uploadUrl,
+      filename: file.name,
+      blob: file,
+    }).then(function () {
+      status.textContent = input.dataset.msgQueued || '';
+    });
+  }
+
+  // A network-layer failure (offline, DNS, connection dropped) rejects
+  // fetch() itself with no HTTP response at all, so ChunkedUpload never got
+  // to set .status on the error — as opposed to a real server rejection
+  // (422/413/etc.), which always has one. That's the signal to queue
+  // instead of just showing an error.
+  function isNetworkError(err) {
+    return !err || typeof err.status === 'undefined';
   }
 });
