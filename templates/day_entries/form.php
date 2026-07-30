@@ -163,6 +163,7 @@ $lng = $entry['lng'] ?? null;
            data-msg-compressing="<?= e(t('entry.form.video_compressing')) ?>"
            data-msg-uploading="<?= e(t('entry.form.video_uploading')) ?>"
            data-msg-too-long="<?= e(t('entry.form.video_too_long')) ?>"
+           data-msg-codec-unsupported="<?= e(t('entry.form.video_codec_unsupported')) ?>"
            data-msg-error="<?= e(t('entry.form.video_upload_error')) ?>"
            class="visually-hidden">
     <p class="field-hint" data-video-status></p>

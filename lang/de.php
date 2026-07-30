@@ -144,6 +144,7 @@ return [
     'entry.form.video_uploading' => 'Wird hochgeladen …',
     'entry.form.video_too_long' => 'Dieses Video ist länger als 2 Minuten. Bitte kürzen oder einen YouTube-Link verwenden.',
     'entry.form.video_upload_error' => 'Upload fehlgeschlagen. Bitte erneut versuchen.',
+    'entry.form.video_codec_unsupported' => 'Dieses Gerät kann Video nicht in einem unterstützten Format kodieren. Bitte stattdessen einen YouTube-Link verwenden.',
     'entry.form.video_processing' => 'Wird verarbeitet …',
     'entry.form.video_failed' => 'Fehlgeschlagen',
     'entry.form.video_delete' => 'Löschen',

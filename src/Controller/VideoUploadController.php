@@ -12,6 +12,7 @@ use App\Support\Flash;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * Receives the already-compressed video (see video-compress.js — compression
@@ -31,6 +32,7 @@ final class VideoUploadController
         private readonly JobRepository $jobs,
         private readonly DayEntryAccess $access,
         private readonly Flash $flash,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -45,11 +47,18 @@ final class VideoUploadController
         $originalName = (string) ($body['filename'] ?? 'video.mp4');
 
         if ($uploadId === '' || $chunkIndex < 0 || $chunkCount < 1 || $chunkIndex >= $chunkCount) {
+            $this->logger->warning('Video chunk upload: invalid request', [
+                'entry_id' => $entry['id'], 'chunk_index' => $chunkIndex, 'chunk_count' => $chunkCount,
+            ]);
             return $this->json($response, ['error' => 'invalid_request'], 422);
         }
 
         $chunk = $request->getUploadedFiles()['chunk'] ?? null;
         if (!$chunk instanceof UploadedFileInterface || $chunk->getError() !== UPLOAD_ERR_OK) {
+            $this->logger->warning('Video chunk upload: no/broken chunk file', [
+                'entry_id' => $entry['id'],
+                'upload_error' => $chunk instanceof UploadedFileInterface ? $chunk->getError() : null,
+            ]);
             return $this->json($response, ['error' => 'upload_failed'], 422);
         }
 
@@ -58,6 +67,7 @@ final class VideoUploadController
 
         $handle = fopen($tmpPath, $chunkIndex === 0 ? 'wb' : 'ab');
         if ($handle === false) {
+            $this->logger->error('Video chunk upload: could not open tmp file for writing', ['path' => $tmpPath]);
             return $this->json($response, ['error' => 'server_error'], 500);
         }
         $stream = $chunk->getStream()->detach();
@@ -68,6 +78,7 @@ final class VideoUploadController
         }
 
         if (filesize($tmpPath) > self::MAX_ORIGINAL_BYTES) {
+            $this->logger->warning('Video chunk upload: exceeded max size', ['entry_id' => $entry['id'], 'size' => filesize($tmpPath)]);
             unlink($tmpPath);
             return $this->json($response, ['error' => 'too_large'], 413);
         }
@@ -103,6 +114,7 @@ final class VideoUploadController
     private function finalize(string $tmpPath, int $entryId, string $originalName, array $body, ResponseInterface $response): ResponseInterface
     {
         if (!$this->looksLikeMp4($tmpPath)) {
+            $this->logger->warning('Video chunk upload: reassembled file is not a valid MP4', ['entry_id' => $entryId]);
             unlink($tmpPath);
             return $this->json($response, ['error' => 'unsupported_type'], 422);
         }
