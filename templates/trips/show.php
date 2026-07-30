@@ -25,6 +25,10 @@
   <p><?= nl2br(e($trip['description'])) ?></p>
 <?php endif; ?>
 
+<p class="page-actions">
+  <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/map"><?= e(t('trip.show.map_link')) ?></a>
+</p>
+
 <?php if ($stations !== []): ?>
   <h2><?= e(t('trip.show.route_heading')) ?></h2>
   <ul class="route">

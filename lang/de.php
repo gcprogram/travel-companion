@@ -105,6 +105,13 @@ return [
     'trip.show.edit' => 'Reise bearbeiten',
     'trip.show.delete' => 'Reise löschen',
     'trip.show.delete_confirm' => 'Diese Reise wirklich löschen?',
+    'trip.show.map_link' => '🗺 Karte ansehen',
+
+    'trip.map.title' => 'Karte',
+    'trip.map.back_to_trip' => '← Zurück zur Reise',
+    'trip.map.show_route' => 'Route anzeigen',
+    'trip.map.empty' => 'Noch keine Fotos oder Videos mit Standort.',
+    'trip.map.lightbox_close' => 'Schließen',
 
     'entry.edit' => 'Bearbeiten',
     'entry.delete' => 'Löschen',

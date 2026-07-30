@@ -15,7 +15,8 @@ use Psr\Http\Server\RequestHandlerInterface;
  * confirm-submit.js for how the delete-confirmation prompts avoid inline JS.
  *
  * img-src and frame-src carry narrow youtube-nocookie.com/i.ytimg.com
- * allowances for the YouTube video option (embed player + its thumbnail).
+ * allowances for the YouTube video option (embed player + its thumbnail),
+ * plus tile.openstreetmap.org for the trip map's raster tiles.
  * media-src allows blob: because video-compress.js loads the file the user
  * picked into an off-screen <video> via URL.createObjectURL() to read
  * frames for compression — without it every video upload fails immediately
@@ -34,7 +35,7 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
         return $response
             ->withHeader('Content-Security-Policy', implode('; ', [
                 "default-src 'self'",
-                "img-src 'self' https://i.ytimg.com",
+                "img-src 'self' https://i.ytimg.com https://tile.openstreetmap.org",
                 "media-src 'self' blob:",
                 "frame-src https://www.youtube-nocookie.com",
                 "style-src 'self'",

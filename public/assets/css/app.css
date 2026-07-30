@@ -410,6 +410,81 @@ form.auth-form { max-width: 420px; }
   padding: var(--space-4) var(--space-2);
 }
 
+/* --- Trip map --- */
+
+.map-view__toggle { display: flex; align-items: center; gap: 0.4rem; margin: var(--space-2) 0; }
+
+.map-view__canvas {
+  height: 60vh;
+  min-height: 320px;
+  border-radius: var(--radius);
+  margin: var(--space-2) 0;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.map-view__pin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-brand);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.map-view__pin-dot--video { background: var(--color-accent); }
+
+.map-view__pin-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.map-view__pin-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.map-view__pin-thumb-badge {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.9rem;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.map-lightbox { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.map-lightbox__backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.75); }
+.map-lightbox__panel {
+  position: relative;
+  z-index: 1;
+  width: min(50vw, 50vh);
+  min-width: 280px;
+  max-width: 92vw;
+  max-height: 92vh;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-1);
+  box-shadow: var(--shadow);
+}
+.map-lightbox__close {
+  position: absolute;
+  top: -0.6rem;
+  right: -0.6rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-ink);
+  color: #fff;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.map-lightbox__body { display: flex; }
+.map-lightbox__media { width: 100%; max-height: 88vh; border-radius: calc(var(--radius) - 4px); display: block; }
+
 /* --- From tablet width up: more breathing room --- */
 @media (min-width: 640px) {
   .container { padding: 0 var(--space-3); }
