@@ -1,5 +1,7 @@
 <?php
 /** @var array<string, mixed> $trip */
+/** @var bool $canEdit */
+/** @var array{totalPoints: int, trimStart: int, trimEnd: int}|null $track */
 $headExtra = '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">';
 ?>
 
@@ -18,6 +20,40 @@ $headExtra = '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">';
 <div class="map-view__canvas" id="trip-map"
      data-data-url="/trip/<?= e($trip['slug']) ?>/map/data"
      data-msg-empty="<?= e(t('trip.map.empty')) ?>"></div>
+
+<?php if ($canEdit): ?>
+  <div class="map-view__track-tools">
+    <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/gpx" enctype="multipart/form-data" class="map-view__gpx-form">
+      <?= $csrf->field() ?>
+      <label for="gpx-file"><?= e(t('trip.map.gpx_label')) ?></label>
+      <input type="file" id="gpx-file" name="gpx" accept=".gpx,application/gpx+xml">
+      <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.gpx_upload')) ?></button>
+    </form>
+
+    <?php if ($track !== null): ?>
+      <?php if ($track['totalPoints'] > 2): ?>
+        <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/trim" class="map-view__trim-form">
+          <?= $csrf->field() ?>
+          <label>
+            <?= e(t('trip.map.trim_start')) ?>
+            <input type="range" name="trim_start" min="0" max="<?= (int) $track['totalPoints'] - 1 ?>" value="<?= (int) $track['trimStart'] ?>">
+          </label>
+          <label>
+            <?= e(t('trip.map.trim_end')) ?>
+            <input type="range" name="trim_end" min="0" max="<?= (int) $track['totalPoints'] - 1 ?>" value="<?= (int) $track['trimEnd'] ?>">
+          </label>
+          <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.trim_apply')) ?></button>
+        </form>
+      <?php endif; ?>
+
+      <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/delete"
+            data-confirm="<?= e(t('trip.map.track_delete_confirm')) ?>">
+        <?= $csrf->field() ?>
+        <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.track_delete')) ?></button>
+      </form>
+    <?php endif; ?>
+  </div>
+<?php endif; ?>
 
 <div class="map-lightbox" data-map-lightbox hidden>
   <div class="map-lightbox__backdrop" data-map-lightbox-close></div>

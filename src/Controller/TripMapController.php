@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Repository\DayEntryRepository;
 use App\Repository\PhotoRepository;
+use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
 use App\Service\TripAccess;
@@ -22,6 +23,7 @@ final class TripMapController
         private readonly DayEntryRepository $entries,
         private readonly PhotoRepository $photos,
         private readonly VideoRepository $videos,
+        private readonly TrackRepository $tracks,
         private readonly TripAccess $access,
     ) {
     }
@@ -32,7 +34,31 @@ final class TripMapController
 
         return $this->view->render($response, 'trips/map', [
             'trip' => $trip,
+            'canEdit' => $this->access->canEdit($trip, $request->getAttribute('user')),
+            'track' => $this->trackSummary((int) $trip['id']),
         ]);
+    }
+
+    /**
+     * Just enough for the upload-tools/trim-slider form to render with the
+     * right bounds — the full point list is only needed by the map JS,
+     * fetched separately via /map/data.
+     *
+     * @return array{totalPoints: int, trimStart: int, trimEnd: int}|null
+     */
+    private function trackSummary(int $tripId): ?array
+    {
+        $track = $this->tracks->findByTrip($tripId);
+        if ($track === null) {
+            return null;
+        }
+
+        $totalPoints = $this->tracks->countPoints((int) $track['id']);
+        return [
+            'totalPoints' => $totalPoints,
+            'trimStart' => $track['trim_start_seq'] !== null ? (int) $track['trim_start_seq'] : 0,
+            'trimEnd' => $track['trim_end_seq'] !== null ? (int) $track['trim_end_seq'] : max(0, $totalPoints - 1),
+        ];
     }
 
     /**
@@ -83,11 +109,46 @@ final class TripMapController
 
         $response->getBody()->write((string) json_encode([
             'pins' => $pins,
-            'track' => null,
+            'track' => $this->buildTrack((int) $trip['id']),
             'pois' => [],
         ], JSON_THROW_ON_ERROR));
 
         return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function buildTrack(int $tripId): ?array
+    {
+        $track = $this->tracks->findByTrip($tripId);
+        if ($track === null) {
+            return null;
+        }
+
+        $points = $this->tracks->findPoints((int) $track['id']);
+        $totalPoints = count($points);
+
+        $trimStart = $track['trim_start_seq'] !== null ? (int) $track['trim_start_seq'] : 0;
+        $trimEnd = $track['trim_end_seq'] !== null ? (int) $track['trim_end_seq'] : max(0, $totalPoints - 1);
+
+        $visible = array_values(array_filter(
+            $points,
+            static fn (array $p): bool => (int) $p['seq'] >= $trimStart && (int) $p['seq'] <= $trimEnd,
+        ));
+
+        return [
+            'points' => array_map(static fn (array $p): array => [
+                'lat' => (float) $p['lat'],
+                'lng' => (float) $p['lng'],
+                'elevation' => $p['elevation_m'] !== null ? (float) $p['elevation_m'] : null,
+                'recordedAt' => $p['recorded_at'],
+            ], $visible),
+            'totalPoints' => $totalPoints,
+            'trimStart' => $trimStart,
+            'trimEnd' => $trimEnd,
+            'source' => $track['source'],
+        ];
     }
 
     /**

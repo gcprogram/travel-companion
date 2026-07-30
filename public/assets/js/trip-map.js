@@ -3,8 +3,10 @@
  * (small dot vs. thumbnail) swapped on zoom instead of rebuilding markers,
  * so panning/zooming a trip with a few hundred pins stays smooth.
  *
- * Track/POI rendering (tasks #30/#33) will read the same /map/data response,
- * which already reserves `track` and `pois` keys (null/[] for now).
+ * A real GPS track (GPX upload or folder-derived points) replaces the naive
+ * chronological pin-order line once one exists for the trip. POI rendering
+ * (task #33) will read the same /map/data response, which already reserves
+ * a `pois` key ([] for now).
  */
 document.addEventListener('DOMContentLoaded', function () {
   var container = document.getElementById('trip-map');
@@ -70,8 +72,12 @@ document.addEventListener('DOMContentLoaded', function () {
     .then(function (response) { return response.json(); })
     .then(function (data) {
       var pins = data.pins || [];
+      var track = data.track;
+      var trackLatlngs = (track && track.points && track.points.length > 1)
+        ? track.points.map(function (p) { return [p.lat, p.lng]; })
+        : [];
 
-      if (pins.length === 0) {
+      if (pins.length === 0 && trackLatlngs.length === 0) {
         var empty = document.createElement('p');
         empty.className = 'empty-state';
         empty.textContent = container.dataset.msgEmpty;
@@ -80,28 +86,33 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       var markers = [];
-      var latlngs = [];
+      var pinLatlngs = [];
 
       pins.forEach(function (pin) {
         var marker = L.marker([pin.lat, pin.lng], { icon: dotIcon(pin.kind) });
         marker.on('click', function () { openLightbox(pin); });
         marker.addTo(map);
         markers.push({ marker: marker, pin: pin, dot: dotIcon(pin.kind), thumb: thumbIcon(pin) });
-        latlngs.push([pin.lat, pin.lng]);
+        pinLatlngs.push([pin.lat, pin.lng]);
       });
 
-      var routeLine = L.polyline(latlngs, { color: '#2f6f5e', weight: 3, opacity: 0.8 });
-      if (!routeToggle || routeToggle.checked) {
-        routeLine.addTo(map);
-      }
-      if (routeToggle) {
-        routeToggle.addEventListener('change', function () {
-          if (routeToggle.checked) {
-            routeLine.addTo(map);
-          } else {
-            map.removeLayer(routeLine);
-          }
-        });
+      // A real GPS track (GPX or folder-derived) replaces the naive
+      // pin-order line once one exists for the trip.
+      var routeLatlngs = trackLatlngs.length > 0 ? trackLatlngs : pinLatlngs;
+      if (routeLatlngs.length > 1) {
+        var routeLine = L.polyline(routeLatlngs, { color: '#2f6f5e', weight: 3, opacity: 0.8 });
+        if (!routeToggle || routeToggle.checked) {
+          routeLine.addTo(map);
+        }
+        if (routeToggle) {
+          routeToggle.addEventListener('change', function () {
+            if (routeToggle.checked) {
+              routeLine.addTo(map);
+            } else {
+              map.removeLayer(routeLine);
+            }
+          });
+        }
       }
 
       function applyIconsForZoom() {
@@ -112,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       map.on('zoomend', applyIconsForZoom);
-      map.fitBounds(latlngs, { padding: [40, 40], maxZoom: 16 });
+      map.fitBounds(pinLatlngs.concat(trackLatlngs), { padding: [40, 40], maxZoom: 16 });
       applyIconsForZoom();
     })
     .catch(function () {
