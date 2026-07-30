@@ -11,6 +11,7 @@ use App\Service\PhotoStorage;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * Receives one chunk per request (client slices the file, see
@@ -28,6 +29,7 @@ final class PhotoUploadController
         private readonly PhotoStorage $storage,
         private readonly JobRepository $jobs,
         private readonly DayEntryAccess $access,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -42,11 +44,18 @@ final class PhotoUploadController
         $originalName = (string) ($body['filename'] ?? 'photo');
 
         if ($uploadId === '' || $chunkIndex < 0 || $chunkCount < 1 || $chunkIndex >= $chunkCount) {
+            $this->logger->warning('Photo chunk upload: invalid request', [
+                'entry_id' => $entry['id'], 'chunk_index' => $chunkIndex, 'chunk_count' => $chunkCount,
+            ]);
             return $this->json($response, ['error' => 'invalid_request'], 422);
         }
 
         $chunk = $request->getUploadedFiles()['chunk'] ?? null;
         if (!$chunk instanceof UploadedFileInterface || $chunk->getError() !== UPLOAD_ERR_OK) {
+            $this->logger->warning('Photo chunk upload: no/broken chunk file', [
+                'entry_id' => $entry['id'],
+                'upload_error' => $chunk instanceof UploadedFileInterface ? $chunk->getError() : null,
+            ]);
             return $this->json($response, ['error' => 'upload_failed'], 422);
         }
 
@@ -56,6 +65,7 @@ final class PhotoUploadController
         // Chunks arrive one at a time, in order, awaited sequentially by the client.
         $handle = fopen($tmpPath, $chunkIndex === 0 ? 'wb' : 'ab');
         if ($handle === false) {
+            $this->logger->error('Photo chunk upload: could not open tmp file for writing', ['path' => $tmpPath]);
             return $this->json($response, ['error' => 'server_error'], 500);
         }
         $stream = $chunk->getStream()->detach();
@@ -66,6 +76,7 @@ final class PhotoUploadController
         }
 
         if (filesize($tmpPath) > self::MAX_ORIGINAL_BYTES) {
+            $this->logger->warning('Photo chunk upload: exceeded max size', ['entry_id' => $entry['id'], 'size' => filesize($tmpPath)]);
             unlink($tmpPath);
             return $this->json($response, ['error' => 'too_large'], 413);
         }
@@ -81,6 +92,9 @@ final class PhotoUploadController
     {
         $extension = $this->extensionFor($originalName);
         if ($extension === null || @getimagesize($tmpPath) === false) {
+            $this->logger->warning('Photo chunk upload: unsupported file type', [
+                'entry_id' => $entryId, 'filename' => $originalName, 'extension' => $extension,
+            ]);
             unlink($tmpPath);
             return $this->json($response, ['error' => 'unsupported_type'], 422);
         }
