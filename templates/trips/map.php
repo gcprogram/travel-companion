@@ -3,6 +3,7 @@
 /** @var bool $canEdit */
 /** @var array{totalPoints: int, trimStart: int, trimEnd: int}|null $track */
 /** @var list<array<string, mixed>> $pois */
+/** @var array<int, array{photos: list<array<string, mixed>>, videos: list<array<string, mixed>>}> $poiMedia */
 $headExtra = '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">';
 $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_building', 'other'];
 ?>
@@ -94,6 +95,26 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
         <span class="poi-list__name"><?= e($poi['name']) ?></span>
         <?php if (!empty($poi['notes'])): ?>
           <p class="field-hint"><?= nl2br(e($poi['notes'])) ?></p>
+        <?php endif; ?>
+
+        <?php $media = $poiMedia[(int) $poi['id']] ?? ['photos' => [], 'videos' => []]; ?>
+        <?php if ($media['photos'] !== [] || $media['videos'] !== []): ?>
+          <ul class="poi-list__media">
+            <?php foreach ($media['photos'] as $photo): ?>
+              <li>
+                <a href="/photos/<?= (int) $photo['id'] ?>/web" target="_blank" rel="noopener">
+                  <img src="/photos/<?= (int) $photo['id'] ?>/thumb" alt="" loading="lazy">
+                </a>
+              </li>
+            <?php endforeach; ?>
+            <?php foreach ($media['videos'] as $video): ?>
+              <li>
+                <a href="/videos/<?= (int) $video['id'] ?>" target="_blank" rel="noopener">
+                  <img src="/videos/<?= (int) $video['id'] ?>/poster" alt="" loading="lazy">
+                </a>
+              </li>
+            <?php endforeach; ?>
+          </ul>
         <?php endif; ?>
         <?php if ($canEdit): ?>
           <form method="post" action="/pois/<?= (int) $poi['id'] ?>/visited" class="poi-list__actions">

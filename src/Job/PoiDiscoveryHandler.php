@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Job;
 
+use App\Repository\JobRepository;
 use App\Service\PoiDiscoveryService;
 use Psr\Log\LoggerInterface;
 
@@ -16,6 +17,7 @@ final class PoiDiscoveryHandler implements JobHandlerInterface
 {
     public function __construct(
         private readonly PoiDiscoveryService $discovery,
+        private readonly JobRepository $jobs,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -29,5 +31,11 @@ final class PoiDiscoveryHandler implements JobHandlerInterface
 
         $count = $this->discovery->discoverForTrip($tripId);
         $this->logger->info('POI discovery finished', ['trip_id' => $tripId, 'count' => $count]);
+
+        if ($count > 0) {
+            // Newly discovered POIs may now be the nearest match for
+            // already-uploaded photos/videos that had no POI yet.
+            $this->jobs->dispatch('poi.assign', ['trip_id' => $tripId]);
+        }
     }
 }

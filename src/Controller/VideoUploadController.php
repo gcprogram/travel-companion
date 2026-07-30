@@ -87,7 +87,7 @@ final class VideoUploadController
             return $this->json($response, ['status' => 'chunk_received']);
         }
 
-        return $this->finalize($tmpPath, (int) $entry['id'], $originalName, $body, $response);
+        return $this->finalize($tmpPath, (int) $entry['id'], (int) $entry['trip_id'], $originalName, $body, $response);
     }
 
     public function addYoutube(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -111,7 +111,7 @@ final class VideoUploadController
     /**
      * @param array<string, mixed> $body
      */
-    private function finalize(string $tmpPath, int $entryId, string $originalName, array $body, ResponseInterface $response): ResponseInterface
+    private function finalize(string $tmpPath, int $entryId, int $tripId, string $originalName, array $body, ResponseInterface $response): ResponseInterface
     {
         if (!$this->looksLikeMp4($tmpPath)) {
             $this->logger->warning('Video chunk upload: reassembled file is not a valid MP4', ['entry_id' => $entryId]);
@@ -127,17 +127,25 @@ final class VideoUploadController
         // the video is playable immediately, no need to wait on server-side processing for them.
         // lat/lng (if present) come from video-geotag.js reading the original's container
         // metadata before compression, since the compressed output carries none of it.
+        $lat = $this->coordinateOrNull($body['lat'] ?? null, 90.0);
+        $lng = $this->coordinateOrNull($body['lng'] ?? null, 180.0);
+
         $this->videos->markReady(
             $videoId,
             $this->positiveIntOrNull($body['width'] ?? null),
             $this->positiveIntOrNull($body['height'] ?? null),
             $this->positiveIntOrNull($body['duration'] ?? null),
-            $this->coordinateOrNull($body['lat'] ?? null, 90.0),
-            $this->coordinateOrNull($body['lng'] ?? null, 180.0),
+            $lat,
+            $lng,
         );
 
         // Poster thumbnail is a best-effort bonus handled async; the video itself is already usable.
         $this->jobs->dispatch('video.process', ['video_id' => $videoId]);
+
+        if ($lat !== null && $lng !== null) {
+            // Cheap no-op via PoiAssignmentService if the trip has no confirmed POIs yet.
+            $this->jobs->dispatch('poi.assign', ['trip_id' => $tripId]);
+        }
 
         return $this->json($response, ['status' => 'ready', 'video_id' => $videoId]);
     }
