@@ -105,6 +105,13 @@ return [
     'trip.show.edit' => 'Edit trip',
     'trip.show.delete' => 'Delete trip',
     'trip.show.delete_confirm' => 'Really delete this trip?',
+    'trip.show.map_link' => '🗺 View map',
+
+    'trip.map.title' => 'Map',
+    'trip.map.back_to_trip' => '← Back to trip',
+    'trip.map.show_route' => 'Show route',
+    'trip.map.empty' => 'No geotagged photos or videos yet.',
+    'trip.map.lightbox_close' => 'Close',
 
     'entry.edit' => 'Edit',
     'entry.delete' => 'Delete',

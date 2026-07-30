@@ -9,6 +9,7 @@ use App\Controller\LocaleController;
 use App\Controller\PhotoController;
 use App\Controller\PhotoUploadController;
 use App\Controller\TripController;
+use App\Controller\TripMapController;
 use App\Controller\VideoController;
 use App\Controller\VideoUploadController;
 use App\Middleware\RequireLogin;
@@ -57,6 +58,10 @@ return static function (App $app): void {
     })->add(RequireLogin::class);
 
     $app->get('/trip/{slug}', [TripController::class, 'show']);
+
+    // Same visibility rule as the trip page itself, checked inside the controller.
+    $app->get('/trip/{slug}/map', [TripMapController::class, 'show']);
+    $app->get('/trip/{slug}/map/data', [TripMapController::class, 'data']);
 
     // Serving depends on the trip's visibility, not login.
     $app->get('/photos/{id:[0-9]+}/{variant}', [PhotoController::class, 'show']);
