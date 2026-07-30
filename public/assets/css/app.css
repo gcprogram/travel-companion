@@ -266,6 +266,60 @@ form.auth-form { max-width: 420px; }
 .day-entry-card__rating { color: var(--color-accent); letter-spacing: 0.1rem; }
 .day-entry-card__weather { color: var(--color-muted); font-size: 0.9rem; }
 
+.photo-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+}
+
+.photo-gallery__item { text-align: center; }
+
+.photo-gallery__item img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: var(--radius);
+  display: block;
+}
+
+.photo-gallery__placeholder {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  background: var(--color-line);
+  border-radius: var(--radius);
+}
+
+.photo-gallery__placeholder--failed { color: var(--color-danger); }
+
+.photo-gallery__remove {
+  width: 100%;
+  margin-top: 0.3rem;
+  padding: 0.3rem;
+  font-size: 0.8rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .field-radio-group--mood { flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
 
 /* Pure-CSS star rating: markup runs 5..1, row-reverse flips the display order. */

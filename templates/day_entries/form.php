@@ -1,6 +1,7 @@
 <?php
 /** @var array<string, mixed> $trip */
 /** @var array<string, mixed>|null $entry */
+/** @var list<array<string, mixed>> $photos */
 /** @var list<string> $errors */
 $errors ??= [];
 $isEdit = $entry !== null && isset($entry['id']);
@@ -83,5 +84,46 @@ $lng = $entry['lng'] ?? null;
     <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>"><?= e(t('entry.form.cancel')) ?></a>
   </div>
 </form>
+
+<?php if ($isEdit): ?>
+  <h2><?= e(t('entry.form.photos_heading')) ?></h2>
+  <p class="field-hint"><?= e(t('entry.form.photos_hint')) ?></p>
+
+  <?php if ($photos !== []): ?>
+    <ul class="photo-gallery">
+      <?php foreach ($photos as $photo): ?>
+        <li class="photo-gallery__item">
+          <?php if ($photo['status'] === 'ready'): ?>
+            <a href="/photos/<?= (int) $photo['id'] ?>/web" target="_blank" rel="noopener">
+              <img src="/photos/<?= (int) $photo['id'] ?>/thumb" alt="" loading="lazy">
+            </a>
+          <?php elseif ($photo['status'] === 'failed'): ?>
+            <div class="photo-gallery__placeholder photo-gallery__placeholder--failed"><?= e(t('entry.form.photo_failed')) ?></div>
+          <?php else: ?>
+            <div class="photo-gallery__placeholder"><?= e(t('entry.form.photo_processing')) ?></div>
+          <?php endif; ?>
+          <form method="post" action="/photos/<?= (int) $photo['id'] ?>/delete"
+                onsubmit="return confirm('<?= e(t('entry.form.photo_delete_confirm')) ?>');">
+            <?= $csrf->field() ?>
+            <button type="submit" class="btn btn-ghost photo-gallery__remove"><?= e(t('entry.form.photo_delete')) ?></button>
+          </form>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  <?php endif; ?>
+
+  <div class="field">
+    <label class="btn btn-ghost" for="photo-input"><?= e(t('entry.form.photos_add')) ?></label>
+    <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" multiple
+           data-photo-input
+           data-upload-url="/entries/<?= (int) $entry['id'] ?>/photos"
+           data-msg-uploading="<?= e(t('entry.form.photo_uploading')) ?>"
+           data-msg-error="<?= e(t('entry.form.photo_upload_error')) ?>"
+           class="visually-hidden">
+    <p class="field-hint" data-photo-status></p>
+  </div>
+
+  <script src="/assets/js/photo-upload.js"></script>
+<?php endif; ?>
 
 <script src="/assets/js/day-entry-form.js"></script>

@@ -6,6 +6,8 @@ use App\Controller\AuthController;
 use App\Controller\DayEntryController;
 use App\Controller\HomeController;
 use App\Controller\LocaleController;
+use App\Controller\PhotoController;
+use App\Controller\PhotoUploadController;
 use App\Controller\TripController;
 use App\Middleware\RequireLogin;
 use Slim\App;
@@ -41,7 +43,14 @@ return static function (App $app): void {
         $group->get('/entries/{id:[0-9]+}/edit', [DayEntryController::class, 'edit']);
         $group->post('/entries/{id:[0-9]+}', [DayEntryController::class, 'update']);
         $group->post('/entries/{id:[0-9]+}/delete', [DayEntryController::class, 'delete']);
+
+        // Photos: uploading/deleting requires edit rights on the parent entry's trip.
+        $group->post('/entries/{entryId:[0-9]+}/photos', [PhotoUploadController::class, 'uploadChunk']);
+        $group->post('/photos/{id:[0-9]+}/delete', [PhotoController::class, 'delete']);
     })->add(RequireLogin::class);
 
     $app->get('/trip/{slug}', [TripController::class, 'show']);
+
+    // Serving a photo variant depends on the trip's visibility, not login.
+    $app->get('/photos/{id:[0-9]+}/{variant}', [PhotoController::class, 'show']);
 };

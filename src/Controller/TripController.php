@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Repository\DayEntryRepository;
+use App\Repository\PhotoRepository;
 use App\Repository\StationRepository;
 use App\Repository\TripRepository;
 use App\Service\Slugger;
@@ -23,6 +24,7 @@ final class TripController
         private readonly TripRepository $trips,
         private readonly StationRepository $stations,
         private readonly DayEntryRepository $entries,
+        private readonly PhotoRepository $photos,
         private readonly Slugger $slugger,
         private readonly TripAccess $access,
         private readonly Flash $flash,
@@ -42,10 +44,17 @@ final class TripController
             throw new HttpNotFoundException($request);
         }
 
+        $entries = $this->entries->findByTrip((int) $trip['id']);
+        $photosByEntry = [];
+        foreach ($entries as $entry) {
+            $photosByEntry[(int) $entry['id']] = $this->photos->findByEntry((int) $entry['id']);
+        }
+
         return $this->view->render($response, 'trips/show', [
             'trip' => $trip,
             'stations' => $this->stations->findByTrip((int) $trip['id']),
-            'entries' => $this->entries->findByTrip((int) $trip['id']),
+            'entries' => $entries,
+            'photosByEntry' => $photosByEntry,
             'canEdit' => $this->access->canEdit($trip, $user),
         ]);
     }
