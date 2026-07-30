@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Job;
 
+use App\Repository\DayEntryRepository;
+use App\Repository\JobRepository;
 use App\Repository\PhotoRepository;
 use App\Service\PhotoStorage;
 use Psr\Log\LoggerInterface;
@@ -29,6 +31,8 @@ final class PhotoProcessHandler implements JobHandlerInterface
     public function __construct(
         private readonly PhotoRepository $photos,
         private readonly PhotoStorage $storage,
+        private readonly DayEntryRepository $entries,
+        private readonly JobRepository $jobs,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -53,10 +57,27 @@ final class PhotoProcessHandler implements JobHandlerInterface
             $webSize = $this->renderVariant($originalPath, $this->storage->derivativePath($photoId, 'web'), self::WEB_MAX_EDGE);
             $gps = $this->extractGps($originalPath);
             $this->photos->markReady($photoId, $webSize['width'], $webSize['height'], $gps['lat'] ?? null, $gps['lng'] ?? null);
+            if ($gps !== null) {
+                $this->dispatchPoiAssignment((int) $photo['day_entry_id']);
+            }
         } catch (\Throwable $e) {
             $this->photos->markFailed($photoId);
             throw $e; // Let the Worker's retry/backoff take over; it logs the failure.
         }
+    }
+
+    /**
+     * A cheap no-op via PoiAssignmentService when the trip has no confirmed
+     * POIs yet — dispatched unconditionally rather than checking first, to
+     * avoid this job needing its own PoiRepository dependency.
+     */
+    private function dispatchPoiAssignment(int $dayEntryId): void
+    {
+        $entry = $this->entries->findById($dayEntryId);
+        if ($entry === null) {
+            return;
+        }
+        $this->jobs->dispatch('poi.assign', ['trip_id' => (int) $entry['trip_id']]);
     }
 
     /**

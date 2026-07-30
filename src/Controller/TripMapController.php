@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Repository\DayEntryRepository;
 use App\Repository\PhotoRepository;
+use App\Repository\PoiMediaRepository;
 use App\Repository\PoiRepository;
 use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
@@ -28,6 +29,7 @@ final class TripMapController
         private readonly TrackRepository $tracks,
         private readonly TrackSmoothingService $smoothing,
         private readonly PoiRepository $pois,
+        private readonly PoiMediaRepository $poiMedia,
         private readonly TripAccess $access,
     ) {
     }
@@ -36,11 +38,22 @@ final class TripMapController
     {
         $trip = $this->requireViewable($request, (string) $args['slug']);
 
+        $pois = $this->pois->findByTrip((int) $trip['id']);
+        $poiMedia = [];
+        foreach ($pois as $poi) {
+            $poiId = (int) $poi['id'];
+            $poiMedia[$poiId] = [
+                'photos' => $this->poiMedia->findPhotosForPoi($poiId),
+                'videos' => $this->poiMedia->findVideosForPoi($poiId),
+            ];
+        }
+
         return $this->view->render($response, 'trips/map', [
             'trip' => $trip,
             'canEdit' => $this->access->canEdit($trip, $request->getAttribute('user')),
             'track' => $this->trackSummary((int) $trip['id']),
-            'pois' => $this->pois->findByTrip((int) $trip['id']),
+            'pois' => $pois,
+            'poiMedia' => $poiMedia,
         ]);
     }
 
