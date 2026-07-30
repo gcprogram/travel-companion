@@ -103,7 +103,7 @@ $lng = $entry['lng'] ?? null;
             <div class="photo-gallery__placeholder"><?= e(t('entry.form.photo_processing')) ?></div>
           <?php endif; ?>
           <form method="post" action="/photos/<?= (int) $photo['id'] ?>/delete"
-                onsubmit="return confirm('<?= e(t('entry.form.photo_delete_confirm')) ?>');">
+                data-confirm="<?= e(t('entry.form.photo_delete_confirm')) ?>">
             <?= $csrf->field() ?>
             <button type="submit" class="btn btn-ghost photo-gallery__remove"><?= e(t('entry.form.photo_delete')) ?></button>
           </form>

@@ -31,6 +31,7 @@ return [
     'auth.login.forgot' => 'Passwort vergessen?',
     'auth.login.register' => 'Konto erstellen',
     'auth.login.invalid' => 'E-Mail-Adresse oder Passwort ist falsch.',
+    'auth.login.too_many_attempts' => 'Zu viele fehlgeschlagene Versuche. Bitte in ein paar Minuten erneut versuchen.',
 
     'auth.register.title' => 'Konto erstellen',
     'auth.register.name' => 'Name',

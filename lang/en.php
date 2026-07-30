@@ -31,6 +31,7 @@ return [
     'auth.login.forgot' => 'Forgot password?',
     'auth.login.register' => 'Create account',
     'auth.login.invalid' => 'Email address or password is wrong.',
+    'auth.login.too_many_attempts' => 'Too many failed attempts. Please try again in a few minutes.',
 
     'auth.register.title' => 'Create account',
     'auth.register.name' => 'Name',

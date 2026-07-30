@@ -32,8 +32,16 @@ final class AuthController
     {
         $body = (array) $request->getParsedBody();
         $email = (string) ($body['email'] ?? '');
+        $ip = $this->clientIp($request);
 
-        if ($this->auth->attemptLogin($email, (string) ($body['password'] ?? ''))) {
+        if ($this->auth->isLockedOut($ip)) {
+            return $this->view->render($response, 'auth/login', [
+                'errors' => [t('auth.login.too_many_attempts')],
+                'old' => ['email' => $email],
+            ], status: 429);
+        }
+
+        if ($this->auth->attemptLogin($email, (string) ($body['password'] ?? ''), $ip)) {
             return $this->redirect($response, '/');
         }
 
@@ -132,5 +140,21 @@ final class AuthController
     private function redirect(ResponseInterface $response, string $to): ResponseInterface
     {
         return $response->withHeader('Location', $to)->withStatus(302);
+    }
+
+    /**
+     * Bitpalast sits behind an nginx reverse proxy, so REMOTE_ADDR is the
+     * proxy's own address; the real client IP arrives via X-Forwarded-For.
+     */
+    private function clientIp(ServerRequestInterface $request): string
+    {
+        $forwarded = $request->getHeaderLine('X-Forwarded-For');
+        if ($forwarded !== '') {
+            $first = trim(explode(',', $forwarded)[0]);
+            if ($first !== '') {
+                return $first;
+            }
+        }
+        return (string) ($request->getServerParams()['REMOTE_ADDR'] ?? '0.0.0.0');
     }
 }
