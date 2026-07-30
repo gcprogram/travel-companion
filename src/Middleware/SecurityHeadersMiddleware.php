@@ -16,6 +16,10 @@ use Psr\Http\Server\RequestHandlerInterface;
  *
  * img-src and frame-src carry narrow youtube-nocookie.com/i.ytimg.com
  * allowances for the YouTube video option (embed player + its thumbnail).
+ * media-src allows blob: because video-compress.js loads the file the user
+ * picked into an off-screen <video> via URL.createObjectURL() to read
+ * frames for compression — without it every video upload fails immediately
+ * on selection, before compression even starts.
  */
 final class SecurityHeadersMiddleware implements MiddlewareInterface
 {
@@ -27,6 +31,7 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
             ->withHeader('Content-Security-Policy', implode('; ', [
                 "default-src 'self'",
                 "img-src 'self' https://i.ytimg.com",
+                "media-src 'self' blob:",
                 "frame-src https://www.youtube-nocookie.com",
                 "style-src 'self'",
                 "script-src 'self'",
