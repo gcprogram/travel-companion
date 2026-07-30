@@ -87,7 +87,7 @@
           <div class="page-actions">
             <a class="btn btn-ghost" href="/entries/<?= (int) $entry['id'] ?>/edit"><?= e(t('entry.edit')) ?></a>
             <form method="post" action="/entries/<?= (int) $entry['id'] ?>/delete"
-                  onsubmit="return confirm('<?= e(t('entry.delete_confirm')) ?>');">
+                  data-confirm="<?= e(t('entry.delete_confirm')) ?>">
               <?= $csrf->field() ?>
               <button type="submit" class="btn btn-danger"><?= e(t('entry.delete')) ?></button>
             </form>
@@ -114,7 +114,7 @@
   <div class="page-actions">
     <a class="btn btn-ghost" href="/trips/<?= (int) $trip['id'] ?>/edit"><?= e(t('trip.show.edit')) ?></a>
     <form method="post" action="/trips/<?= (int) $trip['id'] ?>/delete"
-          onsubmit="return confirm('<?= e(t('trip.show.delete_confirm')) ?>');">
+          data-confirm="<?= e(t('trip.show.delete_confirm')) ?>">
       <?= $csrf->field() ?>
       <button type="submit" class="btn btn-danger"><?= e(t('trip.show.delete')) ?></button>
     </form>

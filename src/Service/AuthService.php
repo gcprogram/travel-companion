@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Repository\LoginAttemptRepository;
 use App\Repository\PasswordResetRepository;
 use App\Repository\UserRepository;
 use App\Support\Env;
@@ -13,9 +14,15 @@ final class AuthService
     public const MIN_PASSWORD_LENGTH = 10;
     private const SESSION_USER_KEY = 'user_id';
 
+    // Basic brute-force throttle: this many failed attempts per IP within
+    // the window blocks further tries, independent of which email was used.
+    private const MAX_LOGIN_ATTEMPTS = 8;
+    private const LOGIN_WINDOW_SECONDS = 900;
+
     public function __construct(
         private readonly UserRepository $users,
         private readonly PasswordResetRepository $resets,
+        private readonly LoginAttemptRepository $attempts,
         private readonly MailService $mail,
     ) {
     }
@@ -69,13 +76,18 @@ final class AuthService
         return ['ok' => true, 'errors' => []];
     }
 
-    public function attemptLogin(string $email, string $password): bool
+    public function isLockedOut(string $ip): bool
+    {
+        return $this->attempts->countRecent($ip, self::LOGIN_WINDOW_SECONDS) >= self::MAX_LOGIN_ATTEMPTS;
+    }
+
+    public function attemptLogin(string $email, string $password, string $ip): bool
     {
         $user = $this->users->findByEmail($email);
 
         if ($user === null || !(bool) $user['is_active'] || !password_verify($password, (string) $user['password_hash'])) {
-            // Slow down timing attacks and brute-forcing.
-            usleep(300_000);
+            $this->attempts->record($ip, $email !== '' ? $email : null);
+            usleep(300_000); // Slow down timing attacks and brute-forcing.
             return false;
         }
 

@@ -41,5 +41,7 @@
   <footer class="site-footer">
     <?= e($appName ?? 'Travel Companion') ?> — <?= e(t('footer.tagline')) ?>
   </footer>
+
+  <script src="/assets/js/confirm-submit.js"></script>
 </body>
 </html>

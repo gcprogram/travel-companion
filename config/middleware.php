@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Middleware\AuthMiddleware;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\LocaleMiddleware;
+use App\Middleware\SecurityHeadersMiddleware;
 use App\Middleware\SessionMiddleware;
 use App\Support\Env;
 use Psr\Log\LoggerInterface;
@@ -29,4 +30,8 @@ return static function (App $app): void {
         logger: $app->getContainer()?->get(LoggerInterface::class),
     );
     $errorMiddleware->getDefaultErrorHandler()->forceContentType('text/html');
+
+    // Added after addErrorMiddleware() so it wraps it too — security headers
+    // must land on error pages (404/403/500), not just successful responses.
+    $app->add(SecurityHeadersMiddleware::class);
 };

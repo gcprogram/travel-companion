@@ -61,7 +61,7 @@ final class PhotoProcessHandler implements JobHandlerInterface
 
         // Normalize orientation from EXIF, then strip metadata (incl. GPS) from
         // the public derivatives; the original keeps it for a later EXIF phase.
-        $image->autoOrientImage();
+        $this->autoOrient($image);
         $image->stripImage();
         $image->setImageColorspace(\Imagick::COLORSPACE_SRGB);
 
@@ -82,5 +82,30 @@ final class PhotoProcessHandler implements JobHandlerInterface
         $image->destroy();
 
         return $size;
+    }
+
+    /**
+     * Rotates the image to match its EXIF orientation and clears the tag
+     * afterwards. Implemented by hand with rotateImage()/setImageOrientation()
+     * rather than the newer Imagick::autoOrientImage() convenience method,
+     * because that method isn't available on every imagick extension build
+     * (confirmed missing on the production host). Only handles plain
+     * rotation (the common case for camera photos); the rare mirrored
+     * orientations are left as-is rather than adding flopImage()/flipImage()
+     * branches nothing in practice produces.
+     */
+    private function autoOrient(\Imagick $image): void
+    {
+        $degrees = match ($image->getImageOrientation()) {
+            \Imagick::ORIENTATION_BOTTOMRIGHT => 180,
+            \Imagick::ORIENTATION_RIGHTTOP => 90,
+            \Imagick::ORIENTATION_LEFTBOTTOM => -90,
+            default => 0,
+        };
+
+        if ($degrees !== 0) {
+            $image->rotateImage('#000000', $degrees);
+        }
+        $image->setImageOrientation(\Imagick::ORIENTATION_TOPLEFT);
     }
 }
