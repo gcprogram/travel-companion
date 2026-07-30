@@ -43,6 +43,7 @@ return static function (App $app): void {
 
         // Track: one per trip, re-upload replaces it (see TrackRepository::replaceForTrip).
         $group->post('/trips/{id:[0-9]+}/track/gpx', [TrackController::class, 'uploadGpx']);
+        $group->post('/trips/{id:[0-9]+}/track/points', [TrackController::class, 'submitPoints']);
         $group->post('/trips/{id:[0-9]+}/track/trim', [TrackController::class, 'trim']);
         $group->post('/trips/{id:[0-9]+}/track/delete', [TrackController::class, 'delete']);
 

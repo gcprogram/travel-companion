@@ -31,6 +31,22 @@ $headExtra = '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">';
       <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.gpx_upload')) ?></button>
     </form>
 
+    <p class="field-hint"><?= e(t('trip.map.folder_intro')) ?></p>
+    <div class="map-view__folder-form">
+      <label class="btn btn-ghost" for="track-folder-input"><?= e(t('trip.map.folder_pick')) ?></label>
+      <input type="file" id="track-folder-input" webkitdirectory multiple
+             data-track-folder-input
+             data-submit-url="/trips/<?= (int) $trip['id'] ?>/track/points"
+             data-csrf-token="<?= e($csrf->token()) ?>"
+             data-msg-no-media="<?= e(t('trip.map.folder_no_media')) ?>"
+             data-msg-scanning="<?= e(t('trip.map.folder_scanning')) ?>"
+             data-msg-no-points="<?= e(t('trip.map.folder_no_points')) ?>"
+             data-msg-uploading="<?= e(t('trip.map.folder_uploading')) ?>"
+             data-msg-error="<?= e(t('trip.map.folder_error')) ?>"
+             class="visually-hidden">
+      <p class="field-hint" data-track-folder-status></p>
+    </div>
+
     <?php if ($track !== null): ?>
       <?php if ($track['totalPoints'] > 2): ?>
         <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/trim" class="map-view__trim-form">
@@ -66,3 +82,8 @@ $headExtra = '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">';
 
 <script src="/assets/js/vendor/leaflet.js"></script>
 <script src="/assets/js/trip-map.js"></script>
+<?php if ($canEdit): ?>
+  <script src="/assets/js/photo-geotag.js"></script>
+  <script src="/assets/js/video-geotag.js"></script>
+  <script src="/assets/js/track-folder-scan.js"></script>
+<?php endif; ?>

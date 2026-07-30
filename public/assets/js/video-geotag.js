@@ -98,19 +98,59 @@
     return { lat, lng };
   }
 
+  // Seconds between the QuickTime/Mac epoch (1904-01-01) and the Unix epoch.
+  const QUICKTIME_EPOCH_OFFSET_SECONDS = 2082844800;
+
+  /**
+   * Reads moov > mvhd's creation_time — used (only by track-folder-scan.js,
+   * for ordering a track built from files that were never uploaded) since
+   * that's the one piece of "when was this shot" info every MP4/MOV
+   * container carries, independent of whether GPS was ever embedded.
+   *
+   * @param {ArrayBuffer} buffer
+   * @returns {string|null} ISO 8601 UTC timestamp, or null if unset/unreadable.
+   */
+  function extractCreationTime(buffer) {
+    const mvhd = findBox(buffer, ['moov', 'mvhd']);
+    if (!mvhd || mvhd.end - mvhd.start < 4) {
+      return null;
+    }
+
+    const view = new DataView(buffer, mvhd.start, mvhd.end - mvhd.start);
+    const version = view.getUint8(0);
+    let creationTime;
+    try {
+      creationTime = version === 1 ? Number(view.getBigUint64(4)) : view.getUint32(4);
+    } catch (e) {
+      return null;
+    }
+
+    if (!creationTime) {
+      return null; // 0 conventionally means "not set".
+    }
+
+    const unixMs = (creationTime - QUICKTIME_EPOCH_OFFSET_SECONDS) * 1000;
+    const date = new Date(unixMs);
+    if (isNaN(date.getTime()) || date.getFullYear() < 1990 || date.getFullYear() > 2100) {
+      return null; // Sanity bound against garbage/misparsed values.
+    }
+    return date.toISOString();
+  }
+
   /**
    * @param {File} file
-   * @returns {Promise<{lat: number, lng: number}|null>}
+   * @returns {Promise<{lat: number, lng: number, recordedAt: string|null}|null>}
    */
   async function extract(file) {
     try {
       const buffer = await file.arrayBuffer();
+      const recordedAt = extractCreationTime(buffer);
 
       const xyz = findBox(buffer, ['moov', 'udta', '©xyz']);
       if (xyz) {
         const result = parseIso6709(new Uint8Array(buffer, xyz.start, xyz.end - xyz.start));
         if (result) {
-          return result;
+          return { lat: result.lat, lng: result.lng, recordedAt: recordedAt };
         }
       }
 
@@ -122,7 +162,10 @@
       // most of the file) where a coincidental pattern match is far likelier.
       const moov = findBox(buffer, ['moov']);
       if (moov) {
-        return parseIso6709(new Uint8Array(buffer, moov.start, moov.end - moov.start));
+        const result = parseIso6709(new Uint8Array(buffer, moov.start, moov.end - moov.start));
+        if (result) {
+          return { lat: result.lat, lng: result.lng, recordedAt: recordedAt };
+        }
       }
 
       return null;
@@ -131,5 +174,5 @@
     }
   }
 
-  window.VideoGeotag = { extract };
+  window.VideoGeotag = { extract, extractCreationTime };
 })();
