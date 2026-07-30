@@ -8,6 +8,7 @@ use App\Repository\DayEntryRepository;
 use App\Repository\PhotoRepository;
 use App\Repository\StationRepository;
 use App\Repository\TripRepository;
+use App\Repository\VideoRepository;
 use App\Service\Slugger;
 use App\Service\TripAccess;
 use App\Support\Flash;
@@ -25,6 +26,7 @@ final class TripController
         private readonly StationRepository $stations,
         private readonly DayEntryRepository $entries,
         private readonly PhotoRepository $photos,
+        private readonly VideoRepository $videos,
         private readonly Slugger $slugger,
         private readonly TripAccess $access,
         private readonly Flash $flash,
@@ -46,8 +48,10 @@ final class TripController
 
         $entries = $this->entries->findByTrip((int) $trip['id']);
         $photosByEntry = [];
+        $videosByEntry = [];
         foreach ($entries as $entry) {
             $photosByEntry[(int) $entry['id']] = $this->photos->findByEntry((int) $entry['id']);
+            $videosByEntry[(int) $entry['id']] = $this->videos->findByEntry((int) $entry['id']);
         }
 
         return $this->view->render($response, 'trips/show', [
@@ -55,6 +59,7 @@ final class TripController
             'stations' => $this->stations->findByTrip((int) $trip['id']),
             'entries' => $entries,
             'photosByEntry' => $photosByEntry,
+            'videosByEntry' => $videosByEntry,
             'canEdit' => $this->access->canEdit($trip, $user),
         ]);
     }

@@ -2,6 +2,7 @@
 /** @var array<string, mixed> $trip */
 /** @var array<string, mixed>|null $entry */
 /** @var list<array<string, mixed>> $photos */
+/** @var list<array<string, mixed>> $videos */
 /** @var list<string> $errors */
 $errors ??= [];
 $isEdit = $entry !== null && isset($entry['id']);
@@ -123,7 +124,64 @@ $lng = $entry['lng'] ?? null;
     <p class="field-hint" data-photo-status></p>
   </div>
 
+  <h2><?= e(t('entry.form.videos_heading')) ?></h2>
+  <p class="field-hint"><?= e(t('entry.form.videos_hint')) ?></p>
+
+  <?php if ($videos !== []): ?>
+    <ul class="photo-gallery">
+      <?php foreach ($videos as $video): ?>
+        <li class="photo-gallery__item">
+          <?php if ($video['type'] === 'youtube'): ?>
+            <a href="https://www.youtube-nocookie.com/watch?v=<?= e((string) $video['youtube_id']) ?>" target="_blank" rel="noopener">
+              <img src="https://i.ytimg.com/vi/<?= e((string) $video['youtube_id']) ?>/hqdefault.jpg" alt="" loading="lazy">
+            </a>
+          <?php elseif ($video['status'] === 'ready'): ?>
+            <a href="/videos/<?= (int) $video['id'] ?>" target="_blank" rel="noopener" class="photo-gallery__video-link">
+              <img src="/videos/<?= (int) $video['id'] ?>/poster" alt="" loading="lazy">
+            </a>
+          <?php elseif ($video['status'] === 'failed'): ?>
+            <div class="photo-gallery__placeholder photo-gallery__placeholder--failed"><?= e(t('entry.form.video_failed')) ?></div>
+          <?php else: ?>
+            <div class="photo-gallery__placeholder"><?= e(t('entry.form.video_processing')) ?></div>
+          <?php endif; ?>
+          <form method="post" action="/videos/<?= (int) $video['id'] ?>/delete"
+                data-confirm="<?= e(t('entry.form.video_delete_confirm')) ?>">
+            <?= $csrf->field() ?>
+            <button type="submit" class="btn btn-ghost photo-gallery__remove"><?= e(t('entry.form.video_delete')) ?></button>
+          </form>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  <?php endif; ?>
+
+  <div class="field">
+    <label class="btn btn-ghost" for="video-input"><?= e(t('entry.form.videos_add')) ?></label>
+    <input type="file" id="video-input" accept="video/*"
+           data-video-input
+           data-upload-url="/entries/<?= (int) $entry['id'] ?>/videos"
+           data-msg-unsupported="<?= e(t('entry.form.video_unsupported')) ?>"
+           data-msg-compressing="<?= e(t('entry.form.video_compressing')) ?>"
+           data-msg-uploading="<?= e(t('entry.form.video_uploading')) ?>"
+           data-msg-too-long="<?= e(t('entry.form.video_too_long')) ?>"
+           data-msg-error="<?= e(t('entry.form.video_upload_error')) ?>"
+           class="visually-hidden">
+    <p class="field-hint" data-video-status></p>
+  </div>
+
+  <form method="post" action="/entries/<?= (int) $entry['id'] ?>/videos/youtube" class="video-youtube-form">
+    <?= $csrf->field() ?>
+    <div class="field">
+      <label for="youtube_url"><?= e(t('entry.form.youtube_label')) ?></label>
+      <input type="url" id="youtube_url" name="youtube_url" placeholder="<?= e(t('entry.form.youtube_placeholder')) ?>">
+    </div>
+    <button type="submit" class="btn btn-ghost"><?= e(t('entry.form.youtube_add')) ?></button>
+  </form>
+
+  <script src="/assets/js/chunked-upload.js"></script>
   <script src="/assets/js/photo-upload.js"></script>
+  <script src="/assets/js/vendor/mp4-muxer.js"></script>
+  <script src="/assets/js/video-compress.js"></script>
+  <script src="/assets/js/video-upload.js"></script>
 <?php endif; ?>
 
 <script src="/assets/js/day-entry-form.js"></script>

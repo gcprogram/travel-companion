@@ -13,6 +13,9 @@ use Psr\Http\Server\RequestHandlerInterface;
  * Baseline hardening headers. The CSP has no 'unsafe-inline' because the
  * app has no inline <script>/<style>/on*= handlers left — see
  * confirm-submit.js for how the delete-confirmation prompts avoid inline JS.
+ *
+ * img-src and frame-src carry narrow youtube-nocookie.com/i.ytimg.com
+ * allowances for the YouTube video option (embed player + its thumbnail).
  */
 final class SecurityHeadersMiddleware implements MiddlewareInterface
 {
@@ -23,7 +26,8 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
         return $response
             ->withHeader('Content-Security-Policy', implode('; ', [
                 "default-src 'self'",
-                "img-src 'self'",
+                "img-src 'self' https://i.ytimg.com",
+                "frame-src https://www.youtube-nocookie.com",
                 "style-src 'self'",
                 "script-src 'self'",
                 "form-action 'self'",

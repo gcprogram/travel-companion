@@ -9,6 +9,8 @@ use App\Controller\LocaleController;
 use App\Controller\PhotoController;
 use App\Controller\PhotoUploadController;
 use App\Controller\TripController;
+use App\Controller\VideoController;
+use App\Controller\VideoUploadController;
 use App\Middleware\RequireLogin;
 use Slim\App;
 use Slim\Routing\RouteCollectorProxy;
@@ -47,10 +49,17 @@ return static function (App $app): void {
         // Photos: uploading/deleting requires edit rights on the parent entry's trip.
         $group->post('/entries/{entryId:[0-9]+}/photos', [PhotoUploadController::class, 'uploadChunk']);
         $group->post('/photos/{id:[0-9]+}/delete', [PhotoController::class, 'delete']);
+
+        // Videos: same rule, plus a plain-form path for adding a YouTube link.
+        $group->post('/entries/{entryId:[0-9]+}/videos', [VideoUploadController::class, 'uploadChunk']);
+        $group->post('/entries/{entryId:[0-9]+}/videos/youtube', [VideoUploadController::class, 'addYoutube']);
+        $group->post('/videos/{id:[0-9]+}/delete', [VideoController::class, 'delete']);
     })->add(RequireLogin::class);
 
     $app->get('/trip/{slug}', [TripController::class, 'show']);
 
-    // Serving a photo variant depends on the trip's visibility, not login.
+    // Serving depends on the trip's visibility, not login.
     $app->get('/photos/{id:[0-9]+}/{variant}', [PhotoController::class, 'show']);
+    $app->get('/videos/{id:[0-9]+}', [VideoController::class, 'show']);
+    $app->get('/videos/{id:[0-9]+}/poster', [VideoController::class, 'poster']);
 };

@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Repository\DayEntryRepository;
 use App\Repository\JobRepository;
 use App\Repository\PhotoRepository;
+use App\Repository\VideoRepository;
 use App\Service\DayEntryAccess;
 use App\Support\Flash;
 use App\Support\View;
@@ -21,6 +22,7 @@ final class DayEntryController
         private readonly View $view,
         private readonly DayEntryRepository $entries,
         private readonly PhotoRepository $photos,
+        private readonly VideoRepository $videos,
         private readonly JobRepository $jobs,
         private readonly DayEntryAccess $access,
         private readonly Flash $flash,
@@ -35,6 +37,7 @@ final class DayEntryController
             'trip' => $trip,
             'entry' => null,
             'photos' => [],
+            'videos' => [],
         ]);
     }
 
@@ -48,6 +51,7 @@ final class DayEntryController
                 'trip' => $trip,
                 'entry' => $data,
                 'photos' => [],
+                'videos' => [],
                 'errors' => $errors,
             ], status: 422);
         }
@@ -67,6 +71,7 @@ final class DayEntryController
             'trip' => $trip,
             'entry' => $entry,
             'photos' => $this->photos->findByEntry((int) $entry['id']),
+            'videos' => $this->videos->findByEntry((int) $entry['id']),
         ]);
     }
 
@@ -81,6 +86,7 @@ final class DayEntryController
                 'trip' => $trip,
                 'entry' => $data,
                 'photos' => $this->photos->findByEntry((int) $entry['id']),
+                'videos' => $this->videos->findByEntry((int) $entry['id']),
                 'errors' => $errors,
             ], status: 422);
         }
