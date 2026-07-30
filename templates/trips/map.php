@@ -19,7 +19,8 @@ $headExtra = '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">';
 
 <div class="map-view__canvas" id="trip-map"
      data-data-url="/trip/<?= e($trip['slug']) ?>/map/data"
-     data-msg-empty="<?= e(t('trip.map.empty')) ?>"></div>
+     data-msg-empty="<?= e(t('trip.map.empty')) ?>"
+     data-msg-pause="<?= e(t('trip.map.pause_label')) ?>"></div>
 
 <?php if ($canEdit): ?>
   <div class="map-view__track-tools">

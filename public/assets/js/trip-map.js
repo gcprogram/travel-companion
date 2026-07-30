@@ -51,6 +51,16 @@ document.addEventListener('DOMContentLoaded', function () {
     lightbox.hidden = false;
   }
 
+  function formatTime(isoUtc) {
+    // Stored as UTC ('YYYY-MM-DD HH:MM:SS'); displayed in the viewer's local time.
+    var d = new Date(isoUtc.replace(' ', 'T') + 'Z');
+    if (isNaN(d.getTime())) {
+      return '';
+    }
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '. ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
   function closeLightbox() {
     if (!lightbox || !lightboxBody) {
       return;
@@ -100,16 +110,39 @@ document.addEventListener('DOMContentLoaded', function () {
       // pin-order line once one exists for the trip.
       var routeLatlngs = trackLatlngs.length > 0 ? trackLatlngs : pinLatlngs;
       if (routeLatlngs.length > 1) {
-        var routeLine = L.polyline(routeLatlngs, { color: '#2f6f5e', weight: 3, opacity: 0.8 });
+        var routeGroup = L.layerGroup();
+        L.polyline(routeLatlngs, { color: '#2f6f5e', weight: 3, opacity: 0.8 }).addTo(routeGroup);
+
+        // Timestamp/pause tooltips only make sense on a real track's
+        // vertices (chronological photo pins already show their date on
+        // click via the lightbox).
+        if (trackLatlngs.length > 0) {
+          track.points.forEach(function (p) {
+            if (!p.recordedAt) {
+              return;
+            }
+            var label = p.isPause
+              ? (container.dataset.msgPause + ' ' + formatTime(p.recordedAt) + '–' + formatTime(p.recordedUntil))
+              : formatTime(p.recordedAt);
+            L.circleMarker([p.lat, p.lng], {
+              radius: p.isPause ? 6 : 4,
+              color: p.isPause ? '#c56a3c' : '#2f6f5e',
+              fillColor: p.isPause ? '#c56a3c' : '#2f6f5e',
+              fillOpacity: 0.9,
+              weight: 1,
+            }).bindTooltip(label, { sticky: true }).addTo(routeGroup);
+          });
+        }
+
         if (!routeToggle || routeToggle.checked) {
-          routeLine.addTo(map);
+          routeGroup.addTo(map);
         }
         if (routeToggle) {
           routeToggle.addEventListener('change', function () {
             if (routeToggle.checked) {
-              routeLine.addTo(map);
+              routeGroup.addTo(map);
             } else {
-              map.removeLayer(routeLine);
+              map.removeLayer(routeGroup);
             }
           });
         }
