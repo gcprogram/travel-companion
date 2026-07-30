@@ -74,6 +74,7 @@ return [
     'home.empty' => 'Noch keine Reisen hier.',
     'home.create_first' => 'Erste Reise anlegen',
     'trip.badge_private' => 'privat',
+    'media.geotagged_hint' => 'Standort gespeichert',
 
     'trip.form.title_new' => 'Neue Reise',
     'trip.form.title_edit' => 'Reise bearbeiten',

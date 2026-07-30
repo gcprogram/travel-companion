@@ -74,6 +74,7 @@ return [
     'home.empty' => 'No trips here yet.',
     'home.create_first' => 'Create first trip',
     'trip.badge_private' => 'private',
+    'media.geotagged_hint' => 'Location saved',
 
     'trip.form.title_new' => 'New trip',
     'trip.form.title_edit' => 'Edit trip',

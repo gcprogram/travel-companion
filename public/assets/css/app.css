@@ -275,7 +275,20 @@ form.auth-form { max-width: 420px; }
   padding: 0;
 }
 
-.photo-gallery__item { text-align: center; }
+.photo-gallery__item { position: relative; text-align: center; }
+
+.geo-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 0.75rem;
+  line-height: 1;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.2rem 0.35rem;
+  pointer-events: none;
+}
 
 .photo-gallery__item img {
   width: 100%;
@@ -323,6 +336,8 @@ form.auth-form { max-width: 420px; }
 }
 
 .video-list { display: grid; gap: var(--space-2); margin-bottom: var(--space-2); }
+
+.video-embed-wrap { position: relative; }
 
 .video-embed {
   width: 100%;

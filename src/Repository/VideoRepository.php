@@ -64,12 +64,18 @@ final class VideoRepository
         return (int) $this->pdo->lastInsertId();
     }
 
-    public function markReady(int $id, ?int $width, ?int $height, ?int $durationSeconds): void
-    {
+    public function markReady(
+        int $id,
+        ?int $width,
+        ?int $height,
+        ?int $durationSeconds,
+        ?float $lat = null,
+        ?float $lng = null,
+    ): void {
         $stmt = $this->pdo->prepare(
-            "UPDATE videos SET status = 'ready', width = ?, height = ?, duration_seconds = ?, updated_at = ? WHERE id = ?"
+            "UPDATE videos SET status = 'ready', width = ?, height = ?, duration_seconds = ?, lat = ?, lng = ?, updated_at = ? WHERE id = ?"
         );
-        $stmt->execute([$width, $height, $durationSeconds, gmdate('Y-m-d H:i:s'), $id]);
+        $stmt->execute([$width, $height, $durationSeconds, $lat, $lng, gmdate('Y-m-d H:i:s'), $id]);
     }
 
     public function markFailed(int $id): void
