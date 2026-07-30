@@ -8,6 +8,7 @@ use App\Controller\HomeController;
 use App\Controller\LocaleController;
 use App\Controller\PhotoController;
 use App\Controller\PhotoUploadController;
+use App\Controller\TrackController;
 use App\Controller\TripController;
 use App\Controller\TripMapController;
 use App\Controller\VideoController;
@@ -39,6 +40,11 @@ return static function (App $app): void {
         $group->get('/trips/{id:[0-9]+}/edit', [TripController::class, 'edit']);
         $group->post('/trips/{id:[0-9]+}', [TripController::class, 'update']);
         $group->post('/trips/{id:[0-9]+}/delete', [TripController::class, 'delete']);
+
+        // Track: one per trip, re-upload replaces it (see TrackRepository::replaceForTrip).
+        $group->post('/trips/{id:[0-9]+}/track/gpx', [TrackController::class, 'uploadGpx']);
+        $group->post('/trips/{id:[0-9]+}/track/trim', [TrackController::class, 'trim']);
+        $group->post('/trips/{id:[0-9]+}/track/delete', [TrackController::class, 'delete']);
 
         // Day entries: creating hangs off the trip, editing/deleting off the entry itself.
         $group->get('/trips/{tripId:[0-9]+}/entries/new', [DayEntryController::class, 'create']);

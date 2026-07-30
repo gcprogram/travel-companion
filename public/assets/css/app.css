@@ -414,6 +414,18 @@ form.auth-form { max-width: 420px; }
 
 .map-view__toggle { display: flex; align-items: center; gap: 0.4rem; margin: var(--space-2) 0; }
 
+.map-view__track-tools { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-2) 0; }
+.map-view__gpx-form,
+.map-view__trim-form,
+.map-view__track-tools form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+.map-view__trim-form label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; color: var(--color-muted); }
+.map-view__trim-form input[type="range"] { width: 140px; }
+
 .map-view__canvas {
   height: 60vh;
   min-height: 320px;
