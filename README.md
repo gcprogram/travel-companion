@@ -76,6 +76,12 @@ Datei ist aber `php -l`-geprüft):
    abspielbar). Zusätzlich einen YouTube-Link hinzufügen und das Embed
    prüfen. In einem Browser ohne WebCodecs (z.B. älteres Safari) sollte der
    Datei-Upload deaktiviert sein und nur der YouTube-Link angeboten werden.
+10. Geotag-Erhalt: ein Foto/Video mit GPS-Metadaten (z.B. direkt vom Handy)
+    hochladen, danach in der DB `SELECT lat, lng FROM photos`/`videos`
+    prüfen – sollte befüllt sein. Auf der Kachel im Tagebucheintrag sollte
+    ein kleines 📍-Abzeichen erscheinen. Fotos ohne GPS (z.B. Screenshots)
+    oder Videos, deren Kamera-App keinen Ort in den Container schreibt,
+    bleiben bewusst NULL statt einen Fehler zu werfen.
 
 ## Deployment auf Bitpalast (Shared Hosting)
 

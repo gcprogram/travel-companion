@@ -28,21 +28,37 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     input.disabled = true;
 
-    VideoCompress.compress(file, {
-      onProgress: function (fraction) {
-        status.textContent = input.dataset.msgCompressing + ' ' + Math.round(fraction * 100) + '%';
-      },
-    })
-      .then(function (result) {
+    // Extract GPS from the original container BEFORE compression — the
+    // compressed output has none (it's re-encoded from raw decoded frames,
+    // the container and its metadata never survive that).
+    var geotagPromise = (window.VideoGeotag ? VideoGeotag.extract(file) : Promise.resolve(null))
+      .catch(function () { return null; });
+
+    Promise.all([
+      geotagPromise,
+      VideoCompress.compress(file, {
+        onProgress: function (fraction) {
+          status.textContent = input.dataset.msgCompressing + ' ' + Math.round(fraction * 100) + '%';
+        },
+      }),
+    ])
+      .then(function (results) {
+        var geotag = results[0];
+        var result = results[1];
+        var extraFields = {
+          width: String(result.width),
+          height: String(result.height),
+          duration: String(Math.round(result.duration)),
+        };
+        if (geotag) {
+          extraFields.lat = String(geotag.lat);
+          extraFields.lng = String(geotag.lng);
+        }
         return ChunkedUpload.upload(result.blob, 'video.mp4', uploadUrl, csrfField.value, {
           onProgress: function (fraction) {
             status.textContent = input.dataset.msgUploading + ' ' + Math.round(fraction * 100) + '%';
           },
-          extraFields: {
-            width: String(result.width),
-            height: String(result.height),
-            duration: String(Math.round(result.duration)),
-          },
+          extraFields: extraFields,
         });
       })
       .then(function () {

@@ -98,6 +98,9 @@ $lng = $entry['lng'] ?? null;
             <a href="/photos/<?= (int) $photo['id'] ?>/web" target="_blank" rel="noopener">
               <img src="/photos/<?= (int) $photo['id'] ?>/thumb" alt="" loading="lazy">
             </a>
+            <?php if ($photo['lat'] !== null): ?>
+              <span class="geo-badge" title="<?= e(t('media.geotagged_hint')) ?>">📍</span>
+            <?php endif; ?>
           <?php elseif ($photo['status'] === 'failed'): ?>
             <div class="photo-gallery__placeholder photo-gallery__placeholder--failed"><?= e(t('entry.form.photo_failed')) ?></div>
           <?php else: ?>
@@ -139,6 +142,9 @@ $lng = $entry['lng'] ?? null;
             <a href="/videos/<?= (int) $video['id'] ?>" target="_blank" rel="noopener" class="photo-gallery__video-link">
               <img src="/videos/<?= (int) $video['id'] ?>/poster" alt="" loading="lazy">
             </a>
+            <?php if ($video['lat'] !== null): ?>
+              <span class="geo-badge" title="<?= e(t('media.geotagged_hint')) ?>">📍</span>
+            <?php endif; ?>
           <?php elseif ($video['status'] === 'failed'): ?>
             <div class="photo-gallery__placeholder photo-gallery__placeholder--failed"><?= e(t('entry.form.video_failed')) ?></div>
           <?php else: ?>
@@ -182,6 +188,7 @@ $lng = $entry['lng'] ?? null;
   <script src="/assets/js/photo-upload.js"></script>
   <script src="/assets/js/vendor/mp4-muxer.js"></script>
   <script src="/assets/js/video-compress.js"></script>
+  <script src="/assets/js/video-geotag.js"></script>
   <script src="/assets/js/video-upload.js"></script>
 <?php endif; ?>
 

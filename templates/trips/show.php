@@ -79,6 +79,9 @@
                 <a href="/photos/<?= (int) $photo['id'] ?>/web" target="_blank" rel="noopener">
                   <img src="/photos/<?= (int) $photo['id'] ?>/thumb" alt="" loading="lazy">
                 </a>
+                <?php if ($photo['lat'] !== null): ?>
+                  <span class="geo-badge" title="<?= e(t('media.geotagged_hint')) ?>">📍</span>
+                <?php endif; ?>
               </li>
             <?php endforeach; ?>
           </ul>
@@ -95,9 +98,14 @@
                           allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"></iframe>
                 </div>
               <?php else: ?>
-                <video controls preload="none" poster="/videos/<?= (int) $video['id'] ?>/poster" class="video-embed">
-                  <source src="/videos/<?= (int) $video['id'] ?>" type="video/mp4">
-                </video>
+                <div class="video-embed-wrap">
+                  <video controls preload="none" poster="/videos/<?= (int) $video['id'] ?>/poster" class="video-embed">
+                    <source src="/videos/<?= (int) $video['id'] ?>" type="video/mp4">
+                  </video>
+                  <?php if ($video['lat'] !== null): ?>
+                    <span class="geo-badge" title="<?= e(t('media.geotagged_hint')) ?>">📍</span>
+                  <?php endif; ?>
+                </div>
               <?php endif; ?>
             <?php endforeach; ?>
           </div>

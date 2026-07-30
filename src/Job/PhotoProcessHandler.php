@@ -13,6 +13,12 @@ use Psr\Log\LoggerInterface;
  * Generates the thumb/web WebP derivatives from the uploaded original via
  * Imagick. Only available where the imagick extension is installed (the
  * Bitpalast hosting has it; a bare-PHP dev machine typically doesn't).
+ *
+ * Also extracts GPS coordinates from the original's EXIF data — the
+ * derivatives get stripImage()'d for privacy/size, but the location itself
+ * is important for later route/POI matching, so it's pulled out into its
+ * own columns before that metadata is gone from the images we actually
+ * hand out.
  */
 final class PhotoProcessHandler implements JobHandlerInterface
 {
@@ -45,7 +51,8 @@ final class PhotoProcessHandler implements JobHandlerInterface
         try {
             $this->renderVariant($originalPath, $this->storage->derivativePath($photoId, 'thumb'), self::THUMB_MAX_EDGE);
             $webSize = $this->renderVariant($originalPath, $this->storage->derivativePath($photoId, 'web'), self::WEB_MAX_EDGE);
-            $this->photos->markReady($photoId, $webSize['width'], $webSize['height']);
+            $gps = $this->extractGps($originalPath);
+            $this->photos->markReady($photoId, $webSize['width'], $webSize['height'], $gps['lat'] ?? null, $gps['lng'] ?? null);
         } catch (\Throwable $e) {
             $this->photos->markFailed($photoId);
             throw $e; // Let the Worker's retry/backoff take over; it logs the failure.
@@ -82,6 +89,72 @@ final class PhotoProcessHandler implements JobHandlerInterface
         $image->destroy();
 
         return $size;
+    }
+
+    /**
+     * Best-effort GPS extraction from EXIF (JPEG/TIFF only — the exif
+     * extension doesn't read GPS out of PNG/WebP, which is fine since real
+     * camera/phone photos are essentially always JPEG). Returns null rather
+     * than throwing when absent or unparsable; a missing location is not
+     * a processing failure.
+     *
+     * @return array{lat: float, lng: float}|null
+     */
+    private function extractGps(string $path): ?array
+    {
+        if (!function_exists('exif_read_data')) {
+            return null;
+        }
+
+        $exif = @exif_read_data($path);
+        if (
+            $exif === false
+            || !isset($exif['GPSLatitude'], $exif['GPSLongitude'], $exif['GPSLatitudeRef'], $exif['GPSLongitudeRef'])
+            || !is_array($exif['GPSLatitude'])
+            || !is_array($exif['GPSLongitude'])
+        ) {
+            return null;
+        }
+
+        $lat = $this->dmsToDecimal($exif['GPSLatitude'], (string) $exif['GPSLatitudeRef']);
+        $lng = $this->dmsToDecimal($exif['GPSLongitude'], (string) $exif['GPSLongitudeRef']);
+        if ($lat === null || $lng === null) {
+            return null;
+        }
+
+        return ['lat' => round($lat, 6), 'lng' => round($lng, 6)];
+    }
+
+    /**
+     * @param array<int, string> $dms Three "numerator/denominator" strings: degrees, minutes, seconds.
+     */
+    private function dmsToDecimal(array $dms, string $ref): ?float
+    {
+        if (count($dms) !== 3) {
+            return null;
+        }
+
+        $degrees = $this->fractionToFloat((string) $dms[0]);
+        $minutes = $this->fractionToFloat((string) $dms[1]);
+        $seconds = $this->fractionToFloat((string) $dms[2]);
+        if ($degrees === null || $minutes === null || $seconds === null) {
+            return null;
+        }
+
+        $decimal = $degrees + ($minutes / 60) + ($seconds / 3600);
+        return in_array(strtoupper($ref), ['S', 'W'], true) ? -$decimal : $decimal;
+    }
+
+    private function fractionToFloat(string $fraction): ?float
+    {
+        $parts = explode('/', $fraction);
+        if (count($parts) === 1) {
+            return is_numeric($parts[0]) ? (float) $parts[0] : null;
+        }
+        if (count($parts) !== 2 || !is_numeric($parts[0]) || !is_numeric($parts[1]) || (float) $parts[1] === 0.0) {
+            return null;
+        }
+        return (float) $parts[0] / (float) $parts[1];
     }
 
     /**

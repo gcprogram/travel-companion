@@ -125,11 +125,15 @@ final class VideoUploadController
 
         // The client already knows these from compressing the file (VideoCompress.compress());
         // the video is playable immediately, no need to wait on server-side processing for them.
+        // lat/lng (if present) come from video-geotag.js reading the original's container
+        // metadata before compression, since the compressed output carries none of it.
         $this->videos->markReady(
             $videoId,
             $this->positiveIntOrNull($body['width'] ?? null),
             $this->positiveIntOrNull($body['height'] ?? null),
             $this->positiveIntOrNull($body['duration'] ?? null),
+            $this->coordinateOrNull($body['lat'] ?? null, 90.0),
+            $this->coordinateOrNull($body['lng'] ?? null, 180.0),
         );
 
         // Poster thumbnail is a best-effort bonus handled async; the video itself is already usable.
@@ -145,6 +149,15 @@ final class VideoUploadController
         }
         $int = (int) round((float) $value);
         return $int > 0 ? $int : null;
+    }
+
+    private function coordinateOrNull(mixed $value, float $maxAbs): ?float
+    {
+        if ($value === null || $value === '' || !is_numeric($value)) {
+            return null;
+        }
+        $float = round((float) $value, 6);
+        return abs($float) <= $maxAbs ? $float : null;
     }
 
     /**
