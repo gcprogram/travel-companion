@@ -125,15 +125,23 @@
       fastStart: 'in-memory',
     });
 
-    // Encoder "error" callbacks fire asynchronously outside this function's
-    // call stack, so throwing directly inside them would just be an unhandled
-    // rejection, not a rejection of this compress() promise. Stash it instead
-    // and check after every await point so it surfaces properly.
+    // Encoder "error" callbacks — and our own output callbacks below, since
+    // muxer.addVideoChunk()/addAudioChunk() can themselves throw — fire
+    // asynchronously outside this function's call stack, so throwing
+    // directly inside them would just be an unhandled rejection, not a
+    // rejection of this compress() promise. Stash it instead and check
+    // after every await point so it surfaces properly.
     let encoderError = null;
     const onEncoderError = (e) => { encoderError = e; };
 
     const videoEncoder = new VideoEncoder({
-      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      output: (chunk, meta) => {
+        try {
+          muxer.addVideoChunk(chunk, meta);
+        } catch (e) {
+          onEncoderError(e);
+        }
+      },
       error: onEncoderError,
     });
     videoEncoder.configure(videoConfig);
@@ -141,7 +149,13 @@
     let audioEncoder = null;
     if (audioConfig) {
       audioEncoder = new AudioEncoder({
-        output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+        output: (chunk, meta) => {
+          try {
+            muxer.addAudioChunk(chunk, meta);
+          } catch (e) {
+            onEncoderError(e);
+          }
+        },
         error: onEncoderError,
       });
       audioEncoder.configure(audioConfig);
@@ -150,6 +164,7 @@
     const canvas = new OffscreenCanvas(targetWidth, targetHeight);
     const ctx = canvas.getContext('2d');
     const frameCount = Math.max(1, Math.round(duration * TARGET_FPS));
+    const frameDurationUs = Math.round(1e6 / TARGET_FPS);
 
     video.pause();
     for (let i = 0; i < frameCount; i++) {
@@ -159,7 +174,9 @@
         throw encoderError;
       }
       ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
-      const frame = new VideoFrame(canvas, { timestamp: Math.round(t * 1e6) });
+      // duration is required — without it, EncodedVideoChunk.duration comes out
+      // null and mp4-muxer rejects every chunk (only surfacing at finalize()).
+      const frame = new VideoFrame(canvas, { timestamp: Math.round(t * 1e6), duration: frameDurationUs });
       videoEncoder.encode(frame, { keyFrame: i % (TARGET_FPS * 2) === 0 });
       frame.close();
       if (videoEncoder.encodeQueueSize > 4) {
