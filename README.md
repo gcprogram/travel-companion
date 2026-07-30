@@ -67,6 +67,15 @@ Datei ist aber `php -l`-geprüft):
    `php bin/console.php jobs:work` laufen lassen – Thumbnail sollte
    anschließend erscheinen; Löschen prüfen (löscht auch die Dateien unter
    `var/uploads/photos/<id>/`)
+9. Ein kurzes Video (< 2 Minuten) hochladen – läuft komplett im Browser
+   (Kompression + Chunked Upload), sollte ohne Warten auf den Worker sofort
+   abspielbar sein; danach `jobs:work` laufen lassen und prüfen, ob ein
+   Poster-Thumbnail erscheint (Imagick-Video-Unterstützung ist laut
+   `CLAUDE.md` auf dem Zielhosting ungetestet – falls kein Poster kommt, ist
+   das ein bekannter, tolerierter Ausfall, das Video bleibt trotzdem
+   abspielbar). Zusätzlich einen YouTube-Link hinzufügen und das Embed
+   prüfen. In einem Browser ohne WebCodecs (z.B. älteres Safari) sollte der
+   Datei-Upload deaktiviert sein und nur der YouTube-Link angeboten werden.
 
 ## Deployment auf Bitpalast (Shared Hosting)
 

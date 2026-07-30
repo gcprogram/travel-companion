@@ -3,6 +3,7 @@
 /** @var list<array<string, mixed>> $stations */
 /** @var list<array<string, mixed>> $entries */
 /** @var array<int, list<array<string, mixed>>> $photosByEntry */
+/** @var array<int, list<array<string, mixed>>> $videosByEntry */
 /** @var bool $canEdit */
 ?>
 
@@ -83,6 +84,25 @@
           </ul>
         <?php endif; ?>
 
+        <?php $entryVideos = array_filter($videosByEntry[(int) $entry['id']] ?? [], static fn (array $v): bool => $v['type'] === 'youtube' || $v['status'] === 'ready'); ?>
+        <?php if ($entryVideos !== []): ?>
+          <div class="video-list">
+            <?php foreach ($entryVideos as $video): ?>
+              <?php if ($video['type'] === 'youtube'): ?>
+                <div class="video-embed">
+                  <iframe src="https://www.youtube-nocookie.com/embed/<?= e((string) $video['youtube_id']) ?>"
+                          loading="lazy" allowfullscreen
+                          allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"></iframe>
+                </div>
+              <?php else: ?>
+                <video controls preload="none" poster="/videos/<?= (int) $video['id'] ?>/poster" class="video-embed">
+                  <source src="/videos/<?= (int) $video['id'] ?>" type="video/mp4">
+                </video>
+              <?php endif; ?>
+            <?php endforeach; ?>
+          </div>
+        <?php endif; ?>
+
         <?php if ($canEdit): ?>
           <div class="page-actions">
             <a class="btn btn-ghost" href="/entries/<?= (int) $entry['id'] ?>/edit"><?= e(t('entry.edit')) ?></a>
@@ -105,10 +125,6 @@
     <a class="btn btn-primary" href="/trips/<?= (int) $trip['id'] ?>/entries/new"><?= e(t('trip.show.add_entry')) ?></a>
   </div>
 <?php endif; ?>
-
-<div class="empty-state">
-  <p><?= e(t('trip.show.videos_note')) ?></p>
-</div>
 
 <?php if ($canEdit): ?>
   <div class="page-actions">
