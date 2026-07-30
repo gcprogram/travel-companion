@@ -4,9 +4,8 @@
  * so panning/zooming a trip with a few hundred pins stays smooth.
  *
  * A real GPS track (GPX upload or folder-derived points) replaces the naive
- * chronological pin-order line once one exists for the trip. POI rendering
- * (task #33) will read the same /map/data response, which already reserves
- * a `pois` key ([] for now).
+ * chronological pin-order line once one exists for the trip. POIs (museums,
+ * monuments, ...) render as small colored pins, tinted once marked visited.
  */
 document.addEventListener('DOMContentLoaded', function () {
   var container = document.getElementById('trip-map');
@@ -78,6 +77,33 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  // Manual POI form: "pick on map" arms a one-time click on the map to fill
+  // the hidden lat/lng inputs, independent of whether pin/track data has
+  // loaded yet.
+  var poiPickButton = document.querySelector('[data-poi-pick-on-map]');
+  var poiPickStatus = document.querySelector('[data-poi-pick-status]');
+  var poiLatInput = document.querySelector('[data-poi-lat-input]');
+  var poiLngInput = document.querySelector('[data-poi-lng-input]');
+  var poiPickMarker = null;
+  if (poiPickButton && poiLatInput && poiLngInput) {
+    poiPickButton.addEventListener('click', function () {
+      if (poiPickStatus) {
+        poiPickStatus.textContent = poiPickButton.dataset.msgPicking || '';
+      }
+      map.once('click', function (e) {
+        poiLatInput.value = e.latlng.lat.toFixed(6);
+        poiLngInput.value = e.latlng.lng.toFixed(6);
+        if (poiPickStatus) {
+          poiPickStatus.textContent = e.latlng.lat.toFixed(5) + ', ' + e.latlng.lng.toFixed(5);
+        }
+        if (poiPickMarker) {
+          map.removeLayer(poiPickMarker);
+        }
+        poiPickMarker = L.marker(e.latlng).addTo(map);
+      });
+    });
+  }
+
   fetch(container.dataset.dataUrl, { credentials: 'same-origin' })
     .then(function (response) { return response.json(); })
     .then(function (data) {
@@ -86,8 +112,9 @@ document.addEventListener('DOMContentLoaded', function () {
       var trackLatlngs = (track && track.points && track.points.length > 1)
         ? track.points.map(function (p) { return [p.lat, p.lng]; })
         : [];
+      var pois = data.pois || [];
 
-      if (pins.length === 0 && trackLatlngs.length === 0) {
+      if (pins.length === 0 && trackLatlngs.length === 0 && pois.length === 0) {
         var empty = document.createElement('p');
         empty.className = 'empty-state';
         empty.textContent = container.dataset.msgEmpty;
@@ -155,8 +182,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
       }
 
+      var poiLatlngs = [];
+      pois.forEach(function (poi) {
+        var icon = L.divIcon({
+          className: 'map-view__poi-pin' + (poi.visited ? ' map-view__poi-pin--visited' : ''),
+          iconSize: [16, 16],
+        });
+        L.marker([poi.lat, poi.lng], { icon: icon }).bindTooltip(poi.name, { sticky: true }).addTo(map);
+        poiLatlngs.push([poi.lat, poi.lng]);
+      });
+
       map.on('zoomend', applyIconsForZoom);
-      map.fitBounds(pinLatlngs.concat(trackLatlngs), { padding: [40, 40], maxZoom: 16 });
+      map.fitBounds(pinLatlngs.concat(trackLatlngs).concat(poiLatlngs), { padding: [40, 40], maxZoom: 16 });
       applyIconsForZoom();
     })
     .catch(function () {

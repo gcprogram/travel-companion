@@ -8,6 +8,7 @@ use App\Controller\HomeController;
 use App\Controller\LocaleController;
 use App\Controller\PhotoController;
 use App\Controller\PhotoUploadController;
+use App\Controller\PoiController;
 use App\Controller\TrackController;
 use App\Controller\TripController;
 use App\Controller\TripMapController;
@@ -46,6 +47,12 @@ return static function (App $app): void {
         $group->post('/trips/{id:[0-9]+}/track/points', [TrackController::class, 'submitPoints']);
         $group->post('/trips/{id:[0-9]+}/track/trim', [TrackController::class, 'trim']);
         $group->post('/trips/{id:[0-9]+}/track/delete', [TrackController::class, 'delete']);
+
+        // POIs: discovery dispatches a job, everything else is direct CRUD.
+        $group->post('/trips/{id:[0-9]+}/pois/discover', [PoiController::class, 'discover']);
+        $group->post('/trips/{id:[0-9]+}/pois', [PoiController::class, 'store']);
+        $group->post('/pois/{id:[0-9]+}/visited', [PoiController::class, 'toggleVisited']);
+        $group->post('/pois/{id:[0-9]+}/delete', [PoiController::class, 'delete']);
 
         // Day entries: creating hangs off the trip, editing/deleting off the entry itself.
         $group->get('/trips/{tripId:[0-9]+}/entries/new', [DayEntryController::class, 'create']);

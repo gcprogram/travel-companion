@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Database\Connection;
 use App\Job\PingHandler;
 use App\Job\PhotoProcessHandler;
+use App\Job\PoiDiscoveryHandler;
 use App\Job\VideoProcessHandler;
 use App\Job\WeatherFetchHandler;
 use App\Job\Worker;
@@ -46,6 +47,7 @@ return [
         $worker->register('weather.fetch', $c->get(WeatherFetchHandler::class));
         $worker->register('photo.process', $c->get(PhotoProcessHandler::class));
         $worker->register('video.process', $c->get(VideoProcessHandler::class));
+        $worker->register('poi.discover', $c->get(PoiDiscoveryHandler::class));
 
         return $worker;
     },

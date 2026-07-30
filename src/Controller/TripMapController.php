@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Repository\DayEntryRepository;
 use App\Repository\PhotoRepository;
+use App\Repository\PoiRepository;
 use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
@@ -26,6 +27,7 @@ final class TripMapController
         private readonly VideoRepository $videos,
         private readonly TrackRepository $tracks,
         private readonly TrackSmoothingService $smoothing,
+        private readonly PoiRepository $pois,
         private readonly TripAccess $access,
     ) {
     }
@@ -38,6 +40,7 @@ final class TripMapController
             'trip' => $trip,
             'canEdit' => $this->access->canEdit($trip, $request->getAttribute('user')),
             'track' => $this->trackSummary((int) $trip['id']),
+            'pois' => $this->pois->findByTrip((int) $trip['id']),
         ]);
     }
 
@@ -109,10 +112,19 @@ final class TripMapController
 
         usort($pins, static fn (array $a, array $b): int => $a['takenAt'] <=> $b['takenAt']);
 
+        $pois = array_map(static fn (array $p): array => [
+            'id' => (int) $p['id'],
+            'name' => $p['name'],
+            'category' => $p['category'],
+            'lat' => (float) $p['lat'],
+            'lng' => (float) $p['lng'],
+            'visited' => (bool) $p['visited'],
+        ], $this->pois->findByTrip((int) $trip['id']));
+
         $response->getBody()->write((string) json_encode([
             'pins' => $pins,
             'track' => $this->buildTrack((int) $trip['id']),
-            'pois' => [],
+            'pois' => $pois,
         ], JSON_THROW_ON_ERROR));
 
         return $response->withHeader('Content-Type', 'application/json');

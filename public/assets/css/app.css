@@ -427,6 +427,43 @@ form.auth-form { max-width: 420px; }
 .map-view__trim-form input[type="range"] { width: 140px; }
 .map-view__folder-form { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
 
+.map-view__poi-pin {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.map-view__poi-pin--visited { background: var(--color-brand); }
+
+.poi-list { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.poi-list__item {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-1) var(--space-2);
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+.poi-list__item--visited { opacity: 0.7; }
+.poi-list__category {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+  background: var(--color-paper);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+}
+.poi-list__name { font-weight: 600; }
+.poi-list__actions { margin-left: auto; }
+.poi-list__visited-badge { margin-left: auto; color: var(--color-brand); font-size: 0.85rem; }
+
+.map-view__poi-form { display: flex; flex-direction: column; gap: var(--space-1); max-width: 420px; margin-top: var(--space-2); }
+
 .map-view__canvas {
   height: 60vh;
   min-height: 320px;
