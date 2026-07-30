@@ -49,9 +49,14 @@ document.addEventListener('DOMContentLoaded', function () {
         window.location.reload();
       })
       .catch(function (err) {
-        status.textContent = err && err.message === 'video_too_long'
-          ? input.dataset.msgTooLong
-          : input.dataset.msgError;
+        console.error('Video upload failed:', err);
+        if (err && err.message === 'video_too_long') {
+          status.textContent = input.dataset.msgTooLong;
+        } else if (err && err.message === 'codec_unsupported') {
+          status.textContent = input.dataset.msgCodecUnsupported;
+        } else {
+          status.textContent = input.dataset.msgError;
+        }
         input.disabled = false;
       });
   });

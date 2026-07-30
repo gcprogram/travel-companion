@@ -85,39 +85,66 @@
       audioBuffer = null; // Silent video is acceptable; re-encoding still proceeds.
     }
 
-    const muxer = new Mp4Muxer.Muxer({
-      target: new Mp4Muxer.ArrayBufferTarget(),
-      video: { codec: 'avc', width: targetWidth, height: targetHeight },
-      audio: audioBuffer
-        ? { codec: 'aac', numberOfChannels: audioBuffer.numberOfChannels, sampleRate: audioBuffer.sampleRate }
-        : undefined,
-      fastStart: 'in-memory',
-    });
-
-    const videoEncoder = new VideoEncoder({
-      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-      error: (e) => { throw e; },
-    });
-    videoEncoder.configure({
+    // Real encoder support (codec/resolution/bitrate combo) can differ from
+    // plain API presence, especially on phones with limited hardware
+    // encoders — check before committing, so unsupported devices get a
+    // specific error instead of a mid-encode crash.
+    const videoConfig = {
       codec: 'avc1.42001f',
       width: targetWidth,
       height: targetHeight,
       bitrate: VIDEO_BITRATE,
       framerate: TARGET_FPS,
-    });
+    };
+    const videoSupport = await VideoEncoder.isConfigSupported(videoConfig);
+    if (!videoSupport.supported) {
+      throw new Error('codec_unsupported');
+    }
 
-    let audioEncoder = null;
+    let audioConfig = null;
     if (audioBuffer) {
-      audioEncoder = new AudioEncoder({
-        output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
-        error: (e) => { throw e; },
-      });
-      audioEncoder.configure({
+      audioConfig = {
         codec: 'mp4a.40.2',
         sampleRate: audioBuffer.sampleRate,
         numberOfChannels: audioBuffer.numberOfChannels,
         bitrate: AUDIO_BITRATE,
+      };
+      const audioSupport = await AudioEncoder.isConfigSupported(audioConfig);
+      if (!audioSupport.supported) {
+        audioBuffer = null;
+        audioConfig = null; // Fall back to a silent video rather than failing outright.
+      }
+    }
+
+    const muxer = new Mp4Muxer.Muxer({
+      target: new Mp4Muxer.ArrayBufferTarget(),
+      video: { codec: 'avc', width: targetWidth, height: targetHeight },
+      audio: audioConfig
+        ? { codec: 'aac', numberOfChannels: audioConfig.numberOfChannels, sampleRate: audioConfig.sampleRate }
+        : undefined,
+      fastStart: 'in-memory',
+    });
+
+    // Encoder "error" callbacks fire asynchronously outside this function's
+    // call stack, so throwing directly inside them would just be an unhandled
+    // rejection, not a rejection of this compress() promise. Stash it instead
+    // and check after every await point so it surfaces properly.
+    let encoderError = null;
+    const onEncoderError = (e) => { encoderError = e; };
+
+    const videoEncoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error: onEncoderError,
+    });
+    videoEncoder.configure(videoConfig);
+
+    let audioEncoder = null;
+    if (audioConfig) {
+      audioEncoder = new AudioEncoder({
+        output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+        error: onEncoderError,
       });
+      audioEncoder.configure(audioConfig);
     }
 
     const canvas = new OffscreenCanvas(targetWidth, targetHeight);
@@ -128,6 +155,9 @@
     for (let i = 0; i < frameCount; i++) {
       const t = i / TARGET_FPS;
       await seekTo(video, t);
+      if (encoderError) {
+        throw encoderError;
+      }
       ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
       const frame = new VideoFrame(canvas, { timestamp: Math.round(t * 1e6) });
       videoEncoder.encode(frame, { keyFrame: i % (TARGET_FPS * 2) === 0 });
@@ -139,6 +169,9 @@
     }
     await videoEncoder.flush();
     videoEncoder.close();
+    if (encoderError) {
+      throw encoderError;
+    }
 
     if (audioBuffer && audioEncoder) {
       const chunkFrames = Math.round(audioBuffer.sampleRate * 0.05);
@@ -166,6 +199,9 @@
       }
       await audioEncoder.flush();
       audioEncoder.close();
+      if (encoderError) {
+        throw encoderError;
+      }
     }
     onProgress(1);
 
