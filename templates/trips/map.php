@@ -2,7 +2,9 @@
 /** @var array<string, mixed> $trip */
 /** @var bool $canEdit */
 /** @var array{totalPoints: int, trimStart: int, trimEnd: int}|null $track */
+/** @var list<array<string, mixed>> $pois */
 $headExtra = '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">';
+$categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_building', 'other'];
 ?>
 
 <h1><?= e(t('trip.map.title')) ?></h1>
@@ -70,6 +72,80 @@ $headExtra = '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">';
       </form>
     <?php endif; ?>
   </div>
+<?php endif; ?>
+
+<h2><?= e(t('trip.map.poi_heading')) ?></h2>
+
+<?php if ($canEdit): ?>
+  <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/discover" class="page-actions">
+    <?= $csrf->field() ?>
+    <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.poi_discover')) ?></button>
+  </form>
+  <p class="field-hint"><?= e(t('trip.map.poi_discover_hint')) ?></p>
+<?php endif; ?>
+
+<?php if ($pois === []): ?>
+  <p class="empty-state"><?= e(t('trip.map.poi_empty')) ?></p>
+<?php else: ?>
+  <ul class="poi-list">
+    <?php foreach ($pois as $poi): ?>
+      <li class="poi-list__item<?= $poi['visited'] ? ' poi-list__item--visited' : '' ?>">
+        <span class="poi-list__category"><?= e(t('trip.map.category.' . $poi['category'])) ?></span>
+        <span class="poi-list__name"><?= e($poi['name']) ?></span>
+        <?php if (!empty($poi['notes'])): ?>
+          <p class="field-hint"><?= nl2br(e($poi['notes'])) ?></p>
+        <?php endif; ?>
+        <?php if ($canEdit): ?>
+          <form method="post" action="/pois/<?= (int) $poi['id'] ?>/visited" class="poi-list__actions">
+            <?= $csrf->field() ?>
+            <button type="submit" class="btn btn-ghost btn-small">
+              <?= $poi['visited'] ? e(t('trip.map.poi_mark_unvisited')) : e(t('trip.map.poi_mark_visited')) ?>
+            </button>
+          </form>
+          <form method="post" action="/pois/<?= (int) $poi['id'] ?>/delete" class="poi-list__actions"
+                data-confirm="<?= e(t('trip.map.poi_delete_confirm')) ?>">
+            <?= $csrf->field() ?>
+            <button type="submit" class="btn btn-ghost btn-small"><?= e(t('trip.map.poi_delete')) ?></button>
+          </form>
+        <?php elseif ($poi['visited']): ?>
+          <span class="poi-list__visited-badge"><?= e(t('trip.map.poi_visited_badge')) ?></span>
+        <?php endif; ?>
+      </li>
+    <?php endforeach; ?>
+  </ul>
+<?php endif; ?>
+
+<?php if ($canEdit): ?>
+  <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois" class="map-view__poi-form" data-poi-add-form>
+    <?= $csrf->field() ?>
+    <div class="field">
+      <label for="poi-name"><?= e(t('trip.map.poi_name_label')) ?></label>
+      <input type="text" id="poi-name" name="name" required>
+    </div>
+    <div class="field">
+      <label for="poi-category"><?= e(t('trip.map.poi_category_label')) ?></label>
+      <select id="poi-category" name="category">
+        <?php foreach ($categories as $category): ?>
+          <option value="<?= e($category) ?>"><?= e(t('trip.map.category.' . $category)) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <div class="field">
+      <label for="poi-visit-date"><?= e(t('trip.map.poi_date_label')) ?></label>
+      <input type="date" id="poi-visit-date" name="visit_date">
+    </div>
+    <div class="field">
+      <label for="poi-notes"><?= e(t('trip.map.poi_notes_label')) ?></label>
+      <textarea id="poi-notes" name="notes"></textarea>
+    </div>
+    <div class="field">
+      <button type="button" class="btn btn-ghost" data-poi-pick-on-map data-msg-picking="<?= e(t('trip.map.poi_pick_picking')) ?>"><?= e(t('trip.map.poi_pick_on_map')) ?></button>
+      <span class="field-hint" data-poi-pick-status><?= e(t('trip.map.poi_pick_none')) ?></span>
+      <input type="hidden" name="lat" data-poi-lat-input>
+      <input type="hidden" name="lng" data-poi-lng-input>
+    </div>
+    <button type="submit" class="btn btn-primary"><?= e(t('trip.map.poi_add')) ?></button>
+  </form>
 <?php endif; ?>
 
 <div class="map-lightbox" data-map-lightbox hidden>
