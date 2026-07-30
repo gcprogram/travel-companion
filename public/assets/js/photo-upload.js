@@ -23,7 +23,8 @@ document.addEventListener('DOMContentLoaded', function () {
     input.disabled = true;
     uploadAll(files).then(function () {
       window.location.reload();
-    }).catch(function () {
+    }).catch(function (err) {
+      console.error('Photo upload failed:', err);
       status.textContent = input.dataset.msgError;
       input.disabled = false;
     });

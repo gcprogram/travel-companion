@@ -43,7 +43,16 @@ window.ChunkedUpload = (function () {
           return fetch(uploadUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
             .then(function (response) {
               if (!response.ok) {
-                throw new Error('upload_failed');
+                // Read the body for diagnostics even though we're about to throw —
+                // {"error": "..."} from our controllers, or an HTML error page if
+                // something failed before it even got there (e.g. a 419/CSRF or a
+                // proxy-level rejection).
+                return response.text().then(function (text) {
+                  var err = new Error('upload_failed: HTTP ' + response.status);
+                  err.status = response.status;
+                  err.body = text;
+                  throw err;
+                });
               }
               return response.json();
             })
