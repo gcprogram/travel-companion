@@ -84,6 +84,21 @@ final class VideoRepository
         $stmt->execute([gmdate('Y-m-d H:i:s'), $id]);
     }
 
+    public function updateBytes(int $id, int $bytes): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE videos SET bytes = ? WHERE id = ?');
+        $stmt->execute([$bytes, $id]);
+    }
+
+    /**
+     * @return list<int> ids of uploaded videos with no recorded byte size yet
+     */
+    public function findIdsWithoutBytes(): array
+    {
+        $rows = $this->pdo->query("SELECT id FROM videos WHERE bytes IS NULL AND type = 'upload'")->fetchAll(PDO::FETCH_COLUMN);
+        return array_map(intval(...), $rows);
+    }
+
     public function delete(int $id): void
     {
         $this->pdo->prepare('DELETE FROM videos WHERE id = ?')->execute([$id]);

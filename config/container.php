@@ -7,6 +7,7 @@ use App\Job\PingHandler;
 use App\Job\PhotoProcessHandler;
 use App\Job\PoiAssignmentHandler;
 use App\Job\PoiDiscoveryHandler;
+use App\Job\StorageBackfillHandler;
 use App\Job\VideoProcessHandler;
 use App\Job\WeatherFetchHandler;
 use App\Job\Worker;
@@ -57,6 +58,7 @@ return [
         $worker->register('video.process', $c->get(VideoProcessHandler::class));
         $worker->register('poi.discover', $c->get(PoiDiscoveryHandler::class));
         $worker->register('poi.assign', $c->get(PoiAssignmentHandler::class));
+        $worker->register('storage.backfill', $c->get(StorageBackfillHandler::class));
 
         return $worker;
     },
