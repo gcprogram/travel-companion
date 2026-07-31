@@ -38,6 +38,13 @@ return [
         'csrf' => $c->get(App\Support\Csrf::class),
         'flash' => $c->get(App\Support\Flash::class),
         'appName' => Env::get('APP_NAME', 'Travel Companion'),
+        // MapTiler serves the trip-map raster tiles (see trip-map.js). The
+        // public tile.openstreetmap.org server's usage policy forbids the
+        // traffic pattern a real app produces (no "heavy use"/bulk tile
+        // loading) and got this project IP-blocked during testing; empty
+        // string here just means the map's tile layer silently fails to
+        // load rather than crashing the whole app on every page.
+        'mapTilerKey' => Env::get('MAPTILER_KEY', ''),
     ]),
 
     Worker::class => static function (ContainerInterface $c): Worker {

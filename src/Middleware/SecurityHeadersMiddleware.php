@@ -16,7 +16,11 @@ use Psr\Http\Server\RequestHandlerInterface;
  *
  * img-src and frame-src carry narrow youtube-nocookie.com/i.ytimg.com
  * allowances for the YouTube video option (embed player + its thumbnail),
- * plus tile.openstreetmap.org for the trip map's raster tiles.
+ * plus api.maptiler.com for the trip map's raster tiles (not
+ * tile.openstreetmap.org directly — its usage policy forbids the traffic
+ * pattern a real app produces and got this project IP-blocked during
+ * testing; MapTiler serves the same OSM cartography under a plan meant
+ * for production use).
  * media-src allows blob: because video-compress.js loads the file the user
  * picked into an off-screen <video> via URL.createObjectURL() to read
  * frames for compression — without it every video upload fails immediately
@@ -25,6 +29,12 @@ use Psr\Http\Server\RequestHandlerInterface;
  * back to default-src/script-src 'self' anyway) rather than trusting that
  * fallback chain blind — the media-src gap above already burned us once
  * this project from assuming a directive wasn't needed without checking.
+ * Referrer-Policy is strict-origin-when-cross-origin rather than
+ * same-origin: some third-party services (potentially including tile
+ * providers) authorize by checking the Referer header, and same-origin
+ * suppresses it entirely for cross-origin requests. This still only leaks
+ * the origin (not the full path/query) cross-origin, so it's not a
+ * meaningful privacy regression.
  */
 final class SecurityHeadersMiddleware implements MiddlewareInterface
 {
@@ -35,7 +45,7 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
         return $response
             ->withHeader('Content-Security-Policy', implode('; ', [
                 "default-src 'self'",
-                "img-src 'self' https://i.ytimg.com https://tile.openstreetmap.org",
+                "img-src 'self' https://i.ytimg.com https://api.maptiler.com",
                 "media-src 'self' blob:",
                 "frame-src https://www.youtube-nocookie.com",
                 "style-src 'self'",
@@ -49,6 +59,6 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
             ]))
             ->withHeader('X-Content-Type-Options', 'nosniff')
             ->withHeader('X-Frame-Options', 'DENY')
-            ->withHeader('Referrer-Policy', 'same-origin');
+            ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     }
 }

@@ -22,6 +22,7 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
 
 <div class="map-view__canvas" id="trip-map"
      data-data-url="/trip/<?= e($trip['slug']) ?>/map/data"
+     data-tile-key="<?= e($mapTilerKey ?? '') ?>"
      data-msg-empty="<?= e(t('trip.map.empty')) ?>"
      data-msg-pause="<?= e(t('trip.map.pause_label')) ?>"></div>
 
