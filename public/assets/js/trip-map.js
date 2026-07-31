@@ -19,10 +19,18 @@ document.addEventListener('DOMContentLoaded', function () {
   var ZOOM_THUMBNAIL_THRESHOLD = 14;
 
   var map = L.map(container, { zoomControl: true }).setView([20, 0], 2);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  }).addTo(map);
+
+  // tile.openstreetmap.org's usage policy forbids the traffic pattern a
+  // real app produces (no bulk/heavy use) — MapTiler serves the same OSM
+  // cartography under a plan that's actually meant for this.
+  var tileKey = container.dataset.tileKey;
+  if (tileKey) {
+    L.tileLayer('https://api.maptiler.com/maps/openstreetmap/{z}/{x}/{y}.jpg?key=' + tileKey, {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> '
+        + '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+    }).addTo(map);
+  }
 
   function dotIcon(kind) {
     return L.divIcon({
