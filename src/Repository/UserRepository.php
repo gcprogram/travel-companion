@@ -55,4 +55,12 @@ final class UserRepository
         $stmt = $this->pdo->prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?');
         $stmt->execute([$passwordHash, gmdate('Y-m-d H:i:s'), $userId]);
     }
+
+    public function recordLogin(int $userId): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE users SET last_login_at = ?, login_count = login_count + 1 WHERE id = ?'
+        );
+        $stmt->execute([gmdate('Y-m-d H:i:s'), $userId]);
+    }
 }

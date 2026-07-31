@@ -60,10 +60,10 @@ final class AuthService
 
         // The very first user becomes admin, everyone after that gets the default role.
         $role = $this->users->countAll() === 0
-            ? 'admin'
-            : (in_array(Env::get('DEFAULT_ROLE', 'author'), ['author', 'visitor'], true)
-                ? (string) Env::get('DEFAULT_ROLE', 'author')
-                : 'author');
+            ? UserRole::ADMIN
+            : (in_array(Env::get('DEFAULT_ROLE', UserRole::USER), [UserRole::USER, UserRole::AI_USER, UserRole::MANAGER], true)
+                ? (string) Env::get('DEFAULT_ROLE', UserRole::USER)
+                : UserRole::USER);
 
         $userId = $this->users->create(
             $email,
@@ -95,6 +95,7 @@ final class AuthService
             $this->users->updatePassword((int) $user['id'], password_hash($password, PASSWORD_DEFAULT));
         }
 
+        $this->users->recordLogin((int) $user['id']);
         $this->loginSession((int) $user['id']);
         return true;
     }

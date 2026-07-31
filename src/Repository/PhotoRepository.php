@@ -67,6 +67,21 @@ final class PhotoRepository
         $stmt->execute([gmdate('Y-m-d H:i:s'), $id]);
     }
 
+    public function updateBytes(int $id, int $bytes): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE photos SET bytes = ? WHERE id = ?');
+        $stmt->execute([$bytes, $id]);
+    }
+
+    /**
+     * @return list<int> ids of photos with no recorded byte size yet
+     */
+    public function findIdsWithoutBytes(): array
+    {
+        $rows = $this->pdo->query('SELECT id FROM photos WHERE bytes IS NULL')->fetchAll(PDO::FETCH_COLUMN);
+        return array_map(intval(...), $rows);
+    }
+
     public function delete(int $id): void
     {
         $this->pdo->prepare('DELETE FROM photos WHERE id = ?')->execute([$id]);
