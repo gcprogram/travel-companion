@@ -205,6 +205,7 @@ return [
     'entry.form.photo_uploading' => 'Foto :current von :total wird hochgeladen …',
     'entry.form.photo_upload_error' => 'Upload fehlgeschlagen. Bitte erneut versuchen.',
     'entry.form.photo_quota_exceeded' => 'Speicherlimit erreicht. Etwas löschen oder einen Admin um mehr Speicher bitten.',
+    'entry.form.login_required' => 'Deine Sitzung ist abgelaufen. Bitte erneut anmelden und den Upload wiederholen.',
 
     'entry.form.videos_heading' => 'Videos',
     'entry.form.videos_add' => 'Video hinzufügen',
@@ -230,6 +231,7 @@ return [
     'offline.sync_pending_many' => ':count Objekte warten auf Synchronisierung',
     'offline.sync_now' => 'Jetzt synchronisieren',
     'offline.sync_waiting_wifi' => 'Wartet auf WLAN',
+    'offline.sync_login_required' => 'Sitzung abgelaufen — bitte erneut anmelden, um den Rest zu synchronisieren',
     'offline.wifi_only_label' => 'Nur über WLAN synchronisieren (vermeidet Kosten für mobile Daten/Roaming)',
     'offline.queue_remove' => 'Entfernen',
     'offline.queue_remove_confirm' => 'Dieses Objekt verwerfen? Es wird dann nicht hochgeladen.',
@@ -323,4 +325,12 @@ return [
     'admin.settings_quota_ai_ai_user' => 'KI-User Tokens/Monat',
     'admin.settings_quota_ai_manager' => 'Manager Tokens/Monat',
     'admin.settings_saved' => 'Einstellungen gespeichert.',
+
+    'error.not_found_title' => 'Seite nicht gefunden',
+    'error.not_found_message' => 'Diese Seite gibt es nicht, oder du hast keinen Zugriff darauf.',
+    'error.method_not_allowed_title' => 'Das hat nicht geklappt',
+    'error.method_not_allowed_message' => 'Diese Aktion lässt sich so nicht direkt aufrufen — vermutlich ein alter Link oder eine Seite, die zu lange offen war. Bitte zurückgehen und von dort nochmal versuchen.',
+    'error.generic_title' => 'Etwas ist schiefgelaufen',
+    'error.generic_message' => 'Ein unerwarteter Fehler ist aufgetreten. Bitte erneut versuchen.',
+    'error.back_link' => 'Weiter',
 ];

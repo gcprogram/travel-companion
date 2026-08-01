@@ -98,7 +98,8 @@ $lng = $entry['lng'] ?? null;
   <div class="sync-status" data-sync-status hidden
        data-msg-pending-one="<?= e(t('offline.sync_pending_one')) ?>"
        data-msg-pending-many="<?= e(t('offline.sync_pending_many')) ?>"
-       data-msg-waiting-wifi="<?= e(t('offline.sync_waiting_wifi')) ?>">
+       data-msg-waiting-wifi="<?= e(t('offline.sync_waiting_wifi')) ?>"
+       data-msg-login-required="<?= e(t('offline.sync_login_required')) ?>">
     <p class="field-hint">
       <span data-sync-count></span>
       <button type="button" class="btn btn-ghost btn-small" data-sync-now><?= e(t('offline.sync_now')) ?></button>
@@ -149,6 +150,7 @@ $lng = $entry['lng'] ?? null;
            data-msg-queued="<?= e(t('entry.form.queued_offline')) ?>"
            data-msg-error="<?= e(t('entry.form.photo_upload_error')) ?>"
            data-msg-quota-exceeded="<?= e(t('entry.form.photo_quota_exceeded')) ?>"
+           data-msg-login-required="<?= e(t('entry.form.login_required')) ?>"
            class="visually-hidden">
     <p class="field-hint" data-photo-status></p>
   </div>
@@ -201,6 +203,7 @@ $lng = $entry['lng'] ?? null;
            data-msg-queued="<?= e(t('entry.form.queued_offline')) ?>"
            data-msg-error="<?= e(t('entry.form.video_upload_error')) ?>"
            data-msg-quota-exceeded="<?= e(t('entry.form.video_quota_exceeded')) ?>"
+           data-msg-login-required="<?= e(t('entry.form.login_required')) ?>"
            class="visually-hidden">
     <p class="field-hint" data-video-status></p>
   </div>

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Middleware\AppErrorHandler;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\LocaleMiddleware;
@@ -30,6 +31,10 @@ return static function (App $app): void {
         logger: $app->getContainer()?->get(LoggerInterface::class),
     );
     $errorMiddleware->getDefaultErrorHandler()->forceContentType('text/html');
+    // Replaces Slim's bare default page (its "Go Back" link is just
+    // history.go(-1), no real navigation) with one that matches the site
+    // and always links somewhere useful (home if logged in, /login if not).
+    $errorMiddleware->setDefaultErrorHandler($app->getContainer()?->get(AppErrorHandler::class));
 
     // Added after addErrorMiddleware() so it wraps it too — security headers
     // must land on error pages (404/403/500), not just successful responses.

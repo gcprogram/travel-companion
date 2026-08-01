@@ -150,10 +150,13 @@ window.OfflineQueue = (function () {
   /**
    * Attempts to upload every queued item via the shared ChunkedUpload
    * helper. Items that fail are left in the queue for the next attempt;
-   * items that succeed are removed.
+   * items that succeed are removed. Stops the whole batch as soon as one
+   * item reports authRequired (session expired) - retrying the rest one by
+   * one against a session that's already gone would just fail identically
+   * and burn through everyone's remaining quota of confusing error states.
    *
    * @param {{csrfToken: string, force?: boolean}} options force=true bypasses the WiFi-only check (explicit user action)
-   * @returns {Promise<{synced: number, failed: number, skipped: boolean}>}
+   * @returns {Promise<{synced: number, failed: number, skipped: boolean, authRequired?: boolean}>}
    */
   function sync(options) {
     const csrfToken = options.csrfToken;
@@ -173,9 +176,13 @@ window.OfflineQueue = (function () {
       const pending = items.filter(function (i) { return i.status !== 'syncing'; });
       let synced = 0;
       let failed = 0;
+      let authRequired = false;
 
       return pending.reduce(function (chain, item) {
         return chain.then(function () {
+          if (authRequired) {
+            return null; // Already know the session's gone; stop trying the rest.
+          }
           return updateStatus(item.id, 'syncing').then(function () {
             return ChunkedUpload.upload(item.blob, item.filename, item.uploadUrl, csrfToken, {
               extraFields: item.extraFields || {},
@@ -184,13 +191,17 @@ window.OfflineQueue = (function () {
             synced++;
             return remove(item.id);
           }).catch(function (err) {
+            if (err && err.authRequired) {
+              authRequired = true;
+              return updateStatus(item.id, 'pending', 'auth_required');
+            }
             failed++;
             return updateStatus(item.id, 'pending', err && err.message);
           });
         });
       }, Promise.resolve()).then(function () {
         notifyChange();
-        return { synced: synced, failed: failed, skipped: false };
+        return { synced: synced, failed: failed, skipped: false, authRequired: authRequired };
       });
     });
   }
