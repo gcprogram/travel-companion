@@ -205,6 +205,7 @@ return [
     'entry.form.photo_uploading' => 'Uploading photo :current of :total…',
     'entry.form.photo_upload_error' => 'Upload failed. Please try again.',
     'entry.form.photo_quota_exceeded' => "You've reached your storage limit. Delete something or ask an admin to raise your quota.",
+    'entry.form.login_required' => 'Your session expired. Please log in again and retry the upload.',
 
     'entry.form.videos_heading' => 'Videos',
     'entry.form.videos_add' => 'Add video',
@@ -230,6 +231,7 @@ return [
     'offline.sync_pending_many' => ':count items waiting to sync',
     'offline.sync_now' => 'Sync now',
     'offline.sync_waiting_wifi' => 'Waiting for WiFi',
+    'offline.sync_login_required' => 'Your session expired — log in again to sync the rest',
     'offline.wifi_only_label' => 'Only sync over WiFi (avoids mobile data/roaming charges)',
     'offline.queue_remove' => 'Remove',
     'offline.queue_remove_confirm' => 'Discard this item? It will not be uploaded.',
@@ -323,4 +325,12 @@ return [
     'admin.settings_quota_ai_ai_user' => 'AI user tokens/month',
     'admin.settings_quota_ai_manager' => 'Manager tokens/month',
     'admin.settings_saved' => 'Settings saved.',
+
+    'error.not_found_title' => 'Page not found',
+    'error.not_found_message' => "This page doesn't exist, or you don't have access to it.",
+    'error.method_not_allowed_title' => 'That didn\'t work',
+    'error.method_not_allowed_message' => "This action can't be reached directly this way — likely an old link or a page that sat open too long. Please go back and try again from there.",
+    'error.generic_title' => 'Something went wrong',
+    'error.generic_message' => 'An unexpected error occurred. Please try again.',
+    'error.back_link' => 'Continue',
 ];

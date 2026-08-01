@@ -70,6 +70,8 @@ document.addEventListener('DOMContentLoaded', function () {
           status.textContent = input.dataset.msgTooLong;
         } else if (err && err.message === 'codec_unsupported') {
           status.textContent = input.dataset.msgCodecUnsupported;
+        } else if (err && err.authRequired) {
+          status.textContent = input.dataset.msgLoginRequired || input.dataset.msgError;
         } else if (isQuotaExceeded(err)) {
           status.textContent = input.dataset.msgQuotaExceeded;
         } else {
@@ -120,7 +122,13 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // See photo-upload.js's isNetworkError for why authRequired must not be
+  // treated the same as a real network failure (it would get queued and
+  // retried against the same expired session forever).
   function isNetworkError(err) {
+    if (err && err.authRequired) {
+      return false;
+    }
     return !err || typeof err.status === 'undefined';
   }
 });

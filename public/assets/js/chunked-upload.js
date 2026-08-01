@@ -42,6 +42,17 @@ window.ChunkedUpload = (function () {
 
           return fetch(uploadUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
             .then(function (response) {
+              if (response.redirected) {
+                // The session expired (not just the CSRF token): RequireLogin
+                // sent us to /login, and fetch followed that transparently to
+                // a 200 HTML page - not the JSON our controller would return.
+                // Surfaced distinctly so callers (offline-queue.js) can stop
+                // and prompt for re-login instead of silently retrying a
+                // request that can never succeed until then.
+                var authErr = new Error('auth_required');
+                authErr.authRequired = true;
+                throw authErr;
+              }
               if (!response.ok) {
                 // Read the body for diagnostics even though we're about to throw —
                 // {"error": "..."} from our controllers, or an HTML error page if

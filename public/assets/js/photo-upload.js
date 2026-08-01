@@ -29,7 +29,11 @@ document.addEventListener('DOMContentLoaded', function () {
       window.location.reload();
     }).catch(function (err) {
       console.error('Photo upload failed:', err);
-      status.textContent = isQuotaExceeded(err) ? input.dataset.msgQuotaExceeded : input.dataset.msgError;
+      if (err && err.authRequired) {
+        status.textContent = input.dataset.msgLoginRequired || input.dataset.msgError;
+      } else {
+        status.textContent = isQuotaExceeded(err) ? input.dataset.msgQuotaExceeded : input.dataset.msgError;
+      }
       input.disabled = false;
     });
   });
@@ -84,8 +88,14 @@ document.addEventListener('DOMContentLoaded', function () {
   // fetch() itself with no HTTP response at all, so ChunkedUpload never got
   // to set .status on the error — as opposed to a real server rejection
   // (422/413/etc.), which always has one. That's the signal to queue
-  // instead of just showing an error.
+  // instead of just showing an error. An expired session looks the same
+  // (no .status, since chunked-upload.js throws before checking response.ok)
+  // but must NOT be queued — a queued retry would just hit the same expired
+  // session and fail identically forever.
   function isNetworkError(err) {
+    if (err && err.authRequired) {
+      return false;
+    }
     return !err || typeof err.status === 'undefined';
   }
 });

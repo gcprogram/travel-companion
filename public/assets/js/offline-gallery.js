@@ -107,6 +107,23 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     syncStatus.hidden = false;
 
+    // A queued item last failed because the session expired mid-sync
+    // (see chunked-upload.js/offline-queue.js) - retrying it automatically
+    // would just fail the same way forever, so this stops being a "pending"
+    // count and becomes an explicit "please log in again" prompt instead.
+    var needsLogin = allItems.some(function (i) { return i.lastError === 'auth_required'; });
+    if (syncNowBtn) {
+      syncNowBtn.hidden = needsLogin;
+    }
+    if (needsLogin) {
+      syncCount.textContent = '';
+      var link = document.createElement('a');
+      link.href = '/login';
+      link.textContent = syncStatus.dataset.msgLoginRequired || '';
+      syncCount.appendChild(link);
+      return;
+    }
+
     var label = count === 1
       ? syncStatus.dataset.msgPendingOne
       : (syncStatus.dataset.msgPendingMany || '').replace(':count', String(count));
