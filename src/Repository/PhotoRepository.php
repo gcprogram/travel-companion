@@ -87,6 +87,43 @@ final class PhotoRepository
         $this->pdo->prepare('DELETE FROM photos WHERE id = ?')->execute([$id]);
     }
 
+    /**
+     * @return list<int>
+     */
+    public function findIdsByEntry(int $entryId): array
+    {
+        $stmt = $this->pdo->prepare('SELECT id FROM photos WHERE day_entry_id = ?');
+        $stmt->execute([$entryId]);
+        return array_map(intval(...), $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function findIdsByTrip(int $tripId): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT p.id FROM photos p JOIN day_entries e ON e.id = p.day_entry_id WHERE e.trip_id = ?'
+        );
+        $stmt->execute([$tripId]);
+        return array_map(intval(...), $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function findIdsByUser(int $userId): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT p.id FROM photos p
+             JOIN day_entries e ON e.id = p.day_entry_id
+             JOIN trips t ON t.id = e.trip_id
+             WHERE t.user_id = ?'
+        );
+        $stmt->execute([$userId]);
+        return array_map(intval(...), $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
     private function nextPosition(int $entryId): int
     {
         $stmt = $this->pdo->prepare('SELECT COALESCE(MAX(position), -1) + 1 FROM photos WHERE day_entry_id = ?');

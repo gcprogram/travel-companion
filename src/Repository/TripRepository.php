@@ -119,6 +119,20 @@ final class TripRepository
         $this->pdo->prepare('DELETE FROM trips WHERE id = ?')->execute([$id]);
     }
 
+    /**
+     * Moves every trip owned by one user to another. Nothing else needs to
+     * move: slugs are globally unique regardless of owner, and photo/video
+     * file paths are keyed by their own id, not the owning user's.
+     *
+     * @return int number of trips transferred
+     */
+    public function transferOwnership(int $fromUserId, int $toUserId): int
+    {
+        $stmt = $this->pdo->prepare('UPDATE trips SET user_id = ?, updated_at = ? WHERE user_id = ?');
+        $stmt->execute([$toUserId, gmdate('Y-m-d H:i:s'), $fromUserId]);
+        return $stmt->rowCount();
+    }
+
     public function slugExists(string $slug, ?int $exceptId = null): bool
     {
         if ($exceptId !== null) {

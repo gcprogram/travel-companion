@@ -9,6 +9,7 @@ use App\Job\PhotoProcessHandler;
 use App\Job\PoiAssignmentHandler;
 use App\Job\PoiDiscoveryHandler;
 use App\Job\StorageBackfillHandler;
+use App\Job\UserDeleteHandler;
 use App\Job\VideoProcessHandler;
 use App\Job\WeatherFetchHandler;
 use App\Job\Worker;
@@ -61,6 +62,7 @@ return [
         $worker->register('poi.assign', $c->get(PoiAssignmentHandler::class));
         $worker->register('storage.backfill', $c->get(StorageBackfillHandler::class));
         $worker->register('mail.admin_notify', $c->get(AdminNotifyHandler::class));
+        $worker->register('user.delete', $c->get(UserDeleteHandler::class));
 
         return $worker;
     },

@@ -104,6 +104,47 @@ final class VideoRepository
         $this->pdo->prepare('DELETE FROM videos WHERE id = ?')->execute([$id]);
     }
 
+    /**
+     * Only 'upload' videos have a file on disk (YouTube links don't), so
+     * cleanup callers only need these ids.
+     *
+     * @return list<int>
+     */
+    public function findIdsByEntry(int $entryId): array
+    {
+        $stmt = $this->pdo->prepare("SELECT id FROM videos WHERE day_entry_id = ? AND type = 'upload'");
+        $stmt->execute([$entryId]);
+        return array_map(intval(...), $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function findIdsByTrip(int $tripId): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT v.id FROM videos v JOIN day_entries e ON e.id = v.day_entry_id
+             WHERE e.trip_id = ? AND v.type = 'upload'"
+        );
+        $stmt->execute([$tripId]);
+        return array_map(intval(...), $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function findIdsByUser(int $userId): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT v.id FROM videos v
+             JOIN day_entries e ON e.id = v.day_entry_id
+             JOIN trips t ON t.id = e.trip_id
+             WHERE t.user_id = ? AND v.type = 'upload'"
+        );
+        $stmt->execute([$userId]);
+        return array_map(intval(...), $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
     private function nextPosition(int $entryId): int
     {
         $stmt = $this->pdo->prepare('SELECT COALESCE(MAX(position), -1) + 1 FROM videos WHERE day_entry_id = ?');
