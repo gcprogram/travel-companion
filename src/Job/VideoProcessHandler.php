@@ -44,7 +44,13 @@ final class VideoProcessHandler implements JobHandlerInterface
         }
 
         try {
-            $this->extractPoster($originalPath, $this->storage->posterPath($videoId));
+            $posterPath = $this->storage->posterPath($videoId);
+            $this->extractPoster($originalPath, $posterPath);
+            // finalize() only recorded the original's size; the poster adds
+            // to the quota-relevant total once it exists.
+            if (is_file($posterPath)) {
+                $this->videos->updateBytes($videoId, (int) filesize($originalPath) + (int) filesize($posterPath));
+            }
         } catch (\Throwable $e) {
             $this->logger->warning('Video poster extraction failed (non-fatal, video stays usable)', [
                 'video_id' => $videoId,

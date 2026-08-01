@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Repository\JobRepository;
 use App\Repository\VideoRepository;
 use App\Service\DayEntryAccess;
+use App\Service\StorageQuotaService;
 use App\Service\VideoStorage;
 use App\Support\Flash;
 use Psr\Http\Message\ResponseInterface;
@@ -31,6 +32,7 @@ final class VideoUploadController
         private readonly VideoStorage $storage,
         private readonly JobRepository $jobs,
         private readonly DayEntryAccess $access,
+        private readonly StorageQuotaService $quota,
         private readonly Flash $flash,
         private readonly LoggerInterface $logger,
     ) {
@@ -38,13 +40,20 @@ final class VideoUploadController
 
     public function uploadChunk(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
-        [, $entry] = $this->access->requireEditableEntry($request, (int) $args['entryId']);
+        [$trip, $entry] = $this->access->requireEditableEntry($request, (int) $args['entryId']);
 
         $body = (array) $request->getParsedBody();
         $uploadId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($body['upload_id'] ?? '')) ?? '';
         $chunkIndex = (int) ($body['chunk_index'] ?? -1);
         $chunkCount = (int) ($body['chunk_count'] ?? 0);
         $originalName = (string) ($body['filename'] ?? 'video.mp4');
+
+        // Owner of the trip pays, not the uploader - same rule as photos.
+        $ownerId = (int) $trip['user_id'];
+        if ($chunkIndex === 0 && $this->quota->wouldExceed($ownerId, 0)) {
+            $this->logger->info('Video upload rejected: storage quota exhausted', ['owner_id' => $ownerId]);
+            return $this->json($response, ['error' => 'quota_exceeded'], 413);
+        }
 
         if ($uploadId === '' || $chunkIndex < 0 || $chunkCount < 1 || $chunkIndex >= $chunkCount) {
             $this->logger->warning('Video chunk upload: invalid request', [
@@ -87,7 +96,7 @@ final class VideoUploadController
             return $this->json($response, ['status' => 'chunk_received']);
         }
 
-        return $this->finalize($tmpPath, (int) $entry['id'], (int) $entry['trip_id'], $originalName, $body, $response);
+        return $this->finalize($tmpPath, (int) $entry['id'], (int) $entry['trip_id'], $ownerId, $originalName, $body, $response);
     }
 
     public function addYoutube(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -111,7 +120,7 @@ final class VideoUploadController
     /**
      * @param array<string, mixed> $body
      */
-    private function finalize(string $tmpPath, int $entryId, int $tripId, string $originalName, array $body, ResponseInterface $response): ResponseInterface
+    private function finalize(string $tmpPath, int $entryId, int $tripId, int $ownerId, string $originalName, array $body, ResponseInterface $response): ResponseInterface
     {
         if (!$this->looksLikeMp4($tmpPath)) {
             $this->logger->warning('Video chunk upload: reassembled file is not a valid MP4', ['entry_id' => $entryId]);
@@ -119,9 +128,19 @@ final class VideoUploadController
             return $this->json($response, ['error' => 'unsupported_type'], 422);
         }
 
+        // The chunk-0 check above only catches an already-full quota; this
+        // one catches the file itself pushing the owner over the limit.
+        $size = (int) filesize($tmpPath);
+        if ($this->quota->wouldExceed($ownerId, $size)) {
+            $this->logger->info('Video upload rejected: would exceed storage quota', ['owner_id' => $ownerId, 'size' => $size]);
+            unlink($tmpPath);
+            return $this->json($response, ['error' => 'quota_exceeded'], 413);
+        }
+
         $videoId = $this->videos->createUpload($entryId, $originalName, 'mp4');
         $this->storage->ensureDir($this->storage->directoryFor($videoId));
         rename($tmpPath, $this->storage->originalPath($videoId, 'mp4'));
+        $this->videos->updateBytes($videoId, $size);
 
         // The client already knows these from compressing the file (VideoCompress.compress());
         // the video is playable immediately, no need to wait on server-side processing for them.

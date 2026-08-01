@@ -191,6 +191,7 @@ return [
     'entry.form.photo_delete_confirm' => 'Dieses Foto wirklich löschen?',
     'entry.form.photo_uploading' => 'Foto :current von :total wird hochgeladen …',
     'entry.form.photo_upload_error' => 'Upload fehlgeschlagen. Bitte erneut versuchen.',
+    'entry.form.photo_quota_exceeded' => 'Speicherlimit erreicht. Etwas löschen oder einen Admin um mehr Speicher bitten.',
 
     'entry.form.videos_heading' => 'Videos',
     'entry.form.videos_add' => 'Video hinzufügen',
@@ -200,6 +201,7 @@ return [
     'entry.form.video_uploading' => 'Wird hochgeladen …',
     'entry.form.video_too_long' => 'Dieses Video ist länger als 2 Minuten. Bitte kürzen oder einen YouTube-Link verwenden.',
     'entry.form.video_upload_error' => 'Upload fehlgeschlagen. Bitte erneut versuchen.',
+    'entry.form.video_quota_exceeded' => 'Speicherlimit erreicht. Etwas löschen oder einen Admin um mehr Speicher bitten.',
     'entry.form.video_codec_unsupported' => 'Dieses Gerät kann Video nicht in einem unterstützten Format kodieren. Bitte stattdessen einen YouTube-Link verwenden.',
     'entry.form.video_processing' => 'Wird verarbeitet …',
     'entry.form.video_failed' => 'Fehlgeschlagen',

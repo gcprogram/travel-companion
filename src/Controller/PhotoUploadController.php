@@ -8,6 +8,7 @@ use App\Repository\JobRepository;
 use App\Repository\PhotoRepository;
 use App\Service\DayEntryAccess;
 use App\Service\PhotoStorage;
+use App\Service\StorageQuotaService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
@@ -29,19 +30,29 @@ final class PhotoUploadController
         private readonly PhotoStorage $storage,
         private readonly JobRepository $jobs,
         private readonly DayEntryAccess $access,
+        private readonly StorageQuotaService $quota,
         private readonly LoggerInterface $logger,
     ) {
     }
 
     public function uploadChunk(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
-        [, $entry] = $this->access->requireEditableEntry($request, (int) $args['entryId']);
+        [$trip, $entry] = $this->access->requireEditableEntry($request, (int) $args['entryId']);
 
         $body = (array) $request->getParsedBody();
         $uploadId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($body['upload_id'] ?? '')) ?? '';
         $chunkIndex = (int) ($body['chunk_index'] ?? -1);
         $chunkCount = (int) ($body['chunk_count'] ?? 0);
         $originalName = (string) ($body['filename'] ?? 'photo');
+
+        // Quota check on the first chunk so an over-quota upload dies before
+        // transferring the whole file; the owner of the trip pays, not the
+        // uploader (an admin adding to someone's trip charges that owner).
+        $ownerId = (int) $trip['user_id'];
+        if ($chunkIndex === 0 && $this->quota->wouldExceed($ownerId, 0)) {
+            $this->logger->info('Photo upload rejected: storage quota exhausted', ['owner_id' => $ownerId]);
+            return $this->json($response, ['error' => 'quota_exceeded'], 413);
+        }
 
         if ($uploadId === '' || $chunkIndex < 0 || $chunkCount < 1 || $chunkIndex >= $chunkCount) {
             $this->logger->warning('Photo chunk upload: invalid request', [
@@ -85,10 +96,10 @@ final class PhotoUploadController
             return $this->json($response, ['status' => 'chunk_received']);
         }
 
-        return $this->finalize($tmpPath, (int) $entry['id'], $originalName, $response);
+        return $this->finalize($tmpPath, (int) $entry['id'], $ownerId, $originalName, $response);
     }
 
-    private function finalize(string $tmpPath, int $entryId, string $originalName, ResponseInterface $response): ResponseInterface
+    private function finalize(string $tmpPath, int $entryId, int $ownerId, string $originalName, ResponseInterface $response): ResponseInterface
     {
         $extension = $this->extensionFor($originalName);
         if ($extension === null || @getimagesize($tmpPath) === false) {
@@ -99,9 +110,19 @@ final class PhotoUploadController
             return $this->json($response, ['error' => 'unsupported_type'], 422);
         }
 
+        // The chunk-0 check above only catches an already-full quota; this
+        // one catches the file itself pushing the owner over the limit.
+        $size = (int) filesize($tmpPath);
+        if ($this->quota->wouldExceed($ownerId, $size)) {
+            $this->logger->info('Photo upload rejected: would exceed storage quota', ['owner_id' => $ownerId, 'size' => $size]);
+            unlink($tmpPath);
+            return $this->json($response, ['error' => 'quota_exceeded'], 413);
+        }
+
         $photoId = $this->photos->create($entryId, $originalName, $extension);
         $this->storage->ensureDir($this->storage->directoryFor($photoId));
         rename($tmpPath, $this->storage->originalPath($photoId, $extension));
+        $this->photos->updateBytes($photoId, $size);
 
         $this->jobs->dispatch('photo.process', ['photo_id' => $photoId]);
 
