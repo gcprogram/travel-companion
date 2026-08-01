@@ -94,23 +94,26 @@
                 <button type="submit" class="btn btn-ghost btn-small"><?= e(t('admin.save')) ?></button>
               </form>
 
-              <?php if (!$isSelf): ?>
-                <form method="post" action="/admin/users/<?= $userId ?>/transfer" class="admin-table__inline-form">
-                  <?= $csrf->field() ?>
-                  <label>
-                    <?= e(t('admin.transfer_label')) ?>
-                    <select name="target_user_id">
-                      <?php foreach ($rows as $other): ?>
-                        <?php if ((int) $other['user']['id'] !== $userId): ?>
-                          <option value="<?= (int) $other['user']['id'] ?>"><?= e($other['user']['name']) ?></option>
-                        <?php endif; ?>
-                      <?php endforeach; ?>
-                    </select>
-                  </label>
-                  <button type="submit" class="btn btn-ghost btn-small"
-                          data-confirm="<?= e(t('admin.transfer_confirm')) ?>"><?= e(t('admin.transfer_action')) ?></button>
-                </form>
+              <!-- Transfer works from any account, including your own currently
+                   logged-in one - moving trips away from yourself is safe,
+                   unlike delete, which stays self-guarded below. -->
+              <form method="post" action="/admin/users/<?= $userId ?>/transfer" class="admin-table__inline-form">
+                <?= $csrf->field() ?>
+                <label>
+                  <?= e(t('admin.transfer_label')) ?>
+                  <select name="target_user_id">
+                    <?php foreach ($rows as $other): ?>
+                      <?php if ((int) $other['user']['id'] !== $userId): ?>
+                        <option value="<?= (int) $other['user']['id'] ?>"><?= e($other['user']['name']) ?></option>
+                      <?php endif; ?>
+                    <?php endforeach; ?>
+                  </select>
+                </label>
+                <button type="submit" class="btn btn-ghost btn-small"
+                        data-confirm="<?= e(t('admin.transfer_confirm')) ?>"><?= e(t('admin.transfer_action')) ?></button>
+              </form>
 
+              <?php if (!$isSelf): ?>
                 <form method="post" action="/admin/users/<?= $userId ?>/delete" class="admin-table__inline-form">
                   <?= $csrf->field() ?>
                   <button type="submit" class="btn btn-danger btn-small"
