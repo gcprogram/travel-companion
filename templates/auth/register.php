@@ -6,6 +6,7 @@ $old ??= [];
 ?>
 
 <h1><?= e(t('auth.register.title')) ?></h1>
+<p class="field-hint"><?= e(t('auth.register.confirm_hint')) ?></p>
 
 <?php if ($errors !== []): ?>
   <div class="errors"><ul><?php foreach ($errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?></ul></div>

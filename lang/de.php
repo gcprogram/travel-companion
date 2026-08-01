@@ -15,6 +15,9 @@ return [
     'errors.csrf_invalid' => 'Ungültiges oder abgelaufenes Formular. Bitte zurückgehen, die Seite neu laden und erneut absenden.',
     'flash.registration_closed' => 'Die Registrierung ist derzeit geschlossen.',
     'flash.welcome' => 'Willkommen! Dein Konto wurde erstellt.',
+    'flash.registration_check_email' => 'Fast geschafft — schau in dein Postfach für den Bestätigungslink. Er ist nur ein paar Minuten gültig, also bitte zeitnah bestätigen.',
+    'flash.email_confirmed_welcome' => 'E-Mail bestätigt — willkommen!',
+    'flash.email_confirmed_pending_approval' => 'E-Mail bestätigt. Ein Admin muss dein Konto noch freigeben, bevor du dich anmelden kannst.',
     'flash.password_reset_requested' => 'Wenn ein Konto mit dieser Adresse existiert, ist ein Reset-Link unterwegs.',
     'flash.password_changed' => 'Passwort geändert. Du kannst dich jetzt anmelden.',
     'flash.trip_created' => 'Reise angelegt.',
@@ -36,6 +39,7 @@ return [
     'auth.login.too_many_attempts' => 'Zu viele fehlgeschlagene Versuche. Bitte in ein paar Minuten erneut versuchen.',
 
     'auth.register.title' => 'Konto erstellen',
+    'auth.register.confirm_hint' => 'Wir schicken dir einen Bestätigungslink — den musst du innerhalb weniger Minuten anklicken, um dein Konto zu aktivieren.',
     'auth.register.name' => 'Name',
     'auth.register.email' => 'E-Mail-Adresse',
     'auth.register.password' => 'Passwort',
@@ -60,8 +64,10 @@ return [
     'validation.name_required' => 'Bitte einen Namen angeben (mindestens 2 Zeichen).',
     'validation.password_min_length' => 'Das Passwort braucht mindestens :min Zeichen.',
     'validation.password_mismatch' => 'Die Passwörter stimmen nicht überein.',
-    'validation.email_taken' => 'Für diese E-Mail-Adresse existiert bereits ein Konto.',
     'validation.reset_link_invalid' => 'Der Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.',
+    'validation.confirm_link_invalid' => 'Dieser Bestätigungslink ist ungültig oder abgelaufen. Bitte erneut registrieren.',
+    'validation.registration_ip_blocked' => 'Zu viele Registrierungsversuche aus deinem Netzwerk. Bitte später erneut versuchen.',
+    'validation.registration_email_cooldown' => 'An diese Adresse wurde gerade erst eine Bestätigungs-Mail geschickt. Bitte ein paar Minuten warten.',
     'validation.trip_title_min_length' => 'Bitte einen Titel mit mindestens 3 Zeichen angeben.',
     'validation.trip_end_before_start' => 'Das Enddatum liegt vor dem Startdatum.',
     'validation.entry_date_invalid' => 'Bitte ein gültiges Datum angeben.',
@@ -69,6 +75,12 @@ return [
 
     'mail.password_reset_subject' => 'Passwort zurücksetzen',
     'mail.password_reset_body' => "Hallo :name,\n\nfür dein Konto wurde ein neues Passwort angefordert. Über diesen Link kannst du eines setzen (1 Stunde gültig):\n\n:link\n\nFalls du das nicht warst, kannst du diese E-Mail ignorieren.\n",
+
+    'mail.confirm_email_subject' => 'Bestätige deine E-Mail-Adresse',
+    'mail.confirm_email_body' => "Hallo :name,\n\nbitte bestätige deine E-Mail-Adresse, um dein Konto fertig einzurichten. Dieser Link ist nur ein paar Minuten gültig:\n\n:link\n\nFalls das nicht du warst, kannst du diese E-Mail ignorieren.\n",
+
+    'mail.admin_notify_subject' => 'Neue Registrierung',
+    'mail.admin_notify_body' => "Neue Registrierung:\n\nName: :name\nE-Mail: :email\n",
 
     'home.title' => 'Unsere Reisen',
     'home.empty' => 'Noch keine Reisen hier.',

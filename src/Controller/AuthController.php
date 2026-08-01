@@ -73,6 +73,7 @@ final class AuthController
             (string) ($body['name'] ?? ''),
             (string) ($body['password'] ?? ''),
             (string) ($body['password_repeat'] ?? ''),
+            ClientIp::from($request),
         );
 
         if (!$result['ok']) {
@@ -82,8 +83,33 @@ final class AuthController
             ], status: 422);
         }
 
-        $this->flash->add('success', t('flash.welcome'));
-        return $this->redirect($response, '/');
+        // No auto-login anymore: same message whether or not the email was
+        // already taken, so the response itself never reveals which.
+        $this->flash->add('info', t('flash.registration_check_email'));
+        return $this->redirect($response, '/login');
+    }
+
+    public function confirmEmail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $token = (string) ($request->getQueryParams()['token'] ?? '');
+        if ($token === '') {
+            return $this->redirect($response, '/login');
+        }
+
+        $result = $this->auth->confirmEmail($token, ClientIp::from($request));
+
+        if (!$result['ok']) {
+            $this->flash->add('error', $result['error']);
+            return $this->redirect($response, '/login');
+        }
+
+        if ($result['loggedIn']) {
+            $this->flash->add('success', t('flash.email_confirmed_welcome'));
+            return $this->redirect($response, '/');
+        }
+
+        $this->flash->add('info', t('flash.email_confirmed_pending_approval'));
+        return $this->redirect($response, '/login');
     }
 
     public function logout(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface

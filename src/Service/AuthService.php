@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Repository\EmailConfirmationRepository;
+use App\Repository\JobRepository;
 use App\Repository\LoginAttemptRepository;
 use App\Repository\PasswordResetRepository;
 use App\Repository\UserRepository;
@@ -22,15 +24,26 @@ final class AuthService
     public function __construct(
         private readonly UserRepository $users,
         private readonly PasswordResetRepository $resets,
+        private readonly EmailConfirmationRepository $confirmations,
         private readonly LoginAttemptRepository $attempts,
+        private readonly RegistrationGuard $registrationGuard,
+        private readonly Settings $settings,
         private readonly MailService $mail,
+        private readonly JobRepository $jobs,
     ) {
     }
 
     /**
+     * Always returns the same shape/message for "validation passed" whether
+     * or not the email is already registered - only real anti-abuse
+     * rejections (rate limits) and input errors (bad format, weak password)
+     * are distinguishable from the outside. No auto-login: an account only
+     * becomes usable after the confirmation link is clicked (and, in
+     * admin_approval mode, after an admin approves it too).
+     *
      * @return array{ok: bool, errors: list<string>}
      */
-    public function register(string $email, string $name, string $password, string $passwordRepeat): array
+    public function register(string $email, string $name, string $password, string $passwordRepeat, string $ip): array
     {
         $errors = [];
 
@@ -49,13 +62,22 @@ final class AuthService
         if ($password !== $passwordRepeat) {
             $errors[] = t('validation.password_mismatch');
         }
-        if ($errors === []) {
-            if ($this->users->findByEmail($email) !== null) {
-                $errors[] = t('validation.email_taken');
-            }
-        }
         if ($errors !== []) {
             return ['ok' => false, 'errors' => $errors];
+        }
+
+        $normalizedEmail = mb_strtolower(trim($email));
+        $blockReason = $this->registrationGuard->checkBlocked($ip, $normalizedEmail);
+        if ($blockReason !== null) {
+            return ['ok' => false, 'errors' => [$blockReason]];
+        }
+
+        // Recorded regardless of whether the email is taken, so the rate
+        // limits apply uniformly and can't be probed around.
+        $this->registrationGuard->recordStarted($ip, $normalizedEmail);
+
+        if ($this->users->findByEmail($normalizedEmail) !== null) {
+            return ['ok' => true, 'errors' => []];
         }
 
         // The very first user becomes admin, everyone after that gets the default role.
@@ -66,14 +88,60 @@ final class AuthService
                 : UserRole::USER);
 
         $userId = $this->users->create(
-            $email,
+            $normalizedEmail,
             $name,
             password_hash($password, PASSWORD_DEFAULT),
             $role,
+            active: false,
         );
-        $this->loginSession($userId);
+
+        $token = bin2hex(random_bytes(32));
+        $ttlSeconds = $this->settings->getInt('registration.token_ttl_seconds');
+        $this->confirmations->create(
+            $userId,
+            hash('sha256', $token),
+            new \DateTimeImmutable('+' . $ttlSeconds . ' seconds', new \DateTimeZone('UTC')),
+        );
+
+        $link = rtrim((string) Env::get('APP_URL', ''), '/') . '/confirm-email?token=' . $token;
+        $this->mail->send(
+            $normalizedEmail,
+            t('mail.confirm_email_subject'),
+            t('mail.confirm_email_body', ['name' => $name, 'link' => $link]),
+        );
+
+        $this->jobs->dispatch('mail.admin_notify', ['email' => $normalizedEmail, 'name' => $name]);
 
         return ['ok' => true, 'errors' => []];
+    }
+
+    /**
+     * @return array{ok: bool, error: string, loggedIn: bool}
+     */
+    public function confirmEmail(string $token, string $ip): array
+    {
+        $confirmation = $this->confirmations->findValidByTokenHash(hash('sha256', $token));
+        if ($confirmation === null) {
+            return ['ok' => false, 'error' => t('validation.confirm_link_invalid'), 'loggedIn' => false];
+        }
+
+        $userId = (int) $confirmation['user_id'];
+        $user = $this->users->findById($userId);
+        if ($user === null) {
+            return ['ok' => false, 'error' => t('validation.confirm_link_invalid'), 'loggedIn' => false];
+        }
+
+        $this->users->markEmailConfirmed($userId);
+        $this->confirmations->deleteForUser($userId);
+        $this->registrationGuard->recordConfirmed($ip, (string) $user['email']);
+
+        if ($this->settings->get('registration.mode') === Settings::REGISTRATION_MODE_ADMIN_APPROVAL) {
+            return ['ok' => true, 'error' => '', 'loggedIn' => false];
+        }
+
+        $this->users->markApprovedAndActive($userId);
+        $this->loginSession($userId);
+        return ['ok' => true, 'error' => '', 'loggedIn' => true];
     }
 
     public function isLockedOut(string $ip): bool

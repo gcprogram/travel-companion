@@ -15,6 +15,9 @@ return [
     'errors.csrf_invalid' => 'Invalid or expired form. Please go back, reload the page, and submit again.',
     'flash.registration_closed' => 'Registration is currently closed.',
     'flash.welcome' => 'Welcome! Your account has been created.',
+    'flash.registration_check_email' => "Almost there — check your inbox for a confirmation link. It's valid for a few minutes, so please confirm soon.",
+    'flash.email_confirmed_welcome' => 'Email confirmed — welcome!',
+    'flash.email_confirmed_pending_approval' => 'Email confirmed. An admin still needs to approve your account before you can log in.',
     'flash.password_reset_requested' => 'If an account exists for this address, a reset link is on its way.',
     'flash.password_changed' => 'Password changed. You can now log in.',
     'flash.trip_created' => 'Trip created.',
@@ -36,6 +39,7 @@ return [
     'auth.login.too_many_attempts' => 'Too many failed attempts. Please try again in a few minutes.',
 
     'auth.register.title' => 'Create account',
+    'auth.register.confirm_hint' => "We'll send a confirmation link — you'll need to click it within a few minutes to activate your account.",
     'auth.register.name' => 'Name',
     'auth.register.email' => 'Email address',
     'auth.register.password' => 'Password',
@@ -60,8 +64,10 @@ return [
     'validation.name_required' => 'Please enter a name (at least 2 characters).',
     'validation.password_min_length' => 'The password needs at least :min characters.',
     'validation.password_mismatch' => "The passwords don't match.",
-    'validation.email_taken' => 'An account already exists for this email address.',
     'validation.reset_link_invalid' => 'This link is invalid or has expired. Please request a new one.',
+    'validation.confirm_link_invalid' => 'This confirmation link is invalid or has expired. Please register again.',
+    'validation.registration_ip_blocked' => 'Too many registration attempts from your network. Please try again later.',
+    'validation.registration_email_cooldown' => "A confirmation email was just sent to this address. Please wait a few minutes before trying again.",
     'validation.trip_title_min_length' => 'Please enter a title with at least 3 characters.',
     'validation.trip_end_before_start' => 'The end date is before the start date.',
     'validation.entry_date_invalid' => 'Please enter a valid date.',
@@ -69,6 +75,12 @@ return [
 
     'mail.password_reset_subject' => 'Reset your password',
     'mail.password_reset_body' => "Hi :name,\n\nA new password was requested for your account. Use this link to set one (valid for 1 hour):\n\n:link\n\nIf this wasn't you, you can ignore this email.\n",
+
+    'mail.confirm_email_subject' => 'Confirm your email address',
+    'mail.confirm_email_body' => "Hi :name,\n\nPlease confirm your email address to finish creating your account. This link is only valid for a few minutes:\n\n:link\n\nIf you didn't request this, you can ignore this email.\n",
+
+    'mail.admin_notify_subject' => 'New registration',
+    'mail.admin_notify_body' => "New registration:\n\nName: :name\nEmail: :email\n",
 
     'home.title' => 'Our trips',
     'home.empty' => 'No trips here yet.',

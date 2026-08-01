@@ -39,15 +39,29 @@ final class UserRepository
         return (int) $this->pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
     }
 
-    public function create(string $email, string $name, string $passwordHash, string $role): int
+    public function create(string $email, string $name, string $passwordHash, string $role, bool $active): int
     {
         $now = gmdate('Y-m-d H:i:s');
         $stmt = $this->pdo->prepare(
             'INSERT INTO users (email, name, password_hash, role, is_active, created_at, updated_at)
-             VALUES (?, ?, ?, ?, 1, ?, ?)'
+             VALUES (?, ?, ?, ?, ?, ?, ?)'
         );
-        $stmt->execute([mb_strtolower(trim($email)), trim($name), $passwordHash, $role, $now, $now]);
+        $stmt->execute([mb_strtolower(trim($email)), trim($name), $passwordHash, $role, $active ? 1 : 0, $now, $now]);
         return (int) $this->pdo->lastInsertId();
+    }
+
+    public function markEmailConfirmed(int $userId): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE users SET email_confirmed_at = ?, updated_at = ? WHERE id = ?');
+        $now = gmdate('Y-m-d H:i:s');
+        $stmt->execute([$now, $now, $userId]);
+    }
+
+    public function markApprovedAndActive(int $userId): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE users SET approved_at = ?, is_active = 1, updated_at = ? WHERE id = ?');
+        $now = gmdate('Y-m-d H:i:s');
+        $stmt->execute([$now, $now, $userId]);
     }
 
     public function updatePassword(int $userId, string $passwordHash): void
