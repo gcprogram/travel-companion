@@ -124,6 +124,18 @@ final class PhotoRepository
         return array_map(intval(...), $stmt->fetchAll(PDO::FETCH_COLUMN));
     }
 
+    public function countByUser(int $userId): int
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM photos p
+             JOIN day_entries e ON e.id = p.day_entry_id
+             JOIN trips t ON t.id = e.trip_id
+             WHERE t.user_id = ?'
+        );
+        $stmt->execute([$userId]);
+        return (int) $stmt->fetchColumn();
+    }
+
     private function nextPosition(int $entryId): int
     {
         $stmt = $this->pdo->prepare('SELECT COALESCE(MAX(position), -1) + 1 FROM photos WHERE day_entry_id = ?');

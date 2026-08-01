@@ -103,6 +103,36 @@ if (!function_exists('weather_description')) {
     }
 }
 
+if (!function_exists('format_datetime')) {
+    /**
+     * 'YYYY-MM-DD HH:MM:SS' (DB, UTC) -> 'DD.MM.YYYY HH:MM' (display).
+     * Unlike format_date(), keeps the time component - used for admin
+     * timestamps (registered/last login) where the date alone isn't enough
+     * to distinguish same-day events. Invalid values pass through unchanged.
+     */
+    function format_datetime(?string $isoDateTime): string
+    {
+        if ($isoDateTime === null || $isoDateTime === '') {
+            return '';
+        }
+        $dt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $isoDateTime);
+        return $dt !== false ? $dt->format('d.m.Y H:i') : $isoDateTime;
+    }
+}
+
+if (!function_exists('format_bytes')) {
+    /**
+     * Byte count -> compact human-readable size (MB below 1 GB, GB above).
+     */
+    function format_bytes(int $bytes): string
+    {
+        if ($bytes >= 1024 * 1024 * 1024) {
+            return number_format($bytes / (1024 * 1024 * 1024), 1, ',', '.') . ' GB';
+        }
+        return number_format($bytes / (1024 * 1024), 1, ',', '.') . ' MB';
+    }
+}
+
 if (!function_exists('format_date_range')) {
     /**
      * Compact date range display: "01.06. – 14.06.2026", full dates across year boundaries.

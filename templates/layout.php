@@ -21,6 +21,9 @@
       <nav class="site-header__nav">
         <?php if (!empty($currentUser)): ?>
           <a href="/trips/new"><?= e(t('nav.new_trip')) ?></a>
+          <?php if ($currentUser['role'] === 'admin'): ?>
+            <a href="/admin/users"><?= e(t('nav.admin')) ?></a>
+          <?php endif; ?>
           <span><?= e($currentUser['name']) ?></span>
           <form method="post" action="/logout">
             <?= $csrf->field() ?>

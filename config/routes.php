@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Controller\AdminSettingsController;
+use App\Controller\AdminUserController;
 use App\Controller\AuthController;
 use App\Controller\DayEntryController;
 use App\Controller\HomeController;
@@ -14,6 +16,7 @@ use App\Controller\TripController;
 use App\Controller\TripMapController;
 use App\Controller\VideoController;
 use App\Controller\VideoUploadController;
+use App\Middleware\RequireAdmin;
 use App\Middleware\RequireLogin;
 use Slim\App;
 use Slim\Routing\RouteCollectorProxy;
@@ -71,6 +74,22 @@ return static function (App $app): void {
         $group->post('/entries/{entryId:[0-9]+}/videos/youtube', [VideoUploadController::class, 'addYoutube']);
         $group->post('/videos/{id:[0-9]+}/delete', [VideoController::class, 'delete']);
     })->add(RequireLogin::class);
+
+    // Admin area: RequireAdmin alone gates it (a null/non-admin user 404s,
+    // so no need to also stack RequireLogin on top).
+    $app->group('/admin', function (RouteCollectorProxy $group): void {
+        $group->get('/users', [AdminUserController::class, 'index']);
+        $group->get('/users/new', [AdminUserController::class, 'showCreate']);
+        $group->post('/users', [AdminUserController::class, 'store']);
+        $group->post('/users/{id:[0-9]+}/role', [AdminUserController::class, 'setRole']);
+        $group->post('/users/{id:[0-9]+}/approve', [AdminUserController::class, 'approve']);
+        $group->post('/users/{id:[0-9]+}/active', [AdminUserController::class, 'setActive']);
+        $group->post('/users/{id:[0-9]+}/quota', [AdminUserController::class, 'setQuota']);
+        $group->post('/users/{id:[0-9]+}/transfer', [AdminUserController::class, 'transfer']);
+        $group->post('/users/{id:[0-9]+}/delete', [AdminUserController::class, 'delete']);
+        $group->get('/settings', [AdminSettingsController::class, 'show']);
+        $group->post('/settings', [AdminSettingsController::class, 'save']);
+    })->add(RequireAdmin::class);
 
     $app->get('/trip/{slug}', [TripController::class, 'show']);
 

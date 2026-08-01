@@ -133,6 +133,13 @@ final class TripRepository
         return $stmt->rowCount();
     }
 
+    public function countByUser(int $userId): int
+    {
+        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM trips WHERE user_id = ?');
+        $stmt->execute([$userId]);
+        return (int) $stmt->fetchColumn();
+    }
+
     public function slugExists(string $slug, ?int $exceptId = null): bool
     {
         if ($exceptId !== null) {

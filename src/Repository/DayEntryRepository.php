@@ -94,4 +94,13 @@ final class DayEntryRepository
     {
         $this->pdo->prepare('DELETE FROM day_entries WHERE id = ?')->execute([$id]);
     }
+
+    public function countByUser(int $userId): int
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM day_entries e JOIN trips t ON t.id = e.trip_id WHERE t.user_id = ?'
+        );
+        $stmt->execute([$userId]);
+        return (int) $stmt->fetchColumn();
+    }
 }
