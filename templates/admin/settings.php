@@ -1,0 +1,68 @@
+<?php
+/** @var array<string, string> $values */
+?>
+
+<h1><?= e(t('admin.settings_title')) ?></h1>
+<p class="page-actions">
+  <a href="/admin/users">&larr; <?= e(t('admin.back_to_users')) ?></a>
+</p>
+
+<form class="auth-form" method="post" action="/admin/settings">
+  <?= $csrf->field() ?>
+
+  <h2><?= e(t('admin.settings_registration_heading')) ?></h2>
+
+  <div class="field">
+    <label for="registration_mode"><?= e(t('admin.settings_registration_mode')) ?></label>
+    <select id="registration_mode" name="registration_mode">
+      <option value="email" <?= $values['registration.mode'] === 'email' ? 'selected' : '' ?>>
+        <?= e(t('admin.settings_mode_email')) ?>
+      </option>
+      <option value="admin_approval" <?= $values['registration.mode'] === 'admin_approval' ? 'selected' : '' ?>>
+        <?= e(t('admin.settings_mode_admin_approval')) ?>
+      </option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="token_ttl_seconds"><?= e(t('admin.settings_token_ttl')) ?></label>
+    <input type="number" id="token_ttl_seconds" name="token_ttl_seconds" min="60" step="1"
+           value="<?= e($values['registration.token_ttl_seconds']) ?>">
+    <p class="field-hint"><?= e(t('admin.settings_token_ttl_hint')) ?></p>
+  </div>
+
+  <h2><?= e(t('admin.settings_quota_heading')) ?></h2>
+  <p class="field-hint"><?= e(t('admin.settings_quota_hint')) ?></p>
+
+  <div class="field">
+    <label for="quota_storage_user"><?= e(t('admin.settings_quota_storage_user')) ?></label>
+    <input type="number" id="quota_storage_user" name="quota_storage_user" min="0" step="1"
+           value="<?= e((string) round(((int) $values['quota.storage.user']) / 1024 / 1024, 1)) ?>">
+  </div>
+
+  <div class="field">
+    <label for="quota_storage_ai_user"><?= e(t('admin.settings_quota_storage_ai_user')) ?></label>
+    <input type="number" id="quota_storage_ai_user" name="quota_storage_ai_user" min="0" step="1"
+           value="<?= e((string) round(((int) $values['quota.storage.ai_user']) / 1024 / 1024, 1)) ?>">
+  </div>
+
+  <div class="field">
+    <label for="quota_storage_manager"><?= e(t('admin.settings_quota_storage_manager')) ?></label>
+    <input type="number" id="quota_storage_manager" name="quota_storage_manager" min="0" step="1"
+           value="<?= e((string) round(((int) $values['quota.storage.manager']) / 1024 / 1024, 1)) ?>">
+  </div>
+
+  <div class="field">
+    <label for="quota_ai_ai_user"><?= e(t('admin.settings_quota_ai_ai_user')) ?></label>
+    <input type="number" id="quota_ai_ai_user" name="quota_ai_ai_user" min="0" step="1"
+           value="<?= e($values['quota.ai.ai_user']) ?>">
+  </div>
+
+  <div class="field">
+    <label for="quota_ai_manager"><?= e(t('admin.settings_quota_ai_manager')) ?></label>
+    <input type="number" id="quota_ai_manager" name="quota_ai_manager" min="0" step="1"
+           value="<?= e($values['quota.ai.manager']) ?>">
+  </div>
+
+  <button type="submit" class="btn btn-primary"><?= e(t('admin.save')) ?></button>
+</form>

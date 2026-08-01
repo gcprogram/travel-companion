@@ -145,6 +145,22 @@ final class VideoRepository
         return array_map(intval(...), $stmt->fetchAll(PDO::FETCH_COLUMN));
     }
 
+    /**
+     * Counts every video regardless of type (upload or YouTube) - unlike
+     * findIdsByUser, which only cares about files that exist on disk.
+     */
+    public function countByUser(int $userId): int
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM videos v
+             JOIN day_entries e ON e.id = v.day_entry_id
+             JOIN trips t ON t.id = e.trip_id
+             WHERE t.user_id = ?'
+        );
+        $stmt->execute([$userId]);
+        return (int) $stmt->fetchColumn();
+    }
+
     private function nextPosition(int $entryId): int
     {
         $stmt = $this->pdo->prepare('SELECT COALESCE(MAX(position), -1) + 1 FROM videos WHERE day_entry_id = ?');

@@ -99,4 +99,13 @@ final class TrackRepository
     {
         $this->pdo->prepare('DELETE FROM trip_tracks WHERE trip_id = ?')->execute([$tripId]);
     }
+
+    public function countByUser(int $userId): int
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM trip_tracks tt JOIN trips t ON t.id = tt.trip_id WHERE t.user_id = ?'
+        );
+        $stmt->execute([$userId]);
+        return (int) $stmt->fetchColumn();
+    }
 }
