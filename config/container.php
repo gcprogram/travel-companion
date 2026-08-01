@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Database\Connection;
+use App\Job\AdminNotifyHandler;
 use App\Job\PingHandler;
 use App\Job\PhotoProcessHandler;
 use App\Job\PoiAssignmentHandler;
@@ -59,6 +60,7 @@ return [
         $worker->register('poi.discover', $c->get(PoiDiscoveryHandler::class));
         $worker->register('poi.assign', $c->get(PoiAssignmentHandler::class));
         $worker->register('storage.backfill', $c->get(StorageBackfillHandler::class));
+        $worker->register('mail.admin_notify', $c->get(AdminNotifyHandler::class));
 
         return $worker;
     },

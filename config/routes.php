@@ -33,6 +33,7 @@ return static function (App $app): void {
     $app->post('/forgot-password', [AuthController::class, 'forgot']);
     $app->get('/reset-password', [AuthController::class, 'showReset']);
     $app->post('/reset-password', [AuthController::class, 'reset']);
+    $app->get('/confirm-email', [AuthController::class, 'confirmEmail']);
 
     // Trips: create/edit require login, viewing depends on visibility.
     $app->group('', function (RouteCollectorProxy $group): void {
