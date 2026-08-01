@@ -9,6 +9,7 @@ use App\Repository\PhotoRepository;
 use App\Repository\StationRepository;
 use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
+use App\Service\MediaCleanupService;
 use App\Service\Slugger;
 use App\Service\TripAccess;
 use App\Support\Flash;
@@ -29,6 +30,7 @@ final class TripController
         private readonly VideoRepository $videos,
         private readonly Slugger $slugger,
         private readonly TripAccess $access,
+        private readonly MediaCleanupService $mediaCleanup,
         private readonly Flash $flash,
     ) {
     }
@@ -132,6 +134,9 @@ final class TripController
     public function delete(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         $trip = $this->requireEditable($request, (int) $args['id']);
+        // Must run before the DB delete: it looks up photo/video ids via
+        // the very rows the cascade is about to remove.
+        $this->mediaCleanup->deleteForTrip((int) $trip['id']);
         $this->trips->delete((int) $trip['id']);
 
         $this->flash->add('success', t('flash.trip_deleted'));

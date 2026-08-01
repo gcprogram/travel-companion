@@ -9,6 +9,7 @@ use App\Repository\JobRepository;
 use App\Repository\PhotoRepository;
 use App\Repository\VideoRepository;
 use App\Service\DayEntryAccess;
+use App\Service\MediaCleanupService;
 use App\Support\Flash;
 use App\Support\View;
 use Psr\Http\Message\ResponseInterface;
@@ -25,6 +26,7 @@ final class DayEntryController
         private readonly VideoRepository $videos,
         private readonly JobRepository $jobs,
         private readonly DayEntryAccess $access,
+        private readonly MediaCleanupService $mediaCleanup,
         private readonly Flash $flash,
     ) {
     }
@@ -101,6 +103,9 @@ final class DayEntryController
     public function delete(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         [$trip, $entry] = $this->access->requireEditableEntry($request, (int) $args['id']);
+        // Must run before the DB delete: it looks up photo/video ids via
+        // the very rows the cascade is about to remove.
+        $this->mediaCleanup->deleteForEntry((int) $entry['id']);
         $this->entries->delete((int) $entry['id']);
 
         $this->flash->add('success', t('flash.entry_deleted'));

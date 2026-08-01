@@ -77,4 +77,43 @@ final class UserRepository
         );
         $stmt->execute([gmdate('Y-m-d H:i:s'), $userId]);
     }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function findAll(): array
+    {
+        $stmt = $this->pdo->query('SELECT * FROM users ORDER BY created_at ASC');
+        return $stmt->fetchAll();
+    }
+
+    public function setRole(int $userId, string $role): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE users SET role = ?, updated_at = ? WHERE id = ?');
+        $stmt->execute([$role, gmdate('Y-m-d H:i:s'), $userId]);
+    }
+
+    public function setActive(int $userId, bool $active): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE users SET is_active = ?, updated_at = ? WHERE id = ?');
+        $stmt->execute([$active ? 1 : 0, gmdate('Y-m-d H:i:s'), $userId]);
+    }
+
+    public function setStorageQuotaOverride(int $userId, ?int $bytes): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE users SET storage_quota_override_bytes = ?, updated_at = ? WHERE id = ?');
+        $stmt->execute([$bytes, gmdate('Y-m-d H:i:s'), $userId]);
+    }
+
+    /**
+     * Deletion itself is deliberately not exposed here in a way callers
+     * could invoke synchronously - see UserDeleteHandler. The DB row is
+     * only removed after that job has cleared the user's files, so a
+     * request-time delete never leaves a used-up user record with orphaned
+     * files and no owner to attribute them to.
+     */
+    public function delete(int $userId): void
+    {
+        $this->pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$userId]);
+    }
 }
