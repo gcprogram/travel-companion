@@ -53,10 +53,15 @@ final class PhotoProcessHandler implements JobHandlerInterface
         }
 
         try {
-            $this->renderVariant($originalPath, $this->storage->derivativePath($photoId, 'thumb'), self::THUMB_MAX_EDGE);
-            $webSize = $this->renderVariant($originalPath, $this->storage->derivativePath($photoId, 'web'), self::WEB_MAX_EDGE);
+            $thumbPath = $this->storage->derivativePath($photoId, 'thumb');
+            $webPath = $this->storage->derivativePath($photoId, 'web');
+            $this->renderVariant($originalPath, $thumbPath, self::THUMB_MAX_EDGE);
+            $webSize = $this->renderVariant($originalPath, $webPath, self::WEB_MAX_EDGE);
             $gps = $this->extractGps($originalPath);
             $this->photos->markReady($photoId, $webSize['width'], $webSize['height'], $gps['lat'] ?? null, $gps['lng'] ?? null);
+            // finalize() only knew the original's size; now the derivatives
+            // exist too, so the quota-relevant total is the sum of all three.
+            $this->photos->updateBytes($photoId, (int) filesize($originalPath) + (int) filesize($thumbPath) + (int) filesize($webPath));
             if ($gps !== null) {
                 $this->dispatchPoiAssignment((int) $photo['day_entry_id']);
             }

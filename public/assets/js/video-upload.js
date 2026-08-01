@@ -70,12 +70,22 @@ document.addEventListener('DOMContentLoaded', function () {
           status.textContent = input.dataset.msgTooLong;
         } else if (err && err.message === 'codec_unsupported') {
           status.textContent = input.dataset.msgCodecUnsupported;
+        } else if (isQuotaExceeded(err)) {
+          status.textContent = input.dataset.msgQuotaExceeded;
         } else {
           status.textContent = input.dataset.msgError;
         }
         input.disabled = false;
       });
   });
+
+  // The server rejects an over-quota upload with {"error": "quota_exceeded"}
+  // (HTTP 413, same as the too-large case) - a real, permanent rejection,
+  // not a network hiccup, so it must not go to isNetworkError() and get
+  // queued for later (it would just fail again).
+  function isQuotaExceeded(err) {
+    return !!(err && typeof err.body === 'string' && err.body.indexOf('quota_exceeded') !== -1);
+  }
 
   function uploadOrQueue(blob, extraFields) {
     if (!navigator.onLine) {

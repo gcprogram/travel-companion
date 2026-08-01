@@ -29,10 +29,18 @@ document.addEventListener('DOMContentLoaded', function () {
       window.location.reload();
     }).catch(function (err) {
       console.error('Photo upload failed:', err);
-      status.textContent = input.dataset.msgError;
+      status.textContent = isQuotaExceeded(err) ? input.dataset.msgQuotaExceeded : input.dataset.msgError;
       input.disabled = false;
     });
   });
+
+  // The server rejects an over-quota upload with {"error": "quota_exceeded"}
+  // (HTTP 413, same as the file-too-large case) - a real, permanent
+  // rejection, not a network hiccup, so it must not go to isNetworkError()
+  // and get queued for later (it would just fail again).
+  function isQuotaExceeded(err) {
+    return !!(err && typeof err.body === 'string' && err.body.indexOf('quota_exceeded') !== -1);
+  }
 
   function uploadAll(files) {
     return files.reduce(function (chain, file, index) {

@@ -148,6 +148,7 @@ $lng = $entry['lng'] ?? null;
            data-msg-uploading="<?= e(t('entry.form.photo_uploading')) ?>"
            data-msg-queued="<?= e(t('entry.form.queued_offline')) ?>"
            data-msg-error="<?= e(t('entry.form.photo_upload_error')) ?>"
+           data-msg-quota-exceeded="<?= e(t('entry.form.photo_quota_exceeded')) ?>"
            class="visually-hidden">
     <p class="field-hint" data-photo-status></p>
   </div>
@@ -199,6 +200,7 @@ $lng = $entry['lng'] ?? null;
            data-msg-codec-unsupported="<?= e(t('entry.form.video_codec_unsupported')) ?>"
            data-msg-queued="<?= e(t('entry.form.queued_offline')) ?>"
            data-msg-error="<?= e(t('entry.form.video_upload_error')) ?>"
+           data-msg-quota-exceeded="<?= e(t('entry.form.video_quota_exceeded')) ?>"
            class="visually-hidden">
     <p class="field-hint" data-video-status></p>
   </div>

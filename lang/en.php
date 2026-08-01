@@ -191,6 +191,7 @@ return [
     'entry.form.photo_delete_confirm' => 'Really delete this photo?',
     'entry.form.photo_uploading' => 'Uploading photo :current of :total…',
     'entry.form.photo_upload_error' => 'Upload failed. Please try again.',
+    'entry.form.photo_quota_exceeded' => "You've reached your storage limit. Delete something or ask an admin to raise your quota.",
 
     'entry.form.videos_heading' => 'Videos',
     'entry.form.videos_add' => 'Add video',
@@ -200,6 +201,7 @@ return [
     'entry.form.video_uploading' => 'Uploading…',
     'entry.form.video_too_long' => 'This video is longer than 2 minutes. Please trim it first or use a YouTube link.',
     'entry.form.video_upload_error' => 'Upload failed. Please try again.',
+    'entry.form.video_quota_exceeded' => "You've reached your storage limit. Delete something or ask an admin to raise your quota.",
     'entry.form.video_codec_unsupported' => "This device can't encode video in a supported format. Please use a YouTube link instead.",
     'entry.form.video_processing' => 'Processing…',
     'entry.form.video_failed' => 'Failed',
