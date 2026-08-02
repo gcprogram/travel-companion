@@ -4,7 +4,6 @@
 /** @var array{totalPoints: int, trimStart: int, trimEnd: int}|null $track */
 /** @var list<array<string, mixed>> $pois */
 /** @var array<int, array{photos: list<array<string, mixed>>, videos: list<array<string, mixed>>}> $poiMedia */
-$headExtra = '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">';
 $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_building', 'other'];
 ?>
 

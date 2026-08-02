@@ -63,6 +63,7 @@ final class TripController
             'photosByEntry' => $photosByEntry,
             'videosByEntry' => $videosByEntry,
             'canEdit' => $this->access->canEdit($trip, $user),
+            'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);
     }
 

@@ -25,6 +25,20 @@
   <p><?= nl2br(e($trip['description'])) ?></p>
 <?php endif; ?>
 
+<div class="map-view__canvas" id="trip-map"
+     data-data-url="/trip/<?= e($trip['slug']) ?>/map/data"
+     data-tile-key="<?= e($mapTilerKey ?? '') ?>"
+     data-msg-empty="<?= e(t('trip.map.empty')) ?>"
+     data-msg-pause="<?= e(t('trip.map.pause_label')) ?>"></div>
+
+<div class="map-lightbox" data-map-lightbox hidden>
+  <div class="map-lightbox__backdrop" data-map-lightbox-close></div>
+  <div class="map-lightbox__panel">
+    <button type="button" class="map-lightbox__close" data-map-lightbox-close aria-label="<?= e(t('trip.map.lightbox_close')) ?>">&times;</button>
+    <div class="map-lightbox__body" data-map-lightbox-body></div>
+  </div>
+</div>
+
 <p class="page-actions">
   <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/map"><?= e(t('trip.show.map_link')) ?></a>
 </p>
@@ -148,3 +162,6 @@
     </form>
   </div>
 <?php endif; ?>
+
+<script src="/assets/js/vendor/leaflet.js"></script>
+<script src="/assets/js/trip-map.js"></script>

@@ -54,6 +54,7 @@ final class TripMapController
             'track' => $this->trackSummary((int) $trip['id']),
             'pois' => $pois,
             'poiMedia' => $poiMedia,
+            'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);
     }
 
