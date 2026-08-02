@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var ZOOM_THUMBNAIL_THRESHOLD = 14;
 
   var map = L.map(container, { zoomControl: true }).setView([20, 0], 2);
+  L.control.scale({ imperial: false }).addTo(map);
 
   // tile.openstreetmap.org's usage policy forbids the traffic pattern a
   // real app produces (no bulk/heavy use) — MapTiler serves the same OSM
