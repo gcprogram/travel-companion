@@ -505,6 +505,29 @@ form.auth-form { max-width: 420px; }
   font-size: 0.9rem;
   background: rgba(0, 0, 0, 0.25);
 }
+/* Container oder Popup-Inhalt auf der Karte */
+.map-photo-popup {
+  width: 250px;       /* Maximaler Platz in der Breite */
+  height: 200px;      /* Maximaler Platz in der Höhe */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Bild-Styling */
+.map-photo-popup img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain; /* Behält das Seitenverhältnis bei, ohne zu verzerren */
+  border-radius: 4px;
+}
+img {
+  image-orientation: from-image; /* Beachtet das EXIF-Orientation-Tag im Browser */
+}
+
+
 
 .map-lightbox { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; }
 .map-lightbox[hidden] { display: none; }
