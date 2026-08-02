@@ -170,7 +170,10 @@ Konsequenzen:
    ein bestehendes Leck: Reise/Eintrag löschen entfernte bisher nur
    DB-Zeilen, nie die zugehörigen Dateien in `var/uploads`; jetzt räumt
    `MediaCleanupService` in beiden Fällen mit auf)
-6. **Als Nächstes:** KI-Funktionen (Zusammenfassungen Tag/Reise, Titel, Tags,
+6. **Als Nächstes:** Photo Upload muss auch komprimiert erfolgen (ca. 1/10 der Original-Filesize). Dies kann durch eine Mischung von px-size Verkleinerung und höherer JPG-Komprimierung erolgen. 
+   Bug: Die Breite ist bei Portrait & Landscape gleich, 
+   damit erscheinen Portrait-Fotos deutlich größer. 
+7.  KI-Funktionen (Zusammenfassungen Tag/Reise, Titel, Tags,
    Routen-Extraktion aus PDF/DOCX/Web, Bildbeschreibungen) über die
    Provider-Abstraktion, alles als Queue-Jobs — inkl. der in Runde 4
    bewusst zurückgestellten Textextraktion aus eingefügten
@@ -178,7 +181,8 @@ Konsequenzen:
    mit wählbaren "Seelen"-Templates. Hier greift auch erstmals die
    KI-Token-Quota aus Phase 5 (Zählinfrastruktur existiert schon,
    Durchsetzung noch nicht).
-7. Erweiterte Suche (Datum/Ort/Freitext/Tags/Personen), Timeline-Ansicht
+8. Geocaching cache_type Symbole, einblenden, auf der Karte wenn an dem Ort in 50 m Umkreis ein Photo gemacht wurde, oder die Bewegungsgeschwindigkeit (Track) Fußgänger oder kleiner ist und man in 50 m Umkreis vorbei kam lt. Track.
+9. Erweiterte Suche (Datum/Ort/Freitext/Tags/Personen), Timeline-Ansicht
 
 ## Nützliche Befehle
 
