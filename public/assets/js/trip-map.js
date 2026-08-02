@@ -26,11 +26,21 @@ document.addEventListener('DOMContentLoaded', function () {
   // cartography under a plan that's actually meant for this.
   var tileKey = container.dataset.tileKey;
   if (tileKey) {
-    L.tileLayer('https://api.maptiler.com/maps/openstreetmap/{z}/{x}/{y}.jpg?key=' + tileKey, {
+    // MapTiler's XYZ endpoint serves 512px tiles by default; without the
+    // explicit /256/ path segment Leaflet (default tileSize 256) would place
+    // them on the wrong grid, producing gaps/misalignment. /256/ requests
+    // 256px tiles that match Leaflet's default grid directly.
+    L.tileLayer('https://api.maptiler.com/maps/openstreetmap/256/{z}/{x}/{y}.jpg?key=' + tileKey, {
       maxZoom: 19,
+      crossOrigin: true,
       attribution: '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> '
         + '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
     }).addTo(map);
+  } else {
+    // An empty MAPTILER_KEY is the #1 cause of a blank gray map: the tile
+    // layer is never added, so no tile request is made at all. Surface it
+    // in the console so config issues are debuggable instead of silent.
+    console.warn('Trip map: MAPTILER_KEY is empty — map tiles will not load. Set MAPTILER_KEY in .env on the server.');
   }
 
   function dotIcon(kind) {
