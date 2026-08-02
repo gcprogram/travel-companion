@@ -1,7 +1,8 @@
 # HANDOVER — Travel Companion
 
-Stand: 2026-08-02. Geschrieben unter Zeitdruck für eine andere/neue KI-Session, die hier nahtlos weitermacht.
-Nicht committet — reines lokales Gedächtnis.
+Stand: 2026-08-02. Geschrieben unter Zeitdruck (Claude-Wochenlimit fast
+erschöpft) für eine andere/neue KI-Session, die hier nahtlos weitermacht.
+Nicht committet (wie `CLAUDE.md`) — reines lokales Gedächtnis.
 
 ## Was in dieser Session (2026-08-02) gefixt wurde
 
@@ -35,10 +36,6 @@ Drei Commits, alle gepusht, alle lokal gegen echte MariaDB + echten Browser
      (Users Wunsch: Karte soll sofort sichtbar sein, nicht erst nach Klick
      auf "🗺 Karte ansehen"). Die separate `/map`-Seite bleibt für die
      Bearbeitungswerkzeuge (GPX-Upload, Trimmen, POI-Verwaltung) bestehen.
-
-Bestätigt von User (Punkt 4 seiner letzten Nachricht): Zoom +/- und
-Maßstab sind jetzt sichtbar auf Produktion, ebenso die Leaflet-Attribution
-unten rechts — also lädt `leaflet.css` dort jetzt korrekt.
 
 ## Kontext davor (User-Management, fertig, nicht Teil dieser Session)
 
