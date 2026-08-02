@@ -4,61 +4,6 @@ Stand: 2026-08-02. Geschrieben unter Zeitdruck (Claude-Wochenlimit fast
 erschöpft) für eine andere/neue KI-Session, die hier nahtlos weitermacht.
 Nicht committet (wie `CLAUDE.md`) — reines lokales Gedächtnis.
 
-## Akuter offener Punkt — HIER WEITERMACHEN
-
-**Trip-Map-Kacheln (Tiles) fehlen auf Produktion (citiontour.com), obwohl
-`MAPTILER_KEY` korrekt in `<Basisverzeichnis>/citiontour.com/.env` steht.**
-
-Verifiziert per Live-Browser-Check auf `https://citiontour.com/trip/.../map`:
-`document.getElementById('trip-map').dataset.tileKey` ist dort **leer**
-(`""`), obwohl:
-- der Pfad zur `.env` stimmt (ein Verzeichnis über `public/`, korrekt),
-- die Zeile `MAPTILER_KEY=otUJuL9lITqoveQ8ya7U` ohne Tippfehler/Leerzeichen
-  drinsteht,
-- MapTiler-seitige "Allowed HTTP Origins" mittlerweile sogar komplett
-  entfernt wurden (Stefan hat das getestet — half nicht, also liegt es NICHT
-  an MapTiler-Domain-Restriktionen).
-
-**Führender Verdacht (noch nicht verifiziert, weil kein Server-Shell-Zugriff
-in dieser Session verfügbar war):** `src/Support/Env.php::get()` prüft
-**zuerst** `getenv($key)` und nimmt dessen Wert, *bevor* der aus `.env`
-geparste Wert überhaupt zum Zug kommt:
-
-```php
-public static function get(string $key, ?string $default = null): ?string
-{
-    $fromEnv = getenv($key);
-    if ($fromEnv !== false) {   // <-- auch ein LEERER String ("") ist "!== false"!
-        return $fromEnv;
-    }
-    return self::$values[$key] ?? $default;
-}
-```
-
-Wenn auf dem Server (Plesk-Hosting-Einstellungen für die Domain →
-PHP-Einstellungen → "Environment Variables", oder eine Apache-`SetEnv`-
-Direktive im vhost) irgendwo eine **echte PHP-Umgebungsvariable**
-`MAPTILER_KEY` existiert — und sei sie leer oder mit einem alten/falschen
-Wert — gewinnt sie IMMER gegen die `.env`-Datei. Das würde exakt zu den
-beobachteten Symptomen passen: `.env` ist korrekt, wird aber nie gelesen.
-
-**Nächster Schritt:** Stefan bei Plesk nachsehen lassen:
-1. Domain citiontour.com → "PHP-Einstellungen" bzw. "Umgebungsvariablen" —
-   gibt es dort einen Eintrag `MAPTILER_KEY`? Falls ja: löschen (oder auf
-   den korrekten Wert setzen) und Seite neu laden.
-2. Falls nichts gefunden wird: testweise `var_dump(getenv('MAPTILER_KEY'))`
-   an einer harmlosen Stelle ausgeben lassen (z. B. kurzzeitig in
-   `public/index.php` nach `Env::load(...)`, NICHT committen), um zu sehen,
-   ob PHP dort überhaupt einen (ggf. leeren) String statt `false` sieht.
-3. Falls doch `.env`-Parsing schuld ist: `Env::load()` ist ein simpler
-   Eigenbau-Parser (`src/Support/Env.php`) — bei exotischen Zeichen im Key
-   könnte er trotzdem stolpern, aber das wurde mit dem gezeigten Wert nicht
-   reproduziert.
-
-**Sobald geklärt:** Zoom-Buttons, Maßstabsleiste und die Karten-Einbettung
-auf der Reise-Hauptseite sind bereits fertig und laut Stefan auf Produktion
-sichtbar (Punkt 4 unten) — nur die Kacheln fehlen noch.
-
 ## Was in dieser Session (2026-08-02) gefixt wurde
 
 Drei Commits, alle gepusht, alle lokal gegen echte MariaDB + echten Browser
@@ -91,10 +36,6 @@ Drei Commits, alle gepusht, alle lokal gegen echte MariaDB + echten Browser
      (Stefans Wunsch: Karte soll sofort sichtbar sein, nicht erst nach Klick
      auf "🗺 Karte ansehen"). Die separate `/map`-Seite bleibt für die
      Bearbeitungswerkzeuge (GPX-Upload, Trimmen, POI-Verwaltung) bestehen.
-
-Bestätigt von Stefan (Punkt 4 seiner letzten Nachricht): Zoom +/- und
-Maßstab sind jetzt sichtbar auf Produktion, ebenso die Leaflet-Attribution
-unten rechts — also lädt `leaflet.css` dort jetzt korrekt.
 
 ## Kontext davor (User-Management, fertig, nicht Teil dieser Session)
 
