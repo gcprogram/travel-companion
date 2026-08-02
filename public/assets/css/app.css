@@ -507,6 +507,7 @@ form.auth-form { max-width: 420px; }
 }
 
 .map-lightbox { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.map-lightbox[hidden] { display: none; }
 .map-lightbox__backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.75); }
 .map-lightbox__panel {
   position: relative;
