@@ -68,11 +68,15 @@ select:focus-visible {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
-.container {
-  width: 100%;
-  max-width: 780px;
-  margin: 0 auto;
-  padding: 0 var(--space-2);
+.map-lightbox__media {
+  max-width: 100%;
+  max-height: 92vh;
+  margin: auto;
+  display: block;
+}
+
+.map-lightbox__media--portrait {
+  max-width: 66%;
 }
 
 /* --- Header --- */
@@ -535,7 +539,7 @@ img {
 .map-lightbox__panel {
   position: relative;
   z-index: 1;
-  max-width: min(50vw, 50vh);
+  max-width: 530px;
   min-width: 280px;
   max-height: 92vh;
   background: var(--color-surface);
