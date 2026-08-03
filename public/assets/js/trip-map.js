@@ -68,14 +68,18 @@ document.addEventListener('DOMContentLoaded', function () {
       lightbox.hidden = false;
       return;
     }
-    lightboxBody.innerHTML = '<img class="map-lightbox__media" src="' + pin.fullUrl + '" alt="">';
-    lightbox.hidden = false;
-    var img = lightboxBody.querySelector('img');
+    var img = document.createElement('img');
+    img.className = 'map-lightbox__media';
+    img.alt = '';
     img.onload = function () {
       if (img.naturalHeight > img.naturalWidth) {
         img.classList.add('map-lightbox__media--portrait');
       }
     };
+    lightboxBody.innerHTML = '';
+    lightboxBody.appendChild(img);
+    img.src = pin.fullUrl;
+    lightbox.hidden = false;
   }
 
   function formatTime(isoUtc) {
