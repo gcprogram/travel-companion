@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html><head>
+<style>
+:root {
+  --radius: 8px;
+  --color-surface: #fff;
+  --color-ink: #333;
+  --shadow: 0 4px 20px rgba(0,0,0,0.25);
+  --space-1: 1rem;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { font-family: sans-serif; padding: 2rem; background: #444; }
+
+.map-lightbox { position: relative; z-index: 1000; display: flex; align-items: center; justify-content: center; margin: 1rem auto; }
+.map-lightbox__backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.75); border-radius: 8px; z-index: 0; }
+.map-lightbox__panel {
+  position: relative; z-index: 1;
+  max-width: min(50vw, 50vh);
+  min-width: 280px;
+  max-height: 92vh;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-1);
+  box-shadow: var(--shadow);
+}
+.map-lightbox__body { display: flex; position: relative; }
+.map-lightbox__media { max-width: 100%; max-height: 92vh; object-fit: contain; display: block; border-radius: 4px; }
+.map-lightbox__media--portrait { max-width: 35vw; }
+
+h3 { text-align: center; color: #fff; margin-top: 3rem; }
+.label { color: #fff; text-align: center; font-weight: bold; }
+.info { color: #ccc; text-align: center; font-size: 0.8rem; margin-top: 4px; }
+</style>
+</head><body>
+
+<h3>Landscape (1600×1067) — width fills panel</h3>
+<div class="map-lightbox">
+  <div class="map-lightbox__backdrop"></div>
+  <div class="map-lightbox__panel">
+    <div class="map-lightbox__body">
+      <img class="map-lightbox__media" src="https://picsum.photos/seed/land/1600/1067" alt="" onload="measure(this)">
+    </div>
+  </div>
+</div>
+
+<h3>Portrait (1067×1600) — narrower with --portrait class</h3>
+<div class="map-lightbox">
+  <div class="map-lightbox__backdrop"></div>
+  <div class="map-lightbox__panel">
+    <div class="map-lightbox__body">
+      <img class="map-lightbox__media map-lightbox__media--portrait" src="https://picsum.photos/seed/port/1067/1600" alt="" onload="measure(this)">
+    </div>
+  </div>
+</div>
+
+<h3>Portrait WITHOUT --portrait class (broken — same width as landscape)</h3>
+<div class="map-lightbox">
+  <div class="map-lightbox__backdrop"></div>
+  <div class="map-lightbox__panel">
+    <div class="map-lightbox__body">
+      <img class="map-lightbox__media" src="https://picsum.photos/seed/port2/1067/1600" alt="" onload="measure(this)">
+    </div>
+  </div>
+</div>
+
+<div class="info" id="results"></div>
+
+<script>
+function measure(img) {
+  var el = document.getElementById('results');
+  el.textContent += 'img: ' + img.offsetWidth + '×' + img.offsetHeight + ' | ';
+}
+</script>
+
+</body></html>

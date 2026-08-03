@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html><head>
+<style>
+:root {
+  --radius: 8px;
+  --color-surface: #fff;
+  --color-ink: #333;
+  --shadow: 0 4px 20px rgba(0,0,0,0.25);
+  --space-1: 1rem;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: sans-serif; padding: 2rem; background: #444; text-align: center; color: #fff; }
+
+.map-lightbox { position: relative; display: inline-flex; align-items: center; justify-content: center; margin: 1rem; }
+.map-lightbox__backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.75); border-radius: 8px; }
+.map-lightbox__panel {
+  position: relative; z-index: 1;
+  width: min(50vw, 50vh);
+  min-width: 280px;
+  max-width: 92vw;
+  max-height: 92vh;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-1);
+  box-shadow: var(--shadow);
+}
+.map-lightbox__body { display: flex; }
+.map-lightbox__media { max-width: 100%; max-height: 92vh; object-fit: contain; border-radius: 4px; display: block; }
+
+.grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 2rem; }
+.col { text-align: center; }
+.info { color: #ccc; font-size: 0.85rem; margin-top: 0.3rem; }
+</style>
+</head><body>
+
+<h2>Lightbox photo aspect test</h2>
+<p>Landscape panel width is <code>min(50vw, 50vh)</code>. Portrait gets an inline <code>max-width</code> proportional to its aspect ratio.</p>
+
+<div class="grid">
+  <div class="col">
+    <h3>🌄 Landscape</h3>
+    <div class="map-lightbox">
+      <div class="map-lightbox__backdrop"></div>
+      <div class="map-lightbox__panel">
+        <div class="map-lightbox__body">
+          <img class="map-lightbox__media" id="img-land" src="https://picsum.photos/seed/a/1600/1067" alt="" onload="measure(this, 'res-land')">
+        </div>
+      </div>
+    </div>
+    <div class="info" id="res-land">loading...</div>
+  </div>
+  <div class="col">
+    <h3>📱 Portrait (auto-constrained)</h3>
+    <div class="map-lightbox">
+      <div class="map-lightbox__backdrop"></div>
+      <div class="map-lightbox__panel">
+        <div class="map-lightbox__body">
+          <img class="map-lightbox__media" id="img-port" src="https://picsum.photos/seed/b/1067/1600" alt="" onload="onPortraitLoad(this, 'res-port')">
+        </div>
+      </div>
+    </div>
+    <div class="info" id="res-port">loading...</div>
+  </div>
+</div>
+
+<script>
+function measure(img, targetId) {
+  var el = document.getElementById(targetId);
+  el.textContent = 'natural: ' + img.naturalWidth + '×' + img.naturalHeight 
+    + ' | rendered: ' + img.offsetWidth + '×' + img.offsetHeight
+    + ' | area: ' + (img.offsetWidth * img.offsetHeight) + ' sq px';
+}
+
+function onPortraitLoad(img, targetId) {
+  if (img.naturalHeight > img.naturalWidth) {
+    var panel = img.parentElement.parentElement;
+    var panelW = panel.offsetWidth - 32;
+    img.style.maxWidth = Math.round(panelW * img.naturalWidth / img.naturalHeight) + 'px';
+  }
+  measure(img, targetId);
+}
+</script>
+</body></html>

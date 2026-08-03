@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html><head>
+<style>
+:root {
+  --radius: 8px;
+  --color-surface: #fff;
+  --color-ink: #333;
+  --shadow: 0 4px 20px rgba(0,0,0,0.25);
+  --space-1: 1rem;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { font-family: sans-serif; padding: 2rem; background: #444; }
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.heading { grid-column: 1 / -1; color: #fff; text-align: center; }
+.landscape-label { color: #8f8; text-align: center; }
+.portrait-label { color: #f88; text-align: center; }
+
+.map-lightbox { position: relative; z-index: 1000; display: flex; align-items: center; justify-content: center; margin-top: 1rem; }
+.map-lightbox__backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.75); border-radius: 8px; }
+.map-lightbox__panel {
+  position: relative; z-index: 1;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-1);
+  box-shadow: var(--shadow);
+}
+/* Portrait-only: narrower panel */
+.map-lightbox__panel--portrait {
+  background: #ffeeee;
+}
+
+/* The actual lightbox body */
+.map-lightbox__body { display: flex; }
+
+/* OLD style (broken) */
+.map-lightbox__media--old { width: 100%; max-height: 88vh; border-radius: calc(var(--radius) - 4px); display: block; }
+
+/* NEW style (fixed) */
+.map-lightbox__media--new { max-width: 100%; max-height: 88vh; object-fit: contain; border-radius: calc(var(--radius) - 4px); display: block; }
+
+canvas { width: 100%; display: block; }
+
+table { border-collapse: collapse; color: #fff; font-size: 0.85rem; margin-top: 0.5rem; }
+td { padding: 0.3rem 0.8rem; border: 1px solid #666; }
+td.vs { background: #2a2a2a; }
+td.bad { background: #5a2020; }
+td.good { background: #1a4a1a; }
+</style>
+</head><body>
+
+<div class="grid">
+  <h2 class="heading">Lightbox photo aspect-ratio test</h2>
+
+  <!-- Landscape photo -->
+  <div>
+    <p class="landscape-label">📷 LANDSCAPE (300×200)</p>
+    <div class="map-lightbox">
+      <div class="map-lightbox__backdrop"></div>
+      <div class="map-lightbox__panel">
+        <div class="map-lightbox__body">
+          <canvas id="canvas-landscape" width="300" height="200" class="map-lightbox__media--new"></canvas>
+        </div>
+      </div>
+    </div>
+    <table><tr><td>Panel width</td><td id="panel-w-landscape">?</td></tr></table>
+  </div>
+
+  <!-- Portrait photo -->
+  <div>
+    <p class="portrait-label">📷 PORTRAIT (200×300)</p>
+    <div class="map-lightbox">
+      <div class="map-lightbox__backdrop"></div>
+      <div class="map-lightbox__panel">
+        <div class="map-lightbox__body">
+          <canvas id="canvas-portrait" width="200" height="300" class="map-lightbox__media--new"></canvas>
+        </div>
+      </div>
+    </div>
+    <table><tr><td>Panel width</td><td id="panel-w-portrait">?</td></tr></table>
+  </div>
+
+  <!-- Landscape OLD -->
+  <div>
+    <p class="landscape-label">🚫 LANDSCAPE (old CSS - width:100%)</p>
+    <div class="map-lightbox">
+      <div class="map-lightbox__backdrop"></div>
+      <div class="map-lightbox__panel">
+        <div class="map-lightbox__body">
+          <canvas id="canvas-landscape-old" width="300" height="200" class="map-lightbox__media--old"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Portrait OLD -->
+  <div>
+    <p class="portrait-label">🚫 PORTRAIT (old CSS - width:100%)</p>
+    <div class="map-lightbox">
+      <div class="map-lightbox__backdrop"></div>
+      <div class="map-lightbox__panel">
+        <div class="map-lightbox__body">
+          <canvas id="canvas-portrait-old" width="200" height="300" class="map-lightbox__media--old"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function fillCanvas(id, w, h, color) {
+  var c = document.getElementById(id);
+  var ctx = c.getContext('2d');
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, w, h);
+  var mid = Math.floor(h/2);
+  ctx.fillStyle = '#fff';
+  ctx.font = (w < 250 ? '12px' : '18px') + ' sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(w + '×' + h, w/2, mid+6);
+}
+fillCanvas('canvas-landscape', 300, 200, '#2a6a2a');
+fillCanvas('canvas-portrait', 200, 300, '#8a2a2a');
+fillCanvas('canvas-landscape-old', 300, 200, '#2a6a2a');
+fillCanvas('canvas-portrait-old', 200, 300, '#8a2a2a');
+
+// Show panel widths
+document.getElementById('panel-w-landscape').textContent = Math.round(document.querySelectorAll('.map-lightbox__panel')[0].offsetWidth) + 'px';
+document.getElementById('panel-w-portrait').textContent = Math.round(document.querySelectorAll('.map-lightbox__panel')[1].offsetWidth) + 'px';
+</script>
+
+</body></html>
