@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var badge = pin.kind === 'video' ? '<span class="map-view__pin-thumb-badge">&#9654;</span>' : '';
     return L.divIcon({
       className: 'map-view__pin-thumb',
-      html: '<img src="' + pin.thumbUrl + '" alt="" loading="lazy">' + badge,
+      html: '<img src="' + pin.thumbUrl + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">' + badge,
       iconSize: [44, 44],
     });
   }
@@ -75,6 +75,10 @@ document.addEventListener('DOMContentLoaded', function () {
       if (img.naturalHeight > img.naturalWidth) {
         img.classList.add('map-lightbox__media--portrait');
       }
+    };
+    img.onerror = function () {
+      console.error('Lightbox image failed to load:', pin.fullUrl);
+      img.style.display = 'none';
     };
     lightboxBody.innerHTML = '';
     lightboxBody.appendChild(img);
@@ -137,7 +141,12 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   fetch(container.dataset.dataUrl, { credentials: 'same-origin' })
-    .then(function (response) { return response.json(); })
+    .then(function (response) {
+      if (!response.ok) {
+        throw new Error('HTTP ' + response.status);
+      }
+      return response.json();
+    })
     .then(function (data) {
       var pins = data.pins || [];
       var track = data.track;
@@ -228,7 +237,8 @@ document.addEventListener('DOMContentLoaded', function () {
       map.fitBounds(pinLatlngs.concat(trackLatlngs).concat(poiLatlngs), { padding: [40, 40], maxZoom: 16 });
       applyIconsForZoom();
     })
-    .catch(function () {
+    .catch(function (err) {
+      console.error('Trip map data fetch failed:', err);
       var empty = document.createElement('p');
       empty.className = 'empty-state';
       empty.textContent = container.dataset.msgEmpty;
