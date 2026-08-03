@@ -535,9 +535,8 @@ img {
 .map-lightbox__panel {
   position: relative;
   z-index: 1;
-  width: min(50vw, 50vh);
+  max-width: min(50vw, 50vh);
   min-width: 280px;
-  max-width: 92vw;
   max-height: 92vh;
   background: var(--color-surface);
   border-radius: var(--radius);
