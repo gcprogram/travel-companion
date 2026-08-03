@@ -184,6 +184,13 @@ Konsequenzen:
 8. Geocaching cache_type Symbole, einblenden, auf der Karte wenn an dem Ort in 50 m Umkreis ein Photo gemacht wurde, oder die Bewegungsgeschwindigkeit (Track) Fußgänger oder kleiner ist und man in 50 m Umkreis vorbei kam lt. Track.
 9. Erweiterte Suche (Datum/Ort/Freitext/Tags/Personen), Timeline-Ansicht
 
+## Bugs/Glitches
+1. Bitpalast Hoster blockt eigene IP unseres Home-Anschlusses (der Server läuft weiter), wegen "fehlerhafter" Anfragen. 
+   Herausfinden, warum ein normales Navigieren auf der Seite so etwas auslöst.
+2. Upload von GPX-Dateien stackt nicht. Eine Datei ersetzt die andere visuell in der Karte.
+   Besser: Alle Tracks werden intern zusammengelegt und können auch wieder gelöscht werden (alle zusammen, man kann es ja wiederholen mit Einzeluploads)
+   
+
 ## Nützliche Befehle
 
 ```bash
