@@ -63,9 +63,27 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!lightbox || !lightboxBody) {
       return;
     }
-    lightboxBody.innerHTML = pin.kind === 'video'
-      ? '<video controls autoplay class="map-lightbox__media" src="' + pin.fullUrl + '"></video>'
-      : '<img class="map-lightbox__media" src="' + pin.fullUrl + '" alt="">';
+    if (pin.kind === 'video') {
+      lightboxBody.innerHTML = '<video controls autoplay class="map-lightbox__media" src="' + pin.fullUrl + '"></video>';
+      lightbox.hidden = false;
+      return;
+    }
+    var img = document.createElement('img');
+    img.className = 'map-lightbox__media';
+    img.src = pin.fullUrl;
+    img.alt = '';
+    img.onload = function () {
+      if (img.naturalHeight > img.naturalWidth) {
+        // Portrait: constrain width to its natural aspect ratio so it
+        // takes up roughly the same area as a landscape at full width.
+        // If landscape at panel-width 300px shows as 300×200, a portrait
+        // should display at e.g. 200×300 — proportionally narrower.
+        var panelW = lightboxBody.parentElement.offsetWidth - 32;
+        img.style.maxWidth = Math.round(panelW * img.naturalWidth / img.naturalHeight) + 'px';
+      }
+    };
+    lightboxBody.innerHTML = '';
+    lightboxBody.appendChild(img);
     lightbox.hidden = false;
   }
 
