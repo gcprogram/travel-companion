@@ -560,6 +560,7 @@ img {
 }
 .map-lightbox__body { display: flex; }
 .map-lightbox__media { max-width: 100%; max-height: 92vh; object-fit: contain; border-radius: calc(var(--radius) - 4px); display: block; }
+.map-lightbox__media--portrait { max-width: 66%; }
 
 /* --- Admin --- */
 
