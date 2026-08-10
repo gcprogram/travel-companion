@@ -53,12 +53,18 @@ final class PhotoRepository
         return (int) $this->pdo->lastInsertId();
     }
 
-    public function markReady(int $id, int $width, int $height, ?float $lat = null, ?float $lng = null): void
-    {
+    public function markReady(
+        int $id,
+        int $width,
+        int $height,
+        ?float $lat = null,
+        ?float $lng = null,
+        ?string $takenAt = null,
+    ): void {
         $stmt = $this->pdo->prepare(
-            "UPDATE photos SET status = 'ready', width = ?, height = ?, lat = ?, lng = ?, updated_at = ? WHERE id = ?"
+            "UPDATE photos SET status = 'ready', width = ?, height = ?, lat = ?, lng = ?, taken_at = ?, updated_at = ? WHERE id = ?"
         );
-        $stmt->execute([$width, $height, $lat, $lng, gmdate('Y-m-d H:i:s'), $id]);
+        $stmt->execute([$width, $height, $lat, $lng, $takenAt, gmdate('Y-m-d H:i:s'), $id]);
     }
 
     public function markFailed(int $id): void

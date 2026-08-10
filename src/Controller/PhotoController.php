@@ -50,13 +50,20 @@ final class PhotoController
         }
 
         $path = $this->storage->derivativePath((int) $photo['id'], $variant);
+        $contentType = $variant === 'web' ? 'image/jpeg' : 'image/webp';
+        if (!is_file($path)) {
+            // Backward compat: photos processed before the 'web' variant
+            // switched from WebP to JPEG (see PhotoStorage::derivativePath).
+            $path = $this->storage->legacyDerivativePath((int) $photo['id'], $variant);
+            $contentType = 'image/webp';
+        }
         if (!is_file($path)) {
             throw new HttpNotFoundException($request);
         }
 
         $response->getBody()->write((string) file_get_contents($path));
         return $response
-            ->withHeader('Content-Type', 'image/webp')
+            ->withHeader('Content-Type', $contentType)
             ->withHeader('Cache-Control', 'private, max-age=86400');
     }
 
