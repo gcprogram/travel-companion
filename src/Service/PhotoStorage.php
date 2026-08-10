@@ -35,7 +35,24 @@ final class PhotoStorage
         return $this->directoryFor($photoId) . '/original.' . $extension;
     }
 
+    /**
+     * 'web' is JPEG (not WebP) so GPS/capture-time EXIF can be written back
+     * into it reliably (see PhotoProcessHandler) — it's the file that
+     * survives once the original is deleted after processing. 'thumb' stays
+     * WebP: small gallery grid image, never needs to carry metadata.
+     */
     public function derivativePath(int $photoId, string $variant): string
+    {
+        return $this->directoryFor($photoId) . '/' . $variant . '.' . ($variant === 'web' ? 'jpg' : 'webp');
+    }
+
+    /**
+     * Photos processed before the JPEG+EXIF switch still have their 'web'
+     * derivative as .webp on disk - PhotoController falls back to this path
+     * when the new one doesn't exist, so old photos keep working without a
+     * reprocessing/backfill pass.
+     */
+    public function legacyDerivativePath(int $photoId, string $variant): string
     {
         return $this->directoryFor($photoId) . '/' . $variant . '.webp';
     }

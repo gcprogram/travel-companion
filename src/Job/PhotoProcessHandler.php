@@ -12,21 +12,31 @@ use Psr\Log\LoggerInterface;
 
 /**
  * Job type "photo.process". Payload: {"photo_id": int}.
- * Generates the thumb/web WebP derivatives from the uploaded original via
- * Imagick. Only available where the imagick extension is installed (the
- * Bitpalast hosting has it; a bare-PHP dev machine typically doesn't).
+ * Generates the thumb/web derivatives from the uploaded original via
+ * Imagick, then deletes the original — only the two small derivatives are
+ * kept on disk (and count against storage quota), not the multi-MB
+ * camera/phone original. Only available where the imagick extension is
+ * installed (the Bitpalast hosting has it; a bare-PHP dev machine typically
+ * doesn't).
  *
- * Also extracts GPS coordinates from the original's EXIF data — the
- * derivatives get stripImage()'d for privacy/size, but the location itself
- * is important for later route/POI matching, so it's pulled out into its
- * own columns before that metadata is gone from the images we actually
- * hand out.
+ * GPS coordinates and capture time (EXIF DateTimeOriginal) are extracted
+ * from the original before it's discarded, stored in their own columns for
+ * route/POI matching and chronological ordering, and also written back into
+ * the 'web' derivative's own EXIF data (GPSLatitude/Longitude,
+ * DateTimeOriginal) — so a future trip export/download doesn't lose that
+ * information just because the original is gone. Everything else (camera
+ * model, serial numbers, thumbnail preview, ...) is stripped for privacy.
+ * 'web' is JPEG rather than WebP specifically because Imagick's EXIF write
+ * support is far more reliable for JPEG output (see PhotoStorage). 'thumb'
+ * stays WebP - it's a small gallery-grid image and never needs to carry
+ * metadata.
  */
 final class PhotoProcessHandler implements JobHandlerInterface
 {
     private const THUMB_MAX_EDGE = 400;
     private const WEB_MAX_EDGE = 1600;
-    private const WEBP_QUALITY = 82;
+    private const THUMB_QUALITY = 82;
+    private const WEB_QUALITY = 85;
 
     public function __construct(
         private readonly PhotoRepository $photos,
@@ -53,16 +63,29 @@ final class PhotoProcessHandler implements JobHandlerInterface
         }
 
         try {
+            $meta = $this->extractMetadata($originalPath);
+
             $thumbPath = $this->storage->derivativePath($photoId, 'thumb');
             $webPath = $this->storage->derivativePath($photoId, 'web');
-            $this->renderVariant($originalPath, $thumbPath, self::THUMB_MAX_EDGE);
-            $webSize = $this->renderVariant($originalPath, $webPath, self::WEB_MAX_EDGE);
-            $gps = $this->extractGps($originalPath);
-            $this->photos->markReady($photoId, $webSize['width'], $webSize['height'], $gps['lat'] ?? null, $gps['lng'] ?? null);
+            $this->renderVariant($originalPath, $thumbPath, self::THUMB_MAX_EDGE, 'webp', self::THUMB_QUALITY, null);
+            $webSize = $this->renderVariant($originalPath, $webPath, self::WEB_MAX_EDGE, 'jpeg', self::WEB_QUALITY, $meta);
+
+            $this->photos->markReady(
+                $photoId,
+                $webSize['width'],
+                $webSize['height'],
+                $meta['lat'],
+                $meta['lng'],
+                $meta['takenAt'],
+            );
             // finalize() only knew the original's size; now the derivatives
-            // exist too, so the quota-relevant total is the sum of all three.
-            $this->photos->updateBytes($photoId, (int) filesize($originalPath) + (int) filesize($thumbPath) + (int) filesize($webPath));
-            if ($gps !== null) {
+            // exist too, so the quota-relevant total is the sum of both -
+            // the original itself is deleted right below, once both
+            // derivatives (which carry the GPS/time metadata forward) exist.
+            $this->photos->updateBytes($photoId, (int) filesize($thumbPath) + (int) filesize($webPath));
+            @unlink($originalPath);
+
+            if ($meta['lat'] !== null) {
                 $this->dispatchPoiAssignment((int) $photo['day_entry_id']);
             }
         } catch (\Throwable $e) {
@@ -86,14 +109,25 @@ final class PhotoProcessHandler implements JobHandlerInterface
     }
 
     /**
+     * @param array{lat: ?float, lng: ?float, takenAt: ?string}|null $meta
+     *        Passed (non-null) only for the 'web' variant - GPS/capture time
+     *        get written back into its EXIF. 'thumb' never carries metadata.
      * @return array{width: int, height: int}
      */
-    private function renderVariant(string $sourcePath, string $destPath, int $maxEdge): array
-    {
+    private function renderVariant(
+        string $sourcePath,
+        string $destPath,
+        int $maxEdge,
+        string $format,
+        int $quality,
+        ?array $meta,
+    ): array {
         $image = new \Imagick($sourcePath);
 
-        // Normalize orientation from EXIF, then strip metadata (incl. GPS) from
-        // the public derivatives; the original keeps it for a later EXIF phase.
+        // Normalize orientation from EXIF, then strip ALL metadata (camera
+        // model/serial, embedded preview thumbnail, maker notes, ...) for
+        // privacy/size. GPS + capture time get explicitly re-added below,
+        // for 'web' only - the only variant kept once the original is gone.
         $this->autoOrient($image);
         $image->stripImage();
         $image->setImageColorspace(\Imagick::COLORSPACE_SRGB);
@@ -102,8 +136,12 @@ final class PhotoProcessHandler implements JobHandlerInterface
             $image->resizeImage($maxEdge, $maxEdge, \Imagick::FILTER_LANCZOS, 1, true);
         }
 
-        $image->setImageFormat('webp');
-        $image->setImageCompressionQuality(self::WEBP_QUALITY);
+        $image->setImageFormat($format);
+        $image->setImageCompressionQuality($quality);
+
+        if ($meta !== null) {
+            $this->embedMetadata($image, $meta);
+        }
 
         $dir = dirname($destPath);
         if (!is_dir($dir)) {
@@ -118,37 +156,102 @@ final class PhotoProcessHandler implements JobHandlerInterface
     }
 
     /**
-     * Best-effort GPS extraction from EXIF (JPEG/TIFF only — the exif
-     * extension doesn't read GPS out of PNG/WebP, which is fine since real
-     * camera/phone photos are essentially always JPEG). Returns null rather
-     * than throwing when absent or unparsable; a missing location is not
-     * a processing failure.
+     * Best-effort: writes GPS + DateTimeOriginal back into the image's own
+     * EXIF data so they survive independently of the database (needed for a
+     * future trip export/download). Wrapped so that if a particular
+     * Imagick/libjpeg build can't write one of these properties, processing
+     * still succeeds - the photo just falls back to the DB columns for
+     * map/track display, same as before this existed.
      *
-     * @return array{lat: float, lng: float}|null
+     * @param array{lat: ?float, lng: ?float, takenAt: ?string} $meta
      */
-    private function extractGps(string $path): ?array
+    private function embedMetadata(\Imagick $image, array $meta): void
     {
+        try {
+            if ($meta['lat'] !== null && $meta['lng'] !== null) {
+                $lat = $this->decimalToDms($meta['lat']);
+                $lng = $this->decimalToDms($meta['lng']);
+                $image->setImageProperty('exif:GPSLatitudeRef', $meta['lat'] >= 0 ? 'N' : 'S');
+                $image->setImageProperty('exif:GPSLatitude', implode(',', $lat));
+                $image->setImageProperty('exif:GPSLongitudeRef', $meta['lng'] >= 0 ? 'E' : 'W');
+                $image->setImageProperty('exif:GPSLongitude', implode(',', $lng));
+            }
+            if ($meta['takenAt'] !== null) {
+                $exifDate = str_replace('-', ':', substr($meta['takenAt'], 0, 10)) . substr($meta['takenAt'], 10);
+                $image->setImageProperty('exif:DateTimeOriginal', $exifDate);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('Photo EXIF re-embedding failed, continuing without it', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Best-effort GPS + capture-time extraction from EXIF (JPEG/TIFF only —
+     * the exif extension doesn't read these out of PNG/WebP, which is fine
+     * since real camera/phone photos are essentially always JPEG). Returns
+     * nulls rather than throwing when absent or unparsable; missing
+     * metadata is not a processing failure.
+     *
+     * @return array{lat: ?float, lng: ?float, takenAt: ?string}
+     */
+    private function extractMetadata(string $path): array
+    {
+        $result = ['lat' => null, 'lng' => null, 'takenAt' => null];
         if (!function_exists('exif_read_data')) {
-            return null;
+            return $result;
         }
 
         $exif = @exif_read_data($path);
+        if ($exif === false) {
+            return $result;
+        }
+
         if (
-            $exif === false
-            || !isset($exif['GPSLatitude'], $exif['GPSLongitude'], $exif['GPSLatitudeRef'], $exif['GPSLongitudeRef'])
-            || !is_array($exif['GPSLatitude'])
-            || !is_array($exif['GPSLongitude'])
+            isset($exif['GPSLatitude'], $exif['GPSLongitude'], $exif['GPSLatitudeRef'], $exif['GPSLongitudeRef'])
+            && is_array($exif['GPSLatitude'])
+            && is_array($exif['GPSLongitude'])
         ) {
-            return null;
+            $lat = $this->dmsToDecimal($exif['GPSLatitude'], (string) $exif['GPSLatitudeRef']);
+            $lng = $this->dmsToDecimal($exif['GPSLongitude'], (string) $exif['GPSLongitudeRef']);
+            if ($lat !== null && $lng !== null) {
+                $result['lat'] = round($lat, 6);
+                $result['lng'] = round($lng, 6);
+            }
         }
 
-        $lat = $this->dmsToDecimal($exif['GPSLatitude'], (string) $exif['GPSLatitudeRef']);
-        $lng = $this->dmsToDecimal($exif['GPSLongitude'], (string) $exif['GPSLongitudeRef']);
-        if ($lat === null || $lng === null) {
-            return null;
+        $dateTimeOriginal = $exif['EXIF']['DateTimeOriginal'] ?? $exif['DateTimeOriginal'] ?? null;
+        if (is_string($dateTimeOriginal)) {
+            $result['takenAt'] = $this->parseExifDateTime($dateTimeOriginal);
         }
 
-        return ['lat' => round($lat, 6), 'lng' => round($lng, 6)];
+        return $result;
+    }
+
+    private function parseExifDateTime(string $value): ?string
+    {
+        // EXIF datetime format: "YYYY:MM:DD HH:MM:SS".
+        $dt = \DateTimeImmutable::createFromFormat('Y:m:d H:i:s', $value);
+        return $dt !== false ? $dt->format('Y-m-d H:i:s') : null;
+    }
+
+    /**
+     * Inverse of dmsToDecimal(): decimal degrees -> three EXIF rationals
+     * ("D/1", "M/1", "S/100"), as Imagick::setImageProperty() expects for
+     * exif:GPSLatitude/GPSLongitude.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function decimalToDms(float $decimal): array
+    {
+        $decimal = abs($decimal);
+        $degrees = (int) floor($decimal);
+        $minutesFull = ($decimal - $degrees) * 60;
+        $minutes = (int) floor($minutesFull);
+        $seconds = ($minutesFull - $minutes) * 60;
+
+        return [$degrees . '/1', $minutes . '/1', (string) round($seconds * 100) . '/100'];
     }
 
     /**

@@ -104,7 +104,10 @@ final class TripMapController
                     'thumbUrl' => '/photos/' . $photo['id'] . '/thumb',
                     'fullUrl' => '/photos/' . $photo['id'] . '/web',
                     'entryDate' => $entry['entry_date'],
-                    'takenAt' => $photo['created_at'],
+                    // Real EXIF capture time where available; upload time
+                    // (created_at) as a fallback for photos processed before
+                    // taken_at existed, or lacking a DateTimeOriginal tag.
+                    'takenAt' => $photo['taken_at'] ?? $photo['created_at'],
                 ];
             }
             foreach ($this->videos->findByEntry((int) $entry['id']) as $video) {
