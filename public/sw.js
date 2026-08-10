@@ -90,7 +90,12 @@ self.addEventListener('fetch', function (event) {
       if (request.mode === 'navigate') {
         return caches.match('/offline.html');
       }
-      return caches.match(request);
+      // caches.match() resolves to undefined on a miss, which
+      // respondWith() can't turn into a Response - fall through to a
+      // real (failing) network response instead of throwing.
+      return caches.match(request).then(function (cached) {
+        return cached || fetch(request);
+      });
     })
   );
 });
