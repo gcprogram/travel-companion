@@ -20,7 +20,9 @@ use Psr\Http\Server\RequestHandlerInterface;
  * tile.openstreetmap.org directly — its usage policy forbids the traffic
  * pattern a real app produces and got this project IP-blocked during
  * testing; MapTiler serves the same OSM cartography under a plan meant
- * for production use).
+ * for production use). img-src also allows data: - Leaflet swaps a failed
+ * tile's <img> src to an inline blank GIF (L.Util.emptyImageUrl) to hide
+ * the broken-image icon; without this the swap itself gets CSP-blocked.
  * media-src allows blob: because video-compress.js loads the file the user
  * picked into an off-screen <video> via URL.createObjectURL() to read
  * frames for compression — without it every video upload fails immediately
@@ -45,7 +47,7 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
         return $response
             ->withHeader('Content-Security-Policy', implode('; ', [
                 "default-src 'self'",
-                "img-src 'self' https://i.ytimg.com https://api.maptiler.com",
+                "img-src 'self' data: https://i.ytimg.com https://api.maptiler.com",
                 "media-src 'self' blob:",
                 "frame-src https://www.youtube-nocookie.com",
                 "style-src 'self'",
