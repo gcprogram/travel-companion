@@ -563,6 +563,21 @@ img {
 }
 .map-lightbox__body { display: flex; }
 .map-lightbox__media { max-width: 100%; max-height: 92vh; object-fit: contain; border-radius: calc(var(--radius) - 4px); display: block; }
+
+.confirm-modal { position: fixed; inset: 0; z-index: 1100; display: flex; align-items: center; justify-content: center; }
+.confirm-modal[hidden] { display: none; }
+.confirm-modal__backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); }
+.confirm-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(90vw, 360px);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  box-shadow: var(--shadow);
+}
+.confirm-modal__message { margin: 0 0 var(--space-2); }
+.confirm-modal__actions { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
 .map-lightbox__media--portrait { max-width: 66%; }
 
 /* --- Admin --- */

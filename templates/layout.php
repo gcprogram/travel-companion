@@ -54,6 +54,7 @@
   </footer>
 
   <script src="/assets/js/confirm-submit.js"></script>
+  <script src="/assets/js/confirm-remember.js"></script>
   <script src="/assets/js/pwa-register.js"></script>
 </body>
 </html>

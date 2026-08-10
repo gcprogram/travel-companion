@@ -45,7 +45,7 @@ final class TrackController
         }
 
         $points = $this->simplifier->simplify($points);
-        $this->tracks->replaceForTrip((int) $trip['id'], 'gpx', $file->getClientFilename(), $points);
+        $this->tracks->appendForTrip((int) $trip['id'], 'gpx', $file->getClientFilename(), $points);
 
         $this->flash->add('success', t('trip.map.gpx_uploaded'));
         return $this->redirectToMap($response, $trip);
@@ -99,7 +99,7 @@ final class TrackController
 
         usort($points, static fn (array $a, array $b): int => $a['recordedAt'] <=> $b['recordedAt']);
         $points = $this->simplifier->simplify($points);
-        $this->tracks->replaceForTrip((int) $trip['id'], 'points', null, $points);
+        $this->tracks->appendForTrip((int) $trip['id'], 'points', null, $points);
 
         return $this->json($response, ['ok' => true], 200);
     }
