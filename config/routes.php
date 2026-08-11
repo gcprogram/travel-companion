@@ -55,6 +55,7 @@ return static function (App $app): void {
         $group->post('/trips/{id:[0-9]+}/track/gpx', [TrackController::class, 'uploadGpx']);
         $group->post('/trips/{id:[0-9]+}/track/points', [TrackController::class, 'submitPoints']);
         $group->post('/trips/{id:[0-9]+}/track/trim', [TrackController::class, 'trim']);
+        $group->post('/trips/{id:[0-9]+}/track/fill-gaps', [TrackController::class, 'fillGapsFromPhotos']);
         $group->post('/trips/{id:[0-9]+}/track/delete', [TrackController::class, 'delete']);
 
         // POIs: discovery dispatches a job, everything else is direct CRUD.

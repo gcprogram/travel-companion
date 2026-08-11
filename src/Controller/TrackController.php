@@ -9,6 +9,7 @@ use App\Repository\JobRepository;
 use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
 use App\Service\GpxParser;
+use App\Service\PhotoTrackGapFillService;
 use App\Service\TrackSimplifier;
 use App\Service\TripAccess;
 use App\Support\Flash;
@@ -26,6 +27,7 @@ final class TrackController
         private readonly JobRepository $jobs,
         private readonly GpxParser $gpxParser,
         private readonly TrackSimplifier $simplifier,
+        private readonly PhotoTrackGapFillService $gapFill,
         private readonly TripAccess $access,
         private readonly Flash $flash,
     ) {
@@ -150,6 +152,19 @@ final class TrackController
         $this->tracks->deleteForTrip((int) $trip['id']);
 
         $this->flash->add('success', t('trip.map.track_deleted'));
+        return $this->redirectToMap($response, $trip);
+    }
+
+    /**
+     * Fills real gaps in the track with the trip's own geotagged photos -
+     * see PhotoTrackGapFillService for what counts as a gap.
+     */
+    public function fillGapsFromPhotos(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireEditable($request, (int) $args['id']);
+        $added = $this->gapFill->fillGaps((int) $trip['id']);
+
+        $this->flash->add('success', t('trip.map.track_gap_fill_result', ['count' => (string) $added]));
         return $this->redirectToMap($response, $trip);
     }
 
