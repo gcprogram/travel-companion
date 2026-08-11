@@ -155,12 +155,17 @@ window.OfflineQueue = (function () {
    * one against a session that's already gone would just fail identically
    * and burn through everyone's remaining quota of confusing error states.
    *
-   * @param {{csrfToken: string, force?: boolean}} options force=true bypasses the WiFi-only check (explicit user action)
+   * @param {{csrfToken: string, force?: boolean, onProgress?: (doneCount: number, total: number, fraction: number) => void}} options
+   *        force=true bypasses the WiFi-only check (explicit user action);
+   *        onProgress reports which item of how many is currently going up,
+   *        plus that item's own chunk progress, so callers can show a
+   *        "photo 2 of 5" / percentage indicator.
    * @returns {Promise<{synced: number, failed: number, skipped: boolean, authRequired?: boolean}>}
    */
   function sync(options) {
     const csrfToken = options.csrfToken;
     const force = !!options.force;
+    const onProgress = options.onProgress || function () {};
 
     if (!navigator.onLine) {
       return Promise.resolve({ synced: 0, failed: 0, skipped: true });
@@ -178,14 +183,16 @@ window.OfflineQueue = (function () {
       let failed = 0;
       let authRequired = false;
 
-      return pending.reduce(function (chain, item) {
+      return pending.reduce(function (chain, item, index) {
         return chain.then(function () {
           if (authRequired) {
             return null; // Already know the session's gone; stop trying the rest.
           }
+          onProgress(index, pending.length, 0);
           return updateStatus(item.id, 'syncing').then(function () {
             return ChunkedUpload.upload(item.blob, item.filename, item.uploadUrl, csrfToken, {
               extraFields: item.extraFields || {},
+              onProgress: function (fraction) { onProgress(index, pending.length, fraction); },
             });
           }).then(function () {
             synced++;

@@ -67,7 +67,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!window.OfflineQueue) {
           throw new Error('offline_unsupported');
         }
-        status.textContent = input.dataset.msgQueued || '';
+        // See photo-upload.js: the "saved on this device" message would be
+        // wrong here - online, the sync right below starts immediately.
+        status.textContent = '';
         return OfflineQueue.add({
           type: 'video',
           entryId: entryId,
@@ -81,7 +83,15 @@ document.addEventListener('DOMContentLoaded', function () {
         // force: true - see photo-upload.js: this follows directly from the
         // user picking a file just now, not an unprompted background sync,
         // so it shouldn't be held back by the WiFi-only preference.
-        return OfflineQueue.sync({ csrfToken: csrfField.value, force: true });
+        return OfflineQueue.sync({
+          csrfToken: csrfField.value,
+          force: true,
+          onProgress: function (done, total, fraction) {
+            // A video is one big item, so its own chunk percentage is the
+            // useful signal - unlike photos, where the file count is.
+            status.textContent = input.dataset.msgUploading + ' ' + Math.round(fraction * 100) + '%';
+          },
+        });
       })
       .then(function (result) {
         if (result.synced > 0) {
@@ -93,6 +103,8 @@ document.addEventListener('DOMContentLoaded', function () {
           status.textContent = input.dataset.msgLoginRequired || input.dataset.msgError;
         } else if (result.failed > 0) {
           status.textContent = input.dataset.msgError;
+        } else if (result.skipped) {
+          status.textContent = input.dataset.msgQueued || '';
         } else {
           status.textContent = '';
         }

@@ -155,6 +155,7 @@ $lng = $entry['lng'] ?? null;
            data-photo-input
            data-entry-id="<?= (int) $entry['id'] ?>"
            data-upload-url="/entries/<?= (int) $entry['id'] ?>/photos"
+           data-msg-uploading="<?= e(t('entry.form.photo_uploading')) ?>"
            data-msg-queued="<?= e(t('entry.form.queued_offline')) ?>"
            data-msg-error="<?= e(t('entry.form.photo_upload_error')) ?>"
            data-msg-login-required="<?= e(t('entry.form.login_required')) ?>"
@@ -204,6 +205,7 @@ $lng = $entry['lng'] ?? null;
            data-upload-url="/entries/<?= (int) $entry['id'] ?>/videos"
            data-msg-unsupported="<?= e(t('entry.form.video_unsupported')) ?>"
            data-msg-compressing="<?= e(t('entry.form.video_compressing')) ?>"
+           data-msg-uploading="<?= e(t('entry.form.video_uploading')) ?>"
            data-msg-too-long="<?= e(t('entry.form.video_too_long')) ?>"
            data-msg-codec-unsupported="<?= e(t('entry.form.video_codec_unsupported')) ?>"
            data-msg-queued="<?= e(t('entry.form.queued_offline')) ?>"
