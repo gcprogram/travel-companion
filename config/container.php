@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Controller\ServiceWorkerController;
 use App\Database\Connection;
 use App\Job\AdminNotifyHandler;
 use App\Job\EntryLocateHandler;
@@ -34,6 +35,9 @@ return [
         $logger->pushHandler(new StreamHandler(dirname(__DIR__) . '/var/log/app.log', $level));
         return $logger;
     },
+
+    // Scalar constructor arg - not autowireable, needs an explicit definition.
+    ServiceWorkerController::class => static fn (): ServiceWorkerController => new ServiceWorkerController(dirname(__DIR__)),
 
     PhotoStorage::class => static fn (): PhotoStorage => new PhotoStorage(dirname(__DIR__) . '/var/uploads'),
     VideoStorage::class => static fn (): VideoStorage => new VideoStorage(dirname(__DIR__) . '/var/uploads'),

@@ -8,13 +8,16 @@
  * creation is handled separately by offline-queue.js (IndexedDB), not by
  * serving old HTML from here.
  *
- * CACHE_VERSION: bump this on every deploy that changes any cached file.
+ * CACHE_VERSION is substituted by ServiceWorkerController from a hash of
+ * the actual asset files — this file is NOT served statically (it lives
+ * outside public/ precisely so it can't be). Hand-maintaining that version
+ * failed three separate times in one session: every miss silently shipped
+ * stale JS to anyone with the worker already installed, and each one looked
+ * like a fresh application bug until the cache was cleared.
  * skipWaiting()/clients.claim() below make a new version take over
- * immediately instead of waiting for every open tab to close — we've been
- * burned enough times this session by stale-cache debugging (OPcache,
- * browser JS cache) to not repeat that mistake here too.
+ * immediately instead of waiting for every open tab to close.
  */
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = '__CACHE_VERSION__';
 const CACHE_NAME = 'tc-shell-' + CACHE_VERSION;
 
 const PRECACHE_URLS = [
