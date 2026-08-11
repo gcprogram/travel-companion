@@ -22,9 +22,11 @@ use Psr\Log\LoggerInterface;
  * GPS coordinates and capture time (EXIF DateTimeOriginal) are extracted
  * from the original before it's discarded, stored in their own columns for
  * route/POI matching and chronological ordering, and also written back into
- * the 'web' derivative's own EXIF data (GPSLatitude/Longitude,
+ * the 'web' derivative's own EXIF data (GPSLatitude/Longitude/Altitude,
  * DateTimeOriginal) — so a future trip export/download doesn't lose that
- * information just because the original is gone. Everything else (camera
+ * information just because the original is gone. GPS altitude is only
+ * re-embedded (not stored in its own DB column - nothing reads it yet), kept
+ * for a possible future elevation-profile feature. Everything else (camera
  * model, serial numbers, thumbnail preview, ...) is stripped for privacy.
  * 'web' is JPEG rather than WebP specifically because Imagick's EXIF write
  * support is far more reliable for JPEG output (see PhotoStorage). 'thumb'
@@ -171,12 +173,12 @@ final class PhotoProcessHandler implements JobHandlerInterface
      * profile. setImageProperty() calls on a profile-less image are
      * silently dropped on write; no error, no warning, just gone.
      *
-     * @param array{lat: ?float, lng: ?float, takenAt: ?string} $meta
+     * @param array{lat: ?float, lng: ?float, takenAt: ?string, altitude: ?float} $meta
      */
     private function embedMetadata(\Imagick $image, array $meta): void
     {
         try {
-            $blob = $this->buildExifBlob($meta['lat'], $meta['lng'], $meta['takenAt']);
+            $blob = $this->buildExifBlob($meta['lat'], $meta['lng'], $meta['takenAt'], $meta['altitude']);
             if ($blob !== null) {
                 // setImageProfile() writes the buffer as the literal APP1
                 // payload - it does NOT add the "Exif\0\0" identifier itself,
@@ -199,13 +201,15 @@ final class PhotoProcessHandler implements JobHandlerInterface
     /**
      * Hand-rolled minimal TIFF/EXIF structure: little-endian header, an IFD0
      * with pointers to whichever of the Exif SubIFD (DateTimeOriginal) and
-     * GPS IFD (lat/lng/refs) are present, and the tag data itself. Returns
-     * null when there's nothing to embed.
+     * GPS IFD (lat/lng/refs/altitude) are present, and the tag data itself.
+     * Returns null when there's nothing to embed. $altitude is ignored
+     * without lat/lng (it lives inside the GPS IFD, which wouldn't exist).
      */
-    private function buildExifBlob(?float $lat, ?float $lng, ?string $takenAt): ?string
+    private function buildExifBlob(?float $lat, ?float $lng, ?string $takenAt, ?float $altitude = null): ?string
     {
         $hasGps = $lat !== null && $lng !== null;
         $hasTime = $takenAt !== null;
+        $hasAltitude = $hasGps && $altitude !== null;
         if (!$hasGps && !$hasTime) {
             return null;
         }
@@ -215,7 +219,8 @@ final class PhotoProcessHandler implements JobHandlerInterface
         $offExifIfd = 8 + $ifd0Size;
         $exifIfdSize = $hasTime ? (2 + 1 * 12 + 4) : 0;
         $offGpsIfd = $offExifIfd + $exifIfdSize;
-        $gpsIfdSize = $hasGps ? (2 + 4 * 12 + 4) : 0;
+        $gpsEntryCount = $hasGps ? (4 + ($hasAltitude ? 2 : 0)) : 0;
+        $gpsIfdSize = $hasGps ? (2 + $gpsEntryCount * 12 + 4) : 0;
         $offExternal = $offGpsIfd + $gpsIfdSize;
 
         $dtBytes = '';
@@ -227,13 +232,19 @@ final class PhotoProcessHandler implements JobHandlerInterface
 
         $latRational = '';
         $lngRational = '';
+        $altRational = '';
         $offLat = 0;
         $offLng = 0;
+        $offAlt = 0;
         if ($hasGps) {
             $offLat = $offExternal + strlen($dtBytes);
             $latRational = $this->rationalTriplet($this->decimalToDms((float) $lat));
             $offLng = $offLat + strlen($latRational);
             $lngRational = $this->rationalTriplet($this->decimalToDms((float) $lng));
+            if ($hasAltitude) {
+                $offAlt = $offLng + strlen($lngRational);
+                $altRational = pack('VV', (int) round(abs((float) $altitude) * 10), 10);
+            }
         }
 
         $ifd0 = pack('v', $ifd0EntryCount);
@@ -254,17 +265,21 @@ final class PhotoProcessHandler implements JobHandlerInterface
 
         $gpsIfd = '';
         if ($hasGps) {
-            $gpsIfd = pack('v', 4)
+            $gpsIfd = pack('v', $gpsEntryCount)
                 . pack('vvV', 0x0001, 2, 2) . str_pad($lat >= 0 ? 'N' : 'S', 4, "\0")
                 . pack('vvV', 0x0002, 5, 3) . pack('V', $offLat)
                 . pack('vvV', 0x0003, 2, 2) . str_pad($lng >= 0 ? 'E' : 'W', 4, "\0")
-                . pack('vvV', 0x0004, 5, 3) . pack('V', $offLng)
-                . pack('V', 0);
+                . pack('vvV', 0x0004, 5, 3) . pack('V', $offLng);
+            if ($hasAltitude) {
+                $gpsIfd .= pack('vvV', 0x0005, 1, 1) . str_pad(pack('C', $altitude < 0 ? 1 : 0), 4, "\0")
+                    . pack('vvV', 0x0006, 5, 1) . pack('V', $offAlt);
+            }
+            $gpsIfd .= pack('V', 0);
         }
 
         $header = "II" . pack('v', 42) . pack('V', 8);
 
-        return $header . $ifd0 . $exifIfd . $gpsIfd . $dtBytes . $latRational . $lngRational;
+        return $header . $ifd0 . $exifIfd . $gpsIfd . $dtBytes . $latRational . $lngRational . $altRational;
     }
 
     /**
@@ -287,11 +302,11 @@ final class PhotoProcessHandler implements JobHandlerInterface
      * nulls rather than throwing when absent or unparsable; missing
      * metadata is not a processing failure.
      *
-     * @return array{lat: ?float, lng: ?float, takenAt: ?string}
+     * @return array{lat: ?float, lng: ?float, takenAt: ?string, altitude: ?float}
      */
     private function extractMetadata(string $path): array
     {
-        $result = ['lat' => null, 'lng' => null, 'takenAt' => null];
+        $result = ['lat' => null, 'lng' => null, 'takenAt' => null, 'altitude' => null];
         if (!function_exists('exif_read_data')) {
             return $result;
         }
@@ -317,6 +332,16 @@ final class PhotoProcessHandler implements JobHandlerInterface
         $dateTimeOriginal = $exif['EXIF']['DateTimeOriginal'] ?? $exif['DateTimeOriginal'] ?? null;
         if (is_string($dateTimeOriginal)) {
             $result['takenAt'] = $this->parseExifDateTime($dateTimeOriginal);
+        }
+
+        if (isset($exif['GPSAltitude'])) {
+            $altitude = $this->fractionToFloat((string) $exif['GPSAltitude']);
+            if ($altitude !== null) {
+                // Ref byte: 0 = above sea level, 1 = below. PHP's exif
+                // extension surfaces it as a raw single-byte string.
+                $belowSeaLevel = isset($exif['GPSAltitudeRef']) && ord((string) $exif['GPSAltitudeRef']) === 1;
+                $result['altitude'] = round($belowSeaLevel ? -$altitude : $altitude, 1);
+            }
         }
 
         return $result;
