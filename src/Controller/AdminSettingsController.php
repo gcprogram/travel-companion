@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\PoiDiscoveryService;
 use App\Service\Settings;
 use App\Support\Flash;
 use App\Support\View;
@@ -27,6 +28,7 @@ final class AdminSettingsController
     {
         return $this->view->render($response, 'admin/settings', [
             'values' => $this->settings->allEffective(),
+            'searchableCategories' => PoiDiscoveryService::searchableCategories(),
         ]);
     }
 
@@ -46,6 +48,22 @@ final class AdminSettingsController
         $this->setMegabytesIfValid($body, 'quota_storage_manager', 'quota.storage.manager');
         $this->setIntIfValid($body, 'quota_ai_ai_user', 'quota.ai.ai_user', min: 0);
         $this->setIntIfValid($body, 'quota_ai_manager', 'quota.ai.manager', min: 0);
+        $this->setIntIfValid($body, 'poi_search_radius', 'poi.search_radius_meters', min: 50);
+        $this->setIntIfValid($body, 'poi_photo_match', 'poi.photo_match_meters', min: 10);
+
+        // Unchecking everything would silently disable discovery entirely,
+        // so an empty selection keeps the previous value rather than saving
+        // a state the UI gives no hint about.
+        $categories = $body['poi_categories'] ?? null;
+        if (is_array($categories)) {
+            $valid = array_values(array_intersect(
+                array_map(strval(...), $categories),
+                PoiDiscoveryService::searchableCategories(),
+            ));
+            if ($valid !== []) {
+                $this->settings->set('poi.categories', implode(',', $valid));
+            }
+        }
 
         $this->flash->add('success', t('admin.settings_saved'));
         return $response->withHeader('Location', '/admin/settings')->withStatus(302);

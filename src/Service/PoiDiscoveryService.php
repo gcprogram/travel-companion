@@ -25,39 +25,66 @@ final class PoiDiscoveryService
 {
     private const ENDPOINT = 'https://overpass-api.de/api/interpreter';
     private const CLUSTER_GAP_METERS = 2000.0;
-    private const BBOX_BUFFER_DEGREES = 0.005; // ~550m
     private const MAX_CLUSTERS = 15;
     private const MAX_RESULTS_PER_CLUSTER = 40;
+    private const METERS_PER_DEGREE = 111320.0;
 
     /**
-     * @var array<string, string> OSM tag key => Overpass regex value filter
+     * Which OSM tag each searchable category maps to. 'other' is absent on
+     * purpose: it's a manual-entry bucket, nothing to search OSM for.
+     *
+     * @var array<string, array{key: string, value: string}>
      */
-    private const TAG_FILTERS = [
-        'tourism' => 'museum|zoo|attraction|viewpoint',
-        'historic' => 'monument|memorial|castle|ruins',
-        'amenity' => 'place_of_worship',
+    private const CATEGORY_TAGS = [
+        'museum' => ['key' => 'tourism', 'value' => 'museum'],
+        'zoo' => ['key' => 'tourism', 'value' => 'zoo'],
+        'attraction' => ['key' => 'tourism', 'value' => 'attraction'],
+        'viewpoint' => ['key' => 'tourism', 'value' => 'viewpoint'],
+        'monument' => ['key' => 'historic', 'value' => 'monument|memorial|castle|ruins'],
+        'sacred_building' => ['key' => 'amenity', 'value' => 'place_of_worship'],
     ];
 
     public function __construct(
         private readonly TrackRepository $tracks,
         private readonly StationRepository $stations,
         private readonly PoiRepository $pois,
+        private readonly Settings $settings,
     ) {
     }
 
     /**
+     * @return list<string> categories discovery can actually search for
+     */
+    public static function searchableCategories(): array
+    {
+        return array_keys(self::CATEGORY_TAGS);
+    }
+
+    /**
+     * @param int|null $radiusMeters override for this run; null uses the
+     *        admin default (poi.search_radius_meters)
+     * @param list<string>|null $categories override for this run; null uses
+     *        the admin default (poi.categories)
      * @return int number of POIs discovered/updated
      */
-    public function discoverForTrip(int $tripId): int
+    public function discoverForTrip(int $tripId, ?int $radiusMeters = null, ?array $categories = null): int
     {
-        $boxes = $this->buildBoundingBoxes($tripId);
+        $radiusMeters ??= $this->settings->getInt('poi.search_radius_meters');
+        $categories ??= $this->settings->getList('poi.categories');
+
+        $categories = array_values(array_intersect($categories, self::searchableCategories()));
+        if ($categories === [] || $radiusMeters <= 0) {
+            return 0;
+        }
+
+        $boxes = $this->buildBoundingBoxes($tripId, $radiusMeters / self::METERS_PER_DEGREE);
         if ($boxes === []) {
             return 0;
         }
 
         $count = 0;
         foreach ($boxes as $box) {
-            foreach ($this->queryOverpass($box) as $element) {
+            foreach ($this->queryOverpass($box, $categories) as $element) {
                 $this->pois->upsertFromOverpass(
                     $tripId,
                     $element['type'] . '/' . $element['id'],
@@ -75,7 +102,7 @@ final class PoiDiscoveryService
     /**
      * @return list<array{south: float, west: float, north: float, east: float}>
      */
-    private function buildBoundingBoxes(int $tripId): array
+    private function buildBoundingBoxes(int $tripId, float $bufferDegrees): array
     {
         $track = $this->tracks->findByTrip($tripId);
         $points = [];
@@ -104,10 +131,10 @@ final class PoiDiscoveryService
             $lats = array_column($cluster, 'lat');
             $lngs = array_column($cluster, 'lng');
             $boxes[] = [
-                'south' => min($lats) - self::BBOX_BUFFER_DEGREES,
-                'west' => min($lngs) - self::BBOX_BUFFER_DEGREES,
-                'north' => max($lats) + self::BBOX_BUFFER_DEGREES,
-                'east' => max($lngs) + self::BBOX_BUFFER_DEGREES,
+                'south' => min($lats) - $bufferDegrees,
+                'west' => min($lngs) - $bufferDegrees,
+                'north' => max($lats) + $bufferDegrees,
+                'east' => max($lngs) + $bufferDegrees,
             ];
         }
         return $boxes;
@@ -142,9 +169,9 @@ final class PoiDiscoveryService
      * @param array{south: float, west: float, north: float, east: float} $box
      * @return list<array{type: string, id: int, category: string, name: string, lat: float, lng: float}>
      */
-    private function queryOverpass(array $box): array
+    private function queryOverpass(array $box, array $categories): array
     {
-        $query = $this->buildQuery($box);
+        $query = $this->buildQuery($box, $categories);
 
         $ch = curl_init(self::ENDPOINT);
         curl_setopt_array($ch, [
@@ -175,7 +202,7 @@ final class PoiDiscoveryService
             if ($name === null) {
                 continue; // Skip nameless entries — not useful in a sightseeing list.
             }
-            $category = $this->categorize($el['tags'] ?? []);
+            $category = $this->categorize($el['tags'] ?? [], $categories);
             if ($category === null) {
                 continue;
             }
@@ -200,14 +227,26 @@ final class PoiDiscoveryService
     }
 
     /**
+     * Groups the requested categories by OSM tag key, so several categories
+     * sharing one key (museum/zoo/... all being "tourism") stay a single
+     * regex clause per element type instead of one query clause each.
+     *
      * @param array{south: float, west: float, north: float, east: float} $box
+     * @param list<string> $categories
      */
-    private function buildQuery(array $box): string
+    private function buildQuery(array $box, array $categories): string
     {
         $bbox = sprintf('%F,%F,%F,%F', $box['south'], $box['west'], $box['north'], $box['east']);
 
+        $byKey = [];
+        foreach ($categories as $category) {
+            $tag = self::CATEGORY_TAGS[$category];
+            $byKey[$tag['key']][] = $tag['value'];
+        }
+
         $clauses = [];
-        foreach (self::TAG_FILTERS as $key => $valuePattern) {
+        foreach ($byKey as $key => $values) {
+            $valuePattern = implode('|', $values);
             foreach (['node', 'way', 'relation'] as $elementType) {
                 $clauses[] = sprintf('%s["%s"~"%s"](%s);', $elementType, $key, $valuePattern, $bbox);
             }
@@ -218,19 +257,22 @@ final class PoiDiscoveryService
 
     /**
      * @param array<string, string> $tags
+     * @param list<string> $categories the ones actually requested - a shared
+     *        tag key can return more than was asked for (e.g. "tourism"
+     *        matching a zoo when only museums were wanted)
      */
-    private function categorize(array $tags): ?string
+    private function categorize(array $tags, array $categories): ?string
     {
         $tourism = $tags['tourism'] ?? null;
         if (in_array($tourism, ['museum', 'zoo', 'attraction', 'viewpoint'], true)) {
-            return $tourism;
+            return in_array($tourism, $categories, true) ? $tourism : null;
         }
         $historic = $tags['historic'] ?? null;
         if (in_array($historic, ['monument', 'memorial', 'castle', 'ruins'], true)) {
-            return 'monument';
+            return in_array('monument', $categories, true) ? 'monument' : null;
         }
         if (($tags['amenity'] ?? null) === 'place_of_worship') {
-            return 'sacred_building';
+            return in_array('sacred_building', $categories, true) ? 'sacred_building' : null;
         }
         return null;
     }

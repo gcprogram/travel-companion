@@ -86,4 +86,32 @@ final class PoiRepository
     {
         $this->pdo->prepare('DELETE FROM trip_pois WHERE id = ?')->execute([$id]);
     }
+
+    /**
+     * Clears out discovered-but-never-visited POIs: everything in the trip
+     * with no photo/video assigned to it (PoiAssignmentService does the
+     * assigning, within poi.photo_match_meters).
+     *
+     * Deliberately keeps POIs the user has taken ownership of even without
+     * media - marked visited, given notes/a visit date, or added by hand -
+     * since those are explicit statements that the place matters, and
+     * silently deleting them would lose real user input.
+     *
+     * @return int number of POIs removed
+     */
+    public function deleteUnphotographed(int $tripId): int
+    {
+        $stmt = $this->pdo->prepare(
+            "DELETE FROM trip_pois
+             WHERE trip_id = ?
+               AND source = 'overpass'
+               AND visited = 0
+               AND visit_date IS NULL
+               AND (notes IS NULL OR notes = '')
+               AND id NOT IN (SELECT poi_id FROM trip_poi_photos)
+               AND id NOT IN (SELECT poi_id FROM trip_poi_videos)"
+        );
+        $stmt->execute([$tripId]);
+        return $stmt->rowCount();
+    }
 }

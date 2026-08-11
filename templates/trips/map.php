@@ -78,11 +78,38 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
 <h2><?= e(t('trip.map.poi_heading')) ?></h2>
 
 <?php if ($canEdit): ?>
-  <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/discover" class="page-actions">
+  <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/discover" class="poi-search-form">
     <?= $csrf->field() ?>
+    <div class="field">
+      <label for="poi-radius"><?= e(t('trip.map.poi_radius_label')) ?></label>
+      <input type="number" id="poi-radius" name="radius_meters" min="50" max="5000" step="50"
+             value="<?= (int) $poiSearchRadius ?>">
+      <p class="field-hint"><?= e(t('trip.map.poi_radius_hint')) ?></p>
+    </div>
+    <fieldset class="field">
+      <legend><?= e(t('trip.map.poi_categories_label')) ?></legend>
+      <div class="poi-search-form__categories">
+        <?php foreach ($searchableCategories as $category): ?>
+          <label>
+            <input type="checkbox" name="categories[]" value="<?= e($category) ?>"
+              <?= in_array($category, $poiSearchCategories, true) ? 'checked' : '' ?>>
+            <?= e(t('trip.map.category.' . $category)) ?>
+          </label>
+        <?php endforeach; ?>
+      </div>
+    </fieldset>
     <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.poi_discover')) ?></button>
+    <p class="field-hint"><?= e(t('trip.map.poi_discover_hint')) ?></p>
   </form>
-  <p class="field-hint"><?= e(t('trip.map.poi_discover_hint')) ?></p>
+
+  <?php if ($pois !== []): ?>
+    <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/prune" class="page-actions"
+          data-confirm="<?= e(t('trip.map.poi_prune_confirm')) ?>">
+      <?= $csrf->field() ?>
+      <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.poi_prune')) ?></button>
+    </form>
+    <p class="field-hint"><?= e(t('trip.map.poi_prune_hint')) ?></p>
+  <?php endif; ?>
 <?php endif; ?>
 
 <?php if ($pois === []): ?>
