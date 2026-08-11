@@ -97,6 +97,33 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
   </div>
 <?php endif; ?>
 
+<?php if ($canEdit && $stays !== []): ?>
+  <h2><?= e(t('trip.map.stays_heading')) ?></h2>
+  <p class="field-hint"><?= e(t('trip.map.stays_hint')) ?></p>
+  <ul class="stay-list">
+    <?php foreach ($stays as $stay): ?>
+      <li class="stay-list__item">
+        <div>
+          <span class="stay-list__time">
+            <?= e(format_datetime($stay['startedAt'])) ?> – <?= e(format_datetime($stay['endedAt'])) ?>
+          </span>
+          <span class="field-hint">
+            <?= e(t('trip.map.stay_duration', ['minutes' => (string) (int) round($stay['durationSeconds'] / 60)])) ?>
+          </span>
+        </div>
+        <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/stay" class="stay-list__actions">
+          <?= $csrf->field() ?>
+          <input type="hidden" name="lat" value="<?= e((string) $stay['lat']) ?>">
+          <input type="hidden" name="lng" value="<?= e((string) $stay['lng']) ?>">
+          <input type="hidden" name="started_at" value="<?= e($stay['startedAt']) ?>">
+          <input type="hidden" name="ended_at" value="<?= e($stay['endedAt']) ?>">
+          <button type="submit" class="btn btn-ghost btn-small"><?= e(t('trip.map.stay_add')) ?></button>
+        </form>
+      </li>
+    <?php endforeach; ?>
+  </ul>
+<?php endif; ?>
+
 <h2><?= e(t('trip.map.poi_heading')) ?></h2>
 
 <?php if ($canEdit): ?>
