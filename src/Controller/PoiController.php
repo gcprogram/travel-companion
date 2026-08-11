@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Repository\JobRepository;
 use App\Repository\PoiRepository;
 use App\Repository\TripRepository;
+use App\Service\PoiDiscoveryService;
 use App\Service\TripAccess;
 use App\Support\Flash;
 use Psr\Http\Message\ResponseInterface;
@@ -17,6 +18,9 @@ use Slim\Exception\HttpNotFoundException;
 final class PoiController
 {
     private const CATEGORIES = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_building', 'other'];
+    // Overpass is a free shared service; an unbounded radius from the form
+    // would turn one search into a country-sized query.
+    private const MAX_SEARCH_RADIUS_METERS = 5000;
 
     public function __construct(
         private readonly TripRepository $trips,
@@ -30,10 +34,45 @@ final class PoiController
     public function discover(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         $trip = $this->requireEditable($request, (int) $args['id']);
+        $body = (array) $request->getParsedBody();
 
-        $this->jobs->dispatch('poi.discover', ['trip_id' => (int) $trip['id']]);
+        // The form pre-fills these from the admin defaults; anything invalid
+        // just falls back to those defaults inside PoiDiscoveryService.
+        $payload = ['trip_id' => (int) $trip['id']];
+
+        $radius = trim((string) ($body['radius_meters'] ?? ''));
+        if ($radius !== '' && is_numeric($radius) && (int) $radius > 0) {
+            $payload['radius_meters'] = min((int) $radius, self::MAX_SEARCH_RADIUS_METERS);
+        }
+
+        $categories = $body['categories'] ?? null;
+        if (is_array($categories)) {
+            $valid = array_values(array_intersect(
+                array_map(strval(...), $categories),
+                PoiDiscoveryService::searchableCategories(),
+            ));
+            if ($valid !== []) {
+                $payload['categories'] = $valid;
+            }
+        }
+
+        $this->jobs->dispatch('poi.discover', $payload);
 
         $this->flash->add('success', t('trip.map.poi_discover_started'));
+        return $this->redirectToMap($response, $trip);
+    }
+
+    /**
+     * Bulk cleanup after the trip's photos are in: drops every discovered
+     * POI nothing was photographed at. See PoiRepository::deleteUnphotographed
+     * for what it deliberately spares.
+     */
+    public function deleteUnphotographed(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireEditable($request, (int) $args['id']);
+        $removed = $this->pois->deleteUnphotographed((int) $trip['id']);
+
+        $this->flash->add('success', t('trip.map.poi_unphotographed_removed', ['count' => (string) $removed]));
         return $this->redirectToMap($response, $trip);
     }
 

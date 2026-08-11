@@ -64,5 +64,36 @@
            value="<?= e($values['quota.ai.manager']) ?>">
   </div>
 
+  <h2><?= e(t('admin.settings_poi_heading')) ?></h2>
+  <p class="field-hint"><?= e(t('admin.settings_poi_hint')) ?></p>
+
+  <div class="field">
+    <label for="poi_search_radius"><?= e(t('admin.settings_poi_search_radius')) ?></label>
+    <input type="number" id="poi_search_radius" name="poi_search_radius" min="50" max="5000" step="50"
+           value="<?= e($values['poi.search_radius_meters']) ?>">
+    <p class="field-hint"><?= e(t('admin.settings_poi_search_radius_hint')) ?></p>
+  </div>
+
+  <div class="field">
+    <label for="poi_photo_match"><?= e(t('admin.settings_poi_photo_match')) ?></label>
+    <input type="number" id="poi_photo_match" name="poi_photo_match" min="10" max="2000" step="10"
+           value="<?= e($values['poi.photo_match_meters']) ?>">
+    <p class="field-hint"><?= e(t('admin.settings_poi_photo_match_hint')) ?></p>
+  </div>
+
+  <fieldset class="field">
+    <legend><?= e(t('admin.settings_poi_categories')) ?></legend>
+    <?php $enabled = array_map('trim', explode(',', $values['poi.categories'])); ?>
+    <div class="poi-search-form__categories">
+      <?php foreach ($searchableCategories as $category): ?>
+        <label>
+          <input type="checkbox" name="poi_categories[]" value="<?= e($category) ?>"
+            <?= in_array($category, $enabled, true) ? 'checked' : '' ?>>
+          <?= e(t('trip.map.category.' . $category)) ?>
+        </label>
+      <?php endforeach; ?>
+    </div>
+  </fieldset>
+
   <button type="submit" class="btn btn-primary"><?= e(t('admin.save')) ?></button>
 </form>

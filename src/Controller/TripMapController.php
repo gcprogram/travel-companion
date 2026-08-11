@@ -11,6 +11,8 @@ use App\Repository\PoiRepository;
 use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
+use App\Service\PoiDiscoveryService;
+use App\Service\Settings;
 use App\Service\TrackSmoothingService;
 use App\Service\TripAccess;
 use App\Support\View;
@@ -31,6 +33,7 @@ final class TripMapController
         private readonly PoiRepository $pois,
         private readonly PoiMediaRepository $poiMedia,
         private readonly TripAccess $access,
+        private readonly Settings $settings,
     ) {
     }
 
@@ -54,6 +57,11 @@ final class TripMapController
             'track' => $this->trackSummary((int) $trip['id']),
             'pois' => $pois,
             'poiMedia' => $poiMedia,
+            // Admin defaults pre-filling the discovery form; the form can
+            // override them for a single search (see PoiController::discover).
+            'poiSearchRadius' => $this->settings->getInt('poi.search_radius_meters'),
+            'poiSearchCategories' => $this->settings->getList('poi.categories'),
+            'searchableCategories' => PoiDiscoveryService::searchableCategories(),
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);
     }

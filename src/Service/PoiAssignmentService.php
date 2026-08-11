@@ -12,21 +12,25 @@ use App\Repository\VideoRepository;
 
 /**
  * Assigns geotagged photos/videos to the nearest confirmed POI (within
- * ~150m), so the sightseeing list can show what was actually photographed
- * there. Only touches media that isn't assigned to *any* POI yet —
- * re-running this (e.g. after new POIs are discovered, or a new photo is
- * uploaded) never reshuffles an existing assignment, auto or manual.
+ * poi.photo_match_meters), so the sightseeing list can show what was
+ * actually photographed there. Only touches media that isn't assigned to
+ * *any* POI yet — re-running this (e.g. after new POIs are discovered, or a
+ * new photo is uploaded) never reshuffles an existing assignment, auto or
+ * manual.
+ *
+ * The match radius is admin-configurable because it directly decides what
+ * PoiController::deleteUnphotographed() considers unvisited: too strict and
+ * it discards places that were photographed from across the street.
  */
 final class PoiAssignmentService
 {
-    private const MAX_DISTANCE_METERS = 150.0;
-
     public function __construct(
         private readonly DayEntryRepository $entries,
         private readonly PhotoRepository $photos,
         private readonly VideoRepository $videos,
         private readonly PoiRepository $pois,
         private readonly PoiMediaRepository $poiMedia,
+        private readonly Settings $settings,
     ) {
     }
 
@@ -40,6 +44,8 @@ final class PoiAssignmentService
             return 0;
         }
 
+        $maxDistance = (float) $this->settings->getInt('poi.photo_match_meters');
+
         $count = 0;
         foreach ($this->entries->findByTrip($tripId) as $entry) {
             foreach ($this->photos->findByEntry((int) $entry['id']) as $photo) {
@@ -49,7 +55,7 @@ final class PoiAssignmentService
                 if ($this->poiMedia->isPhotoAssigned((int) $photo['id'])) {
                     continue;
                 }
-                $poiId = $this->findNearestPoi($pois, (float) $photo['lat'], (float) $photo['lng']);
+                $poiId = $this->findNearestPoi($pois, (float) $photo['lat'], (float) $photo['lng'], $maxDistance);
                 if ($poiId !== null) {
                     $this->poiMedia->assignPhoto($poiId, (int) $photo['id']);
                     $count++;
@@ -63,7 +69,7 @@ final class PoiAssignmentService
                 if ($this->poiMedia->isVideoAssigned((int) $video['id'])) {
                     continue;
                 }
-                $poiId = $this->findNearestPoi($pois, (float) $video['lat'], (float) $video['lng']);
+                $poiId = $this->findNearestPoi($pois, (float) $video['lat'], (float) $video['lng'], $maxDistance);
                 if ($poiId !== null) {
                     $this->poiMedia->assignVideo($poiId, (int) $video['id']);
                     $count++;
@@ -77,10 +83,10 @@ final class PoiAssignmentService
     /**
      * @param list<array<string, mixed>> $pois
      */
-    private function findNearestPoi(array $pois, float $lat, float $lng): ?int
+    private function findNearestPoi(array $pois, float $lat, float $lng, float $maxDistance): ?int
     {
         $bestId = null;
-        $bestDistance = self::MAX_DISTANCE_METERS;
+        $bestDistance = $maxDistance;
 
         foreach ($pois as $poi) {
             $distance = $this->haversineMeters($lat, $lng, (float) $poi['lat'], (float) $poi['lng']);

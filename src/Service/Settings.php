@@ -34,6 +34,19 @@ final class Settings
         // Confirmation-link validity. Kept short by design (an unconfirmed
         // registration counts as a failed attempt for IP blocking).
         'registration.token_ttl_seconds' => '300',
+        // How far from the route POI discovery looks (PoiDiscoveryService).
+        // Defaults per trip; the search form on the map page can override it
+        // for a single run.
+        'poi.search_radius_meters' => '550',
+        // How close a geotagged photo/video must be to a POI to count as
+        // "taken there" (PoiAssignmentService). Distinct from the search
+        // radius above: this one decides what the "remove POIs without
+        // photos" action considers unphotographed, so too strict a value
+        // silently discards places that were actually visited.
+        'poi.photo_match_meters' => '150',
+        // Which categories discovery looks for, comma-separated. 'other'
+        // is a manual-entry-only category, never searched for.
+        'poi.categories' => 'museum,zoo,attraction,viewpoint,monument,sacred_building',
     ];
 
     /** @var array<string, string>|null */
@@ -52,6 +65,16 @@ final class Settings
     public function getInt(string $key): int
     {
         return (int) $this->get($key);
+    }
+
+    /**
+     * Comma-separated setting as a list, blanks dropped.
+     *
+     * @return list<string>
+     */
+    public function getList(string $key): array
+    {
+        return array_values(array_filter(array_map('trim', explode(',', $this->get($key))), static fn (string $v): bool => $v !== ''));
     }
 
     public function set(string $key, string $value): void
