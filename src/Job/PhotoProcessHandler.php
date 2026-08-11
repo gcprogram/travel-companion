@@ -158,33 +158,117 @@ final class PhotoProcessHandler implements JobHandlerInterface
     /**
      * Best-effort: writes GPS + DateTimeOriginal back into the image's own
      * EXIF data so they survive independently of the database (needed for a
-     * future trip export/download). Wrapped so that if a particular
-     * Imagick/libjpeg build can't write one of these properties, processing
-     * still succeeds - the photo just falls back to the DB columns for
-     * map/track display, same as before this existed.
+     * future trip export/download). Wrapped so that if anything here goes
+     * wrong, processing still succeeds - the photo just falls back to the
+     * DB columns for map/track display, same as before this existed.
+     *
+     * Builds the raw EXIF/GPS IFD block by hand (setImageProfile()) rather
+     * than Imagick's exif:* setImageProperty() calls: confirmed by direct
+     * testing (both via the PHP binding and the `magick` CLI with -set) that
+     * ImageMagick only patches values into an EXIF profile that already
+     * exists on the image - it never synthesizes one from scratch, which is
+     * exactly the case here since stripImage() just removed the original's
+     * profile. setImageProperty() calls on a profile-less image are
+     * silently dropped on write; no error, no warning, just gone.
      *
      * @param array{lat: ?float, lng: ?float, takenAt: ?string} $meta
      */
     private function embedMetadata(\Imagick $image, array $meta): void
     {
         try {
-            if ($meta['lat'] !== null && $meta['lng'] !== null) {
-                $lat = $this->decimalToDms($meta['lat']);
-                $lng = $this->decimalToDms($meta['lng']);
-                $image->setImageProperty('exif:GPSLatitudeRef', $meta['lat'] >= 0 ? 'N' : 'S');
-                $image->setImageProperty('exif:GPSLatitude', implode(',', $lat));
-                $image->setImageProperty('exif:GPSLongitudeRef', $meta['lng'] >= 0 ? 'E' : 'W');
-                $image->setImageProperty('exif:GPSLongitude', implode(',', $lng));
-            }
-            if ($meta['takenAt'] !== null) {
-                $exifDate = str_replace('-', ':', substr($meta['takenAt'], 0, 10)) . substr($meta['takenAt'], 10);
-                $image->setImageProperty('exif:DateTimeOriginal', $exifDate);
+            $blob = $this->buildExifBlob($meta['lat'], $meta['lng'], $meta['takenAt']);
+            if ($blob !== null) {
+                $image->setImageProfile('exif', $blob);
             }
         } catch (\Throwable $e) {
             $this->logger->warning('Photo EXIF re-embedding failed, continuing without it', [
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Hand-rolled minimal TIFF/EXIF structure: little-endian header, an IFD0
+     * with pointers to whichever of the Exif SubIFD (DateTimeOriginal) and
+     * GPS IFD (lat/lng/refs) are present, and the tag data itself. Returns
+     * null when there's nothing to embed.
+     */
+    private function buildExifBlob(?float $lat, ?float $lng, ?string $takenAt): ?string
+    {
+        $hasGps = $lat !== null && $lng !== null;
+        $hasTime = $takenAt !== null;
+        if (!$hasGps && !$hasTime) {
+            return null;
+        }
+
+        $ifd0EntryCount = ($hasTime ? 1 : 0) + ($hasGps ? 1 : 0);
+        $ifd0Size = 2 + $ifd0EntryCount * 12 + 4;
+        $offExifIfd = 8 + $ifd0Size;
+        $exifIfdSize = $hasTime ? (2 + 1 * 12 + 4) : 0;
+        $offGpsIfd = $offExifIfd + $exifIfdSize;
+        $gpsIfdSize = $hasGps ? (2 + 4 * 12 + 4) : 0;
+        $offExternal = $offGpsIfd + $gpsIfdSize;
+
+        $dtBytes = '';
+        $offDt = 0;
+        if ($hasTime) {
+            $dtBytes = str_replace('-', ':', substr((string) $takenAt, 0, 10)) . substr((string) $takenAt, 10) . "\0";
+            $offDt = $offExternal;
+        }
+
+        $latRational = '';
+        $lngRational = '';
+        $offLat = 0;
+        $offLng = 0;
+        if ($hasGps) {
+            $offLat = $offExternal + strlen($dtBytes);
+            $latRational = $this->rationalTriplet($this->decimalToDms((float) $lat));
+            $offLng = $offLat + strlen($latRational);
+            $lngRational = $this->rationalTriplet($this->decimalToDms((float) $lng));
+        }
+
+        $ifd0 = pack('v', $ifd0EntryCount);
+        if ($hasTime) {
+            $ifd0 .= pack('vvV', 0x8769, 4, 1) . pack('V', $offExifIfd);
+        }
+        if ($hasGps) {
+            $ifd0 .= pack('vvV', 0x8825, 4, 1) . pack('V', $offGpsIfd);
+        }
+        $ifd0 .= pack('V', 0);
+
+        $exifIfd = '';
+        if ($hasTime) {
+            $exifIfd = pack('v', 1)
+                . pack('vvV', 0x9003, 2, strlen($dtBytes)) . pack('V', $offDt)
+                . pack('V', 0);
+        }
+
+        $gpsIfd = '';
+        if ($hasGps) {
+            $gpsIfd = pack('v', 4)
+                . pack('vvV', 0x0001, 2, 2) . str_pad($lat >= 0 ? 'N' : 'S', 4, "\0")
+                . pack('vvV', 0x0002, 5, 3) . pack('V', $offLat)
+                . pack('vvV', 0x0003, 2, 2) . str_pad($lng >= 0 ? 'E' : 'W', 4, "\0")
+                . pack('vvV', 0x0004, 5, 3) . pack('V', $offLng)
+                . pack('V', 0);
+        }
+
+        $header = "II" . pack('v', 42) . pack('V', 8);
+
+        return $header . $ifd0 . $exifIfd . $gpsIfd . $dtBytes . $latRational . $lngRational;
+    }
+
+    /**
+     * @param array{0: string, 1: string, 2: string} $dms "D/1", "M/1", "S/100" strings from decimalToDms()
+     */
+    private function rationalTriplet(array $dms): string
+    {
+        $bytes = '';
+        foreach ($dms as $part) {
+            [$num, $den] = explode('/', $part);
+            $bytes .= pack('VV', (int) $num, (int) $den);
+        }
+        return $bytes;
     }
 
     /**
