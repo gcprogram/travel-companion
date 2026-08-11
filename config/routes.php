@@ -11,6 +11,7 @@ use App\Controller\LocaleController;
 use App\Controller\PhotoController;
 use App\Controller\PhotoUploadController;
 use App\Controller\PoiController;
+use App\Controller\ServiceWorkerController;
 use App\Controller\TrackController;
 use App\Controller\TripController;
 use App\Controller\TripMapController;
@@ -25,6 +26,10 @@ return static function (App $app): void {
     $app->get('/', [HomeController::class, 'index']);
 
     $app->get('/lang/{locale}', [LocaleController::class, 'set']);
+
+    // Served by PHP (not statically) so its cache version can be derived
+    // from the assets - see ServiceWorkerController.
+    $app->get('/sw.js', [ServiceWorkerController::class, 'show']);
 
     // Auth
     $app->get('/login', [AuthController::class, 'showLogin']);
