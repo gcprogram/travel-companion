@@ -103,7 +103,8 @@ $lng = $entry['lng'] ?? null;
        data-msg-pending-one="<?= e(t('offline.sync_pending_one')) ?>"
        data-msg-pending-many="<?= e(t('offline.sync_pending_many')) ?>"
        data-msg-waiting-wifi="<?= e(t('offline.sync_waiting_wifi')) ?>"
-       data-msg-login-required="<?= e(t('offline.sync_login_required')) ?>">
+       data-msg-login-required="<?= e(t('offline.sync_login_required')) ?>"
+       data-msg-quota-exceeded="<?= e(t('offline.sync_quota_exceeded')) ?>">
     <p class="field-hint">
       <span data-sync-count></span>
       <button type="button" class="btn btn-ghost btn-small" data-sync-now><?= e(t('offline.sync_now')) ?></button>
@@ -154,10 +155,8 @@ $lng = $entry['lng'] ?? null;
            data-photo-input
            data-entry-id="<?= (int) $entry['id'] ?>"
            data-upload-url="/entries/<?= (int) $entry['id'] ?>/photos"
-           data-msg-uploading="<?= e(t('entry.form.photo_uploading')) ?>"
            data-msg-queued="<?= e(t('entry.form.queued_offline')) ?>"
            data-msg-error="<?= e(t('entry.form.photo_upload_error')) ?>"
-           data-msg-quota-exceeded="<?= e(t('entry.form.photo_quota_exceeded')) ?>"
            data-msg-login-required="<?= e(t('entry.form.login_required')) ?>"
            class="visually-hidden">
     <p class="field-hint" data-photo-status></p>
@@ -205,12 +204,10 @@ $lng = $entry['lng'] ?? null;
            data-upload-url="/entries/<?= (int) $entry['id'] ?>/videos"
            data-msg-unsupported="<?= e(t('entry.form.video_unsupported')) ?>"
            data-msg-compressing="<?= e(t('entry.form.video_compressing')) ?>"
-           data-msg-uploading="<?= e(t('entry.form.video_uploading')) ?>"
            data-msg-too-long="<?= e(t('entry.form.video_too_long')) ?>"
            data-msg-codec-unsupported="<?= e(t('entry.form.video_codec_unsupported')) ?>"
            data-msg-queued="<?= e(t('entry.form.queued_offline')) ?>"
            data-msg-error="<?= e(t('entry.form.video_upload_error')) ?>"
-           data-msg-quota-exceeded="<?= e(t('entry.form.video_quota_exceeded')) ?>"
            data-msg-login-required="<?= e(t('entry.form.login_required')) ?>"
            class="visually-hidden">
     <p class="field-hint" data-video-status></p>

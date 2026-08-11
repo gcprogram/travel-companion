@@ -124,6 +124,16 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
+    // Same idea as needsLogin: a quota rejection is permanent until the user
+    // frees up space or an admin raises the limit - auto-retrying it forever
+    // would just be noise, so it gets its own message instead of blending
+    // into the generic "N pending" count.
+    var quotaExceeded = allItems.some(function (i) { return i.lastError === 'quota_exceeded'; });
+    if (quotaExceeded) {
+      syncCount.textContent = syncStatus.dataset.msgQuotaExceeded || '';
+      return;
+    }
+
     var label = count === 1
       ? syncStatus.dataset.msgPendingOne
       : (syncStatus.dataset.msgPendingMany || '').replace(':count', String(count));

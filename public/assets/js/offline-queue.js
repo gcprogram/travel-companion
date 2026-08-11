@@ -196,7 +196,12 @@ window.OfflineQueue = (function () {
               return updateStatus(item.id, 'pending', 'auth_required');
             }
             failed++;
-            return updateStatus(item.id, 'pending', err && err.message);
+            // A real, permanent rejection (delete something or ask an admin
+            // for more quota) - not a network hiccup, so it's tagged
+            // distinctly rather than left looking like an ordinary transient
+            // failure that a plain retry would fix.
+            var isQuotaExceeded = err && typeof err.body === 'string' && err.body.indexOf('quota_exceeded') !== -1;
+            return updateStatus(item.id, 'pending', isQuotaExceeded ? 'quota_exceeded' : (err && err.message));
           });
         });
       }, Promise.resolve()).then(function () {
