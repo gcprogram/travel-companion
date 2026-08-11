@@ -139,6 +139,39 @@ final class DayEntryController
         return $response->withHeader('Location', '/trip/' . $trip['slug'])->withStatus(302);
     }
 
+    /**
+     * Tiny poke for day-entry-form.js's "processing" placeholders: used to
+     * be a blind location.reload() every few seconds while anything was
+     * still pending, which on a gallery with two dozen photos meant
+     * re-fetching two dozen image URLs on every single poll - exactly the
+     * "many requests to many different URLs" pattern that got the host's
+     * abuse detection to block the app's own IP. One tiny JSON response
+     * instead; the client only reloads once, when this actually says done.
+     */
+    public function mediaStatus(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        [, $entry] = $this->access->requireEditableEntry($request, (int) $args['id']);
+
+        $pending = false;
+        foreach ($this->photos->findByEntry((int) $entry['id']) as $photo) {
+            if ($photo['status'] === 'pending') {
+                $pending = true;
+                break;
+            }
+        }
+        if (!$pending) {
+            foreach ($this->videos->findByEntry((int) $entry['id']) as $video) {
+                if ($video['status'] === 'pending') {
+                    $pending = true;
+                    break;
+                }
+            }
+        }
+
+        $response->getBody()->write((string) json_encode(['pending' => $pending], JSON_THROW_ON_ERROR));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
     public function delete(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         [$trip, $entry] = $this->access->requireEditableEntry($request, (int) $args['id']);

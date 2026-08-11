@@ -139,16 +139,53 @@ document.addEventListener('DOMContentLoaded', function () {
  * seconds, sometimes longer under load) - the page reload right after
  * upload finishing (photo-upload.js/video-upload.js) often lands before
  * that job has actually run, so it still shows "processing" placeholders
- * with no further sign of life. Poll and reload once nothing is left
- * pending, so finished thumbnails show up without the user having to
- * navigate away and back manually.
+ * with no further sign of life. Poll a tiny status endpoint and reload once
+ * nothing is left pending, so finished thumbnails show up without the user
+ * having to navigate away and back manually.
+ *
+ * Deliberately NOT a blind location.reload() every few seconds while
+ * anything is pending (what this used to do): on a gallery with two dozen
+ * photos, every one of those reloads re-fetches two dozen image URLs - the
+ * exact "many requests to many different URLs" pattern that got Bitpalast's
+ * abuse detection to block the app's own IP. One small JSON poll costs one
+ * request instead, and only reloads the page once, when it's actually done.
+ * Backs off and gives up after a while rather than polling forever, in case
+ * a job is stuck.
  */
 document.addEventListener('DOMContentLoaded', function () {
+  var gallery = document.querySelector('[data-photo-gallery], [data-video-gallery]');
   var hasPending = document.querySelector('.photo-gallery__placeholder:not(.photo-gallery__placeholder--failed)');
-  if (!hasPending) {
+  if (!gallery || !hasPending) {
     return;
   }
-  setTimeout(function () {
-    window.location.reload();
-  }, 4000);
+  var entryId = gallery.dataset.entryId;
+  var delay = 4000;
+  var elapsed = 0;
+  var maxElapsed = 120000; // give up after 2 minutes - a stuck job isn't fixed by more polling.
+
+  function poll() {
+    fetch('/entries/' + entryId + '/media-status', { credentials: 'same-origin' })
+      .then(function (res) { return res.ok ? res.json() : { pending: false }; })
+      .then(function (data) {
+        if (!data.pending) {
+          window.location.reload();
+          return;
+        }
+        elapsed += delay;
+        if (elapsed >= maxElapsed) {
+          return;
+        }
+        delay = Math.min(delay * 1.5, 15000);
+        setTimeout(poll, delay);
+      })
+      .catch(function () {
+        // Network hiccup - not worth escalating, just try again next tick.
+        elapsed += delay;
+        if (elapsed < maxElapsed) {
+          setTimeout(poll, delay);
+        }
+      });
+  }
+
+  setTimeout(poll, delay);
 });

@@ -69,6 +69,7 @@ return static function (App $app): void {
         $group->get('/trips/{tripId:[0-9]+}/entries/new', [DayEntryController::class, 'create']);
         $group->post('/trips/{tripId:[0-9]+}/entries', [DayEntryController::class, 'store']);
         $group->get('/entries/{id:[0-9]+}/edit', [DayEntryController::class, 'edit']);
+        $group->get('/entries/{id:[0-9]+}/media-status', [DayEntryController::class, 'mediaStatus']);
         $group->post('/entries/{id:[0-9]+}', [DayEntryController::class, 'update']);
         $group->post('/entries/{id:[0-9]+}/delete', [DayEntryController::class, 'delete']);
 
