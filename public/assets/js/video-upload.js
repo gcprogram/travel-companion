@@ -1,12 +1,17 @@
 /**
  * Video upload: compresses the selected file client-side (video-compress.js,
- * WebCodecs) before handing the result to the shared ChunkedUpload helper.
- * Browsers without WebCodecs support get the file input disabled with an
- * explanatory message pointing at the YouTube-link form instead.
+ * WebCodecs) before handing the result to OfflineQueue. Browsers without
+ * WebCodecs support get the file input disabled with an explanatory message
+ * pointing at the YouTube-link form instead.
  *
  * Compression itself needs no network (it's pure in-browser WebCodecs), so
- * it runs the same whether online or not. Only the upload step falls back
- * to OfflineQueue when the connection isn't there.
+ * it runs the same whether online or not. The compressed result always goes
+ * into OfflineQueue first, then gets synced immediately - see
+ * photo-upload.js for why: queuing before any network call starts means a
+ * mid-upload page navigation only pauses the sync instead of losing the
+ * file outright (a queue-then-sync path is durable in IndexedDB; an
+ * in-flight fetch aborted by navigation is not, and never gets a chance to
+ * queue itself after the fact).
  */
 document.addEventListener('DOMContentLoaded', function () {
   var input = document.querySelector('[data-video-input]');
@@ -59,10 +64,38 @@ document.addEventListener('DOMContentLoaded', function () {
           extraFields.lat = String(geotag.lat);
           extraFields.lng = String(geotag.lng);
         }
-        return uploadOrQueue(result.blob, extraFields);
+        if (!window.OfflineQueue) {
+          throw new Error('offline_unsupported');
+        }
+        status.textContent = input.dataset.msgQueued || '';
+        return OfflineQueue.add({
+          type: 'video',
+          entryId: entryId,
+          uploadUrl: uploadUrl,
+          filename: 'video.mp4',
+          blob: result.blob,
+          extraFields: extraFields,
+        });
       })
       .then(function () {
-        window.location.reload();
+        // force: true - see photo-upload.js: this follows directly from the
+        // user picking a file just now, not an unprompted background sync,
+        // so it shouldn't be held back by the WiFi-only preference.
+        return OfflineQueue.sync({ csrfToken: csrfField.value, force: true });
+      })
+      .then(function (result) {
+        if (result.synced > 0) {
+          window.location.reload();
+          return;
+        }
+        input.disabled = false;
+        if (result.authRequired) {
+          status.textContent = input.dataset.msgLoginRequired || input.dataset.msgError;
+        } else if (result.failed > 0) {
+          status.textContent = input.dataset.msgError;
+        } else {
+          status.textContent = '';
+        }
       })
       .catch(function (err) {
         console.error('Video upload failed:', err);
@@ -70,65 +103,10 @@ document.addEventListener('DOMContentLoaded', function () {
           status.textContent = input.dataset.msgTooLong;
         } else if (err && err.message === 'codec_unsupported') {
           status.textContent = input.dataset.msgCodecUnsupported;
-        } else if (err && err.authRequired) {
-          status.textContent = input.dataset.msgLoginRequired || input.dataset.msgError;
-        } else if (isQuotaExceeded(err)) {
-          status.textContent = input.dataset.msgQuotaExceeded;
         } else {
           status.textContent = input.dataset.msgError;
         }
         input.disabled = false;
       });
   });
-
-  // The server rejects an over-quota upload with {"error": "quota_exceeded"}
-  // (HTTP 413, same as the too-large case) - a real, permanent rejection,
-  // not a network hiccup, so it must not go to isNetworkError() and get
-  // queued for later (it would just fail again).
-  function isQuotaExceeded(err) {
-    return !!(err && typeof err.body === 'string' && err.body.indexOf('quota_exceeded') !== -1);
-  }
-
-  function uploadOrQueue(blob, extraFields) {
-    if (!navigator.onLine) {
-      return queueBlob(blob, extraFields);
-    }
-    return ChunkedUpload.upload(blob, 'video.mp4', uploadUrl, csrfField.value, {
-      onProgress: function (fraction) {
-        status.textContent = input.dataset.msgUploading + ' ' + Math.round(fraction * 100) + '%';
-      },
-      extraFields: extraFields,
-    }).catch(function (err) {
-      if (isNetworkError(err)) {
-        return queueBlob(blob, extraFields);
-      }
-      throw err;
-    });
-  }
-
-  function queueBlob(blob, extraFields) {
-    if (!window.OfflineQueue) {
-      throw new Error('offline_unsupported');
-    }
-    return OfflineQueue.add({
-      type: 'video',
-      entryId: entryId,
-      uploadUrl: uploadUrl,
-      filename: 'video.mp4',
-      blob: blob,
-      extraFields: extraFields,
-    }).then(function () {
-      status.textContent = input.dataset.msgQueued || '';
-    });
-  }
-
-  // See photo-upload.js's isNetworkError for why authRequired must not be
-  // treated the same as a real network failure (it would get queued and
-  // retried against the same expired session forever).
-  function isNetworkError(err) {
-    if (err && err.authRequired) {
-      return false;
-    }
-    return !err || typeof err.status === 'undefined';
-  }
 });
