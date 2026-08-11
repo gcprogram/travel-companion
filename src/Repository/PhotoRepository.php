@@ -188,6 +188,28 @@ final class PhotoRepository
     }
 
     /**
+     * Photos with both a position and a capture time - the two things
+     * PhotoTrackGapFillService needs to place one on the track. A reference
+     * (migration 0019) already has lat/lng/taken_at copied from its
+     * canonical at creation, so it doesn't need special-casing here.
+     *
+     * @return list<array{lat: float, lng: float, takenAt: string}>
+     */
+    public function findGeotaggedByTrip(int $tripId): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT p.lat, p.lng, p.taken_at FROM photos p JOIN day_entries e ON e.id = p.day_entry_id
+             WHERE e.trip_id = ? AND p.status = \'ready\' AND p.lat IS NOT NULL AND p.lng IS NOT NULL AND p.taken_at IS NOT NULL'
+        );
+        $stmt->execute([$tripId]);
+        return array_map(static fn (array $r): array => [
+            'lat' => (float) $r['lat'],
+            'lng' => (float) $r['lng'],
+            'takenAt' => (string) $r['taken_at'],
+        ], $stmt->fetchAll());
+    }
+
+    /**
      * @return list<int>
      */
     public function findIdsByUser(int $userId): array

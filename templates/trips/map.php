@@ -72,6 +72,12 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
       <p class="field-hint" data-track-folder-status></p>
     </div>
 
+    <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/fill-gaps">
+      <?= $csrf->field() ?>
+      <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.track_gap_fill')) ?></button>
+      <p class="field-hint"><?= e(t('trip.map.track_gap_fill_hint')) ?></p>
+    </form>
+
     <?php if ($track !== null): ?>
       <?php if ($track['totalPoints'] > 2): ?>
         <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/trim" class="map-view__trim-form">
