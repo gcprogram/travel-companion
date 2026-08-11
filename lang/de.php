@@ -186,6 +186,8 @@ return [
     'entry.form.mood_label' => 'Stimmung',
     'entry.form.rating_label' => 'Bewertung',
     'entry.form.location_label' => 'Standort',
+    'entry.form.location_name_placeholder' => 'z. B. Nationalpark Krka',
+    'entry.form.location_name_hint' => 'Optional. Wird automatisch befüllt, sobald ein Foto mit Standort oder ein Track vorliegt - falls leer gelassen.',
     'entry.form.locate_button' => 'Standort erfassen',
     'entry.form.location_captured' => 'Erfasst: :lat, :lng',
     'entry.form.location_none' => 'Noch kein Standort erfasst.',

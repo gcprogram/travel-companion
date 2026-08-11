@@ -164,6 +164,7 @@ final class VideoUploadController
         if ($lat !== null && $lng !== null) {
             // Cheap no-op via PoiAssignmentService if the trip has no confirmed POIs yet.
             $this->jobs->dispatch('poi.assign', ['trip_id' => $tripId]);
+            $this->jobs->dispatch('entry.locate', ['day_entry_id' => $entryId]);
         }
 
         return $this->json($response, ['status' => 'ready', 'video_id' => $videoId]);

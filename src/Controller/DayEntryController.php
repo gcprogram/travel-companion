@@ -174,6 +174,7 @@ final class DayEntryController
             'rating' => $this->validRatingOrNull($body['rating'] ?? null),
             'lat' => null,
             'lng' => null,
+            'location_name' => $this->nullable($body['location_name'] ?? null),
         ];
 
         if ($data['entry_date'] === null) {

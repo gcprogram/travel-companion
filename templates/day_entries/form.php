@@ -71,7 +71,11 @@ $lng = $entry['lng'] ?? null;
   </div>
 
   <div class="field">
-    <label><?= e(t('entry.form.location_label')) ?></label>
+    <label for="location_name"><?= e(t('entry.form.location_label')) ?></label>
+    <input type="text" id="location_name" name="location_name"
+           value="<?= e($entry['location_name'] ?? '') ?>"
+           placeholder="<?= e(t('entry.form.location_name_placeholder')) ?>">
+    <p class="field-hint"><?= e(t('entry.form.location_name_hint')) ?></p>
     <div class="location-input">
       <button type="button" class="btn btn-ghost" data-geolocate
               data-msg-unsupported="<?= e(t('entry.form.geo_unsupported')) ?>"
