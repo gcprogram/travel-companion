@@ -61,9 +61,14 @@ final class PhotoController
             throw new HttpNotFoundException($request);
         }
 
+        $extension = $contentType === 'image/jpeg' ? 'jpg' : 'webp';
         $response->getBody()->write((string) file_get_contents($path));
         return $response
             ->withHeader('Content-Type', $contentType)
+            // The URL itself has no extension, so without a filename hint
+            // browsers guess one from the MIME type - on Windows that often
+            // means "image/jpeg" saves as .jfif instead of .jpg.
+            ->withHeader('Content-Disposition', 'inline; filename="' . $variant . '-' . $photo['id'] . '.' . $extension . '"')
             ->withHeader('Cache-Control', 'private, max-age=86400');
     }
 

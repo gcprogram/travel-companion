@@ -14,7 +14,7 @@
  * burned enough times this session by stale-cache debugging (OPcache,
  * browser JS cache) to not repeat that mistake here too.
  */
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = 'tc-shell-' + CACHE_VERSION;
 
 const PRECACHE_URLS = [

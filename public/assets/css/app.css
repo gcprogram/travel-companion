@@ -68,17 +68,6 @@ select:focus-visible {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
-.map-lightbox__media {
-  max-width: 100%;
-  max-height: 92vh;
-  margin: auto;
-  display: block;
-}
-
-.map-lightbox__media--portrait {
-  max-width: 66%;
-}
-
 /* --- Header --- */
 
 .site-header {
@@ -578,7 +567,6 @@ img {
 }
 .confirm-modal__message { margin: 0 0 var(--space-2); }
 .confirm-modal__actions { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
-.map-lightbox__media--portrait { max-width: 66%; }
 
 /* --- Admin --- */
 
