@@ -14,7 +14,7 @@
  * burned enough times this session by stale-cache debugging (OPcache,
  * browser JS cache) to not repeat that mistake here too.
  */
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = 'tc-shell-' + CACHE_VERSION;
 
 const PRECACHE_URLS = [
@@ -92,9 +92,14 @@ self.addEventListener('fetch', function (event) {
       }
       // caches.match() resolves to undefined on a miss, which
       // respondWith() can't turn into a Response - fall through to a
-      // real (failing) network response instead of throwing.
+      // real (failing) network response instead of throwing. That retry
+      // can itself reject (network still down) - respondWith() needs a
+      // settled Response either way, so that gets a plain error Response
+      // rather than an actually uncaught rejection.
       return caches.match(request).then(function (cached) {
         return cached || fetch(request);
+      }).catch(function () {
+        return new Response('', { status: 503, statusText: 'Offline' });
       });
     })
   );
