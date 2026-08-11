@@ -177,6 +177,7 @@ final class TripMapController
         ));
 
         $forSmoothing = array_map(static fn (array $p): array => [
+            'seq' => (int) $p['seq'],
             'lat' => (float) $p['lat'],
             'lng' => (float) $p['lng'],
             'elevation' => $p['elevation_m'] !== null ? (float) $p['elevation_m'] : null,

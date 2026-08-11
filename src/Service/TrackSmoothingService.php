@@ -26,8 +26,13 @@ final class TrackSmoothingService
     private const ACCURACY_WORSE_FACTOR = 2.0;
 
     /**
-     * @param list<array{lat: float, lng: float, elevation: ?float, recordedAt: ?string, accuracy: ?float}> $points
-     * @return list<array{lat: float, lng: float, elevation: ?float, recordedAt: ?string, recordedUntil: ?string, isPause: bool}>
+     * Each output point carries the seq range of the raw points it came
+     * from (seq..seqEnd, equal for an uncollapsed point). Trimming from the
+     * map works on those raw seq values, so a collapsed pause still maps
+     * back to a real cut position - see TrackController::trim.
+     *
+     * @param list<array{seq: int, lat: float, lng: float, elevation: ?float, recordedAt: ?string, accuracy: ?float}> $points
+     * @return list<array{seq: int, seqEnd: int, lat: float, lng: float, elevation: ?float, recordedAt: ?string, recordedUntil: ?string, isPause: bool}>
      */
     public function smooth(array $points): array
     {
@@ -115,7 +120,7 @@ final class TrackSmoothingService
     private function finalizeCluster(array $points, int $start, int $end): array
     {
         if ($end === $start) {
-            return [$this->withPauseFlag($points[$start], false, null)];
+            return [$this->withPauseFlag($points[$start], false, null, $points[$start]['seq'])];
         }
 
         $first = $points[$start];
@@ -131,18 +136,19 @@ final class TrackSmoothingService
                 $lngSum += $points[$j]['lng'];
             }
             $merged = [
+                'seq' => $first['seq'],
                 'lat' => $latSum / $n,
                 'lng' => $lngSum / $n,
                 'elevation' => $first['elevation'],
                 'recordedAt' => $first['recordedAt'],
                 'accuracy' => null,
             ];
-            return [$this->withPauseFlag($merged, true, $last['recordedAt'])];
+            return [$this->withPauseFlag($merged, true, $last['recordedAt'], $last['seq'])];
         }
 
         $out = [];
         for ($j = $start; $j <= $end; $j++) {
-            $out[] = $this->withPauseFlag($points[$j], false, null);
+            $out[] = $this->withPauseFlag($points[$j], false, null, $points[$j]['seq']);
         }
         return $out;
     }
@@ -151,11 +157,12 @@ final class TrackSmoothingService
      * @param array<string, mixed> $point
      * @return array<string, mixed>
      */
-    private function withPauseFlag(array $point, bool $isPause, ?string $recordedUntil): array
+    private function withPauseFlag(array $point, bool $isPause, ?string $recordedUntil, int $seqEnd): array
     {
         unset($point['accuracy']);
         $point['isPause'] = $isPause;
         $point['recordedUntil'] = $recordedUntil;
+        $point['seqEnd'] = $seqEnd;
         return $point;
     }
 
