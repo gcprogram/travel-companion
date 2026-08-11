@@ -19,11 +19,33 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
   <?= e(t('trip.map.show_route')) ?>
 </label>
 
+<?php if ($canEdit && $track !== null && $track['totalPoints'] > 2): ?>
+  <div class="map-trim" data-map-trim>
+    <p class="field-hint"><?= e(t('trip.map.trim_map_hint')) ?></p>
+    <div class="map-trim__modes">
+      <button type="button" class="btn btn-ghost" data-trim-mode="start"><?= e(t('trip.map.trim_mode_start')) ?></button>
+      <button type="button" class="btn btn-ghost" data-trim-mode="end"><?= e(t('trip.map.trim_mode_end')) ?></button>
+    </div>
+    <p class="field-hint" data-trim-status></p>
+    <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/trim" data-trim-form hidden>
+      <?= $csrf->field() ?>
+      <input type="hidden" name="trim_start" value="<?= (int) $track['trimStart'] ?>">
+      <input type="hidden" name="trim_end" value="<?= (int) $track['trimEnd'] ?>">
+    </form>
+  </div>
+<?php endif; ?>
+
 <div class="map-view__canvas" id="trip-map"
      data-data-url="/trip/<?= e($trip['slug']) ?>/map/data"
      data-tile-key="<?= e($mapTilerKey ?? '') ?>"
+     data-can-edit="<?= $canEdit ? '1' : '' ?>"
+     data-csrf-token="<?= e($csrf->token()) ?>"
      data-msg-empty="<?= e(t('trip.map.empty')) ?>"
-     data-msg-pause="<?= e(t('trip.map.pause_label')) ?>"></div>
+     data-msg-pause="<?= e(t('trip.map.pause_label')) ?>"
+     data-msg-poi-delete="<?= e(t('trip.map.poi_delete')) ?>"
+     data-msg-poi-delete-confirm="<?= e(t('trip.map.poi_delete_confirm')) ?>"
+     data-msg-trim-picking-start="<?= e(t('trip.map.trim_picking_start')) ?>"
+     data-msg-trim-picking-end="<?= e(t('trip.map.trim_picking_end')) ?>"></div>
 
 <?php if ($canEdit): ?>
   <div class="map-view__track-tools">
