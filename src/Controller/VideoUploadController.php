@@ -128,6 +128,31 @@ final class VideoUploadController
             return $this->json($response, ['error' => 'unsupported_type'], 422);
         }
 
+        // Dedup, scoped to this trip - see PhotoUploadController::finalize()
+        // for the reasoning (same entry = accidental double-upload, ignored;
+        // different entry = a cheap reference, no reprocessing/extra storage).
+        $hash = hash_file('sha256', $tmpPath);
+        $existing = $hash !== false ? $this->videos->findReadyByTripAndHash($tripId, $hash) : null;
+        if ($existing !== null) {
+            unlink($tmpPath);
+
+            if ((int) $existing['day_entry_id'] === $entryId) {
+                return $this->json($response, ['status' => 'duplicate_ignored']);
+            }
+
+            $sourceVideoId = $existing['source_video_id'] !== null
+                ? (int) $existing['source_video_id']
+                : (int) $existing['id'];
+            $videoId = $this->videos->createReference($entryId, $sourceVideoId, $existing);
+
+            if ($existing['lat'] !== null) {
+                $this->jobs->dispatch('poi.assign', ['trip_id' => $tripId]);
+                $this->jobs->dispatch('entry.locate', ['day_entry_id' => $entryId]);
+            }
+
+            return $this->json($response, ['status' => 'ready', 'video_id' => $videoId]);
+        }
+
         // The chunk-0 check above only catches an already-full quota; this
         // one catches the file itself pushing the owner over the limit.
         $size = (int) filesize($tmpPath);
@@ -137,7 +162,7 @@ final class VideoUploadController
             return $this->json($response, ['error' => 'quota_exceeded'], 413);
         }
 
-        $videoId = $this->videos->createUpload($entryId, $originalName, 'mp4');
+        $videoId = $this->videos->createUpload($entryId, $originalName, 'mp4', $hash !== false ? $hash : null);
         $this->storage->ensureDir($this->storage->directoryFor($videoId));
         rename($tmpPath, $this->storage->originalPath($videoId, 'mp4'));
         $this->videos->updateBytes($videoId, $size);

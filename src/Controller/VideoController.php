@@ -37,7 +37,7 @@ final class VideoController
     {
         $video = $this->requireViewableUpload($request, (int) $args['id']);
 
-        $path = $this->storage->originalPath((int) $video['id'], (string) $video['extension']);
+        $path = $this->storage->originalPath($this->storageId($video), (string) $video['extension']);
         if (!is_file($path)) {
             throw new HttpNotFoundException($request);
         }
@@ -49,7 +49,7 @@ final class VideoController
     {
         $video = $this->requireViewableUpload($request, (int) $args['id']);
 
-        $path = $this->storage->posterPath((int) $video['id']);
+        $path = $this->storage->posterPath($this->storageId($video));
         if (!is_file($path)) {
             throw new HttpNotFoundException($request);
         }
@@ -69,13 +69,28 @@ final class VideoController
 
         [, $entry] = $this->entryAccess->requireEditableEntry($request, (int) $video['day_entry_id']);
 
+        $storageId = $this->storageId($video);
+        $stillReferenced = $video['type'] === 'upload'
+            && $this->videos->countReferencingStorage($storageId, (int) $video['id']) > 0;
+
         $this->videos->delete((int) $video['id']);
-        if ($video['type'] === 'upload') {
-            $this->storage->deleteAll((int) $video['id']);
+        if ($video['type'] === 'upload' && !$stillReferenced) {
+            $this->storage->deleteAll($storageId);
         }
 
         $this->flash->add('success', t('flash.video_deleted'));
         return $response->withHeader('Location', '/entries/' . $entry['id'] . '/edit')->withStatus(302);
+    }
+
+    /**
+     * A reference (see migration 0019) owns no files of its own - its bytes
+     * live under the video it duplicates.
+     *
+     * @param array<string, mixed> $video
+     */
+    private function storageId(array $video): int
+    {
+        return $video['source_video_id'] !== null ? (int) $video['source_video_id'] : (int) $video['id'];
     }
 
     /**
