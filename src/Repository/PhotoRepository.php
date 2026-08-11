@@ -35,22 +35,94 @@ final class PhotoRepository
         return $row === false ? null : $row;
     }
 
-    public function create(int $entryId, string $originalFilename, string $extension): int
+    public function create(int $entryId, string $originalFilename, string $extension, ?string $contentHash = null): int
     {
         $now = gmdate('Y-m-d H:i:s');
         $stmt = $this->pdo->prepare(
-            'INSERT INTO photos (day_entry_id, position, original_filename, extension, status, created_at, updated_at)
-             VALUES (?, ?, ?, ?, \'pending\', ?, ?)'
+            'INSERT INTO photos (day_entry_id, position, original_filename, extension, status, content_hash, created_at, updated_at)
+             VALUES (?, ?, ?, ?, \'pending\', ?, ?, ?)'
         );
         $stmt->execute([
             $entryId,
             $this->nextPosition($entryId),
             mb_substr($originalFilename, 0, 255),
             $extension,
+            $contentHash,
             $now,
             $now,
         ]);
         return (int) $this->pdo->lastInsertId();
+    }
+
+    /**
+     * A photo whose bytes are already stored under $sourcePhotoId (dedup
+     * match against another entry in the same trip) - no upload/processing
+     * needed, ready immediately, and costs no additional storage quota
+     * (bytes = 0; the source row already accounts for the real files).
+     *
+     * @param array<string, mixed> $canonical the matched photo's row
+     */
+    public function createReference(int $entryId, int $sourcePhotoId, array $canonical): int
+    {
+        $now = gmdate('Y-m-d H:i:s');
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO photos (
+                day_entry_id, position, original_filename, extension, status,
+                width, height, lat, lng, taken_at, bytes, content_hash, source_photo_id,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)"
+        );
+        $stmt->execute([
+            $entryId,
+            $this->nextPosition($entryId),
+            $canonical['original_filename'],
+            $canonical['extension'],
+            $canonical['width'],
+            $canonical['height'],
+            $canonical['lat'],
+            $canonical['lng'],
+            $canonical['taken_at'],
+            $canonical['content_hash'],
+            $sourcePhotoId,
+            $now,
+            $now,
+        ]);
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    /**
+     * Dedup lookup, scoped to a single trip (see migration 0019 - never
+     * across trips or users). Only matches fully processed photos; a
+     * pending/failed match is ignored rather than raced against.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findReadyByTripAndHash(int $tripId, string $contentHash): ?array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT p.* FROM photos p JOIN day_entries e ON e.id = p.day_entry_id
+             WHERE e.trip_id = ? AND p.content_hash = ? AND p.status = 'ready'
+             LIMIT 1"
+        );
+        $stmt->execute([$tripId, $contentHash]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
+
+    /**
+     * How many photo rows still point at the photos/{$storageId}/ directory
+     * (either $storageId's own row, or a reference to it), excluding
+     * $excludeId - used to decide whether deleting a row may also delete its
+     * files, without breaking sibling references. Safe to call whether
+     * $excludeId's row has already been deleted or not.
+     */
+    public function countReferencingStorage(int $storageId, int $excludeId): int
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM photos WHERE (id = ? OR source_photo_id = ?) AND id != ?'
+        );
+        $stmt->execute([$storageId, $storageId, $excludeId]);
+        return (int) $stmt->fetchColumn();
     }
 
     public function markReady(

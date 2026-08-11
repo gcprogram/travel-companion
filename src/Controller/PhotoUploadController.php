@@ -96,11 +96,17 @@ final class PhotoUploadController
             return $this->json($response, ['status' => 'chunk_received']);
         }
 
-        return $this->finalize($tmpPath, (int) $entry['id'], $ownerId, $originalName, $response);
+        return $this->finalize($tmpPath, (int) $entry['id'], (int) $trip['id'], $ownerId, $originalName, $response);
     }
 
-    private function finalize(string $tmpPath, int $entryId, int $ownerId, string $originalName, ResponseInterface $response): ResponseInterface
-    {
+    private function finalize(
+        string $tmpPath,
+        int $entryId,
+        int $tripId,
+        int $ownerId,
+        string $originalName,
+        ResponseInterface $response,
+    ): ResponseInterface {
         $extension = $this->extensionFor($originalName);
         if ($extension === null || @getimagesize($tmpPath) === false) {
             $this->logger->warning('Photo chunk upload: unsupported file type', [
@@ -108,6 +114,38 @@ final class PhotoUploadController
             ]);
             unlink($tmpPath);
             return $this->json($response, ['error' => 'unsupported_type'], 422);
+        }
+
+        // Dedup, scoped to this trip: identical bytes already exist somewhere
+        // in it. Within the SAME entry that's almost certainly an accidental
+        // double-upload (retry, double-tap, ...) - just ignored outright. In
+        // a different entry it's a deliberate reuse (e.g. a group photo
+        // relevant to two days) - a cheap reference, no reprocessing, no
+        // extra storage.
+        $hash = hash_file('sha256', $tmpPath);
+        $existing = $hash !== false ? $this->photos->findReadyByTripAndHash($tripId, $hash) : null;
+        if ($existing !== null) {
+            unlink($tmpPath);
+
+            if ((int) $existing['day_entry_id'] === $entryId) {
+                return $this->json($response, ['status' => 'duplicate_ignored']);
+            }
+
+            $sourcePhotoId = $existing['source_photo_id'] !== null
+                ? (int) $existing['source_photo_id']
+                : (int) $existing['id'];
+            $photoId = $this->photos->createReference($entryId, $sourcePhotoId, $existing);
+
+            if ($existing['lat'] !== null) {
+                // No photo.process job runs for a reference (nothing to
+                // process), so this entry would otherwise never get the
+                // POI/location follow-ups a freshly processed geotagged
+                // photo normally triggers.
+                $this->jobs->dispatch('poi.assign', ['trip_id' => $tripId]);
+                $this->jobs->dispatch('entry.locate', ['day_entry_id' => $entryId]);
+            }
+
+            return $this->json($response, ['status' => 'ready', 'photo_id' => $photoId]);
         }
 
         // The chunk-0 check above only catches an already-full quota; this
@@ -119,7 +157,7 @@ final class PhotoUploadController
             return $this->json($response, ['error' => 'quota_exceeded'], 413);
         }
 
-        $photoId = $this->photos->create($entryId, $originalName, $extension);
+        $photoId = $this->photos->create($entryId, $originalName, $extension, $hash !== false ? $hash : null);
         $this->storage->ensureDir($this->storage->directoryFor($photoId));
         rename($tmpPath, $this->storage->originalPath($photoId, $extension));
         $this->photos->updateBytes($photoId, $size);

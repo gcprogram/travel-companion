@@ -49,12 +49,16 @@ final class PhotoController
             throw new HttpNotFoundException($request);
         }
 
-        $path = $this->storage->derivativePath((int) $photo['id'], $variant);
+        // A reference (see migration 0019) owns no files of its own - its
+        // bytes live under the photo it duplicates.
+        $storageId = $photo['source_photo_id'] !== null ? (int) $photo['source_photo_id'] : (int) $photo['id'];
+
+        $path = $this->storage->derivativePath($storageId, $variant);
         $contentType = $variant === 'web' ? 'image/jpeg' : 'image/webp';
         if (!is_file($path)) {
             // Backward compat: photos processed before the 'web' variant
             // switched from WebP to JPEG (see PhotoStorage::derivativePath).
-            $path = $this->storage->legacyDerivativePath((int) $photo['id'], $variant);
+            $path = $this->storage->legacyDerivativePath($storageId, $variant);
             $contentType = 'image/webp';
         }
         if (!is_file($path)) {
@@ -81,8 +85,16 @@ final class PhotoController
 
         [, $entry] = $this->entryAccess->requireEditableEntry($request, (int) $photo['day_entry_id']);
 
+        $storageId = $photo['source_photo_id'] !== null ? (int) $photo['source_photo_id'] : (int) $photo['id'];
+        // Checked before deleting the row: other references to the same
+        // files (this trip's other entries, or the still-live canonical
+        // row) must keep working - see migration 0019.
+        $stillReferenced = $this->photos->countReferencingStorage($storageId, (int) $photo['id']) > 0;
+
         $this->photos->delete((int) $photo['id']);
-        $this->storage->deleteAll((int) $photo['id']);
+        if (!$stillReferenced) {
+            $this->storage->deleteAll($storageId);
+        }
 
         $this->flash->add('success', t('flash.photo_deleted'));
         return $response->withHeader('Location', '/entries/' . $entry['id'] . '/edit')->withStatus(302);

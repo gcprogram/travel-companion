@@ -35,22 +35,89 @@ final class VideoRepository
         return $row === false ? null : $row;
     }
 
-    public function createUpload(int $entryId, string $originalFilename, string $extension): int
+    public function createUpload(int $entryId, string $originalFilename, string $extension, ?string $contentHash = null): int
     {
         $now = gmdate('Y-m-d H:i:s');
         $stmt = $this->pdo->prepare(
-            'INSERT INTO videos (day_entry_id, position, type, original_filename, extension, status, created_at, updated_at)
-             VALUES (?, ?, \'upload\', ?, ?, \'pending\', ?, ?)'
+            'INSERT INTO videos (day_entry_id, position, type, original_filename, extension, status, content_hash, created_at, updated_at)
+             VALUES (?, ?, \'upload\', ?, ?, \'pending\', ?, ?, ?)'
         );
         $stmt->execute([
             $entryId,
             $this->nextPosition($entryId),
             mb_substr($originalFilename, 0, 255),
             $extension,
+            $contentHash,
             $now,
             $now,
         ]);
         return (int) $this->pdo->lastInsertId();
+    }
+
+    /**
+     * A video whose bytes are already stored under $sourceVideoId (dedup
+     * match against another entry in the same trip) - no upload/processing
+     * needed, ready immediately, costs no additional storage quota.
+     *
+     * @param array<string, mixed> $canonical the matched video's row
+     */
+    public function createReference(int $entryId, int $sourceVideoId, array $canonical): int
+    {
+        $now = gmdate('Y-m-d H:i:s');
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO videos (
+                day_entry_id, position, type, original_filename, extension, status,
+                width, height, duration_seconds, lat, lng, bytes, content_hash, source_video_id,
+                created_at, updated_at
+            ) VALUES (?, ?, 'upload', ?, ?, 'ready', ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)"
+        );
+        $stmt->execute([
+            $entryId,
+            $this->nextPosition($entryId),
+            $canonical['original_filename'],
+            $canonical['extension'],
+            $canonical['width'],
+            $canonical['height'],
+            $canonical['duration_seconds'],
+            $canonical['lat'],
+            $canonical['lng'],
+            $canonical['content_hash'],
+            $sourceVideoId,
+            $now,
+            $now,
+        ]);
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    /**
+     * Dedup lookup, scoped to a single trip (see migration 0019 - never
+     * across trips or users). Only matches fully processed uploads (never
+     * YouTube links, which have no file/hash at all).
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findReadyByTripAndHash(int $tripId, string $contentHash): ?array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT v.* FROM videos v JOIN day_entries e ON e.id = v.day_entry_id
+             WHERE e.trip_id = ? AND v.content_hash = ? AND v.status = 'ready' AND v.type = 'upload'
+             LIMIT 1"
+        );
+        $stmt->execute([$tripId, $contentHash]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
+
+    /**
+     * See PhotoRepository::countReferencingStorage() - same reasoning.
+     */
+    public function countReferencingStorage(int $storageId, int $excludeId): int
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM videos WHERE (id = ? OR source_video_id = ?) AND id != ?'
+        );
+        $stmt->execute([$storageId, $storageId, $excludeId]);
+        return (int) $stmt->fetchColumn();
     }
 
     public function createYoutube(int $entryId, string $youtubeId): int

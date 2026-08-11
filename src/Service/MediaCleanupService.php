@@ -26,9 +26,35 @@ final class MediaCleanupService
     ) {
     }
 
+    /**
+     * A single entry may still leave a dedup'd photo/video (migration 0019)
+     * referenced from elsewhere in the same still-alive trip - unlike
+     * deleteForTrip/deleteForUser below, where everything sharing a
+     * reference always disappears together (dedup never crosses trips), so
+     * reference counting there would be a no-op.
+     */
     public function deleteForEntry(int $entryId): void
     {
-        $this->deleteIds($this->photos->findIdsByEntry($entryId), $this->videos->findIdsByEntry($entryId));
+        foreach ($this->photos->findIdsByEntry($entryId) as $id) {
+            $photo = $this->photos->findById($id);
+            if ($photo === null) {
+                continue;
+            }
+            $storageId = $photo['source_photo_id'] !== null ? (int) $photo['source_photo_id'] : $id;
+            if ($this->photos->countReferencingStorage($storageId, $id) === 0) {
+                $this->photoStorage->deleteAll($storageId);
+            }
+        }
+        foreach ($this->videos->findIdsByEntry($entryId) as $id) {
+            $video = $this->videos->findById($id);
+            if ($video === null) {
+                continue;
+            }
+            $storageId = $video['source_video_id'] !== null ? (int) $video['source_video_id'] : $id;
+            if ($this->videos->countReferencingStorage($storageId, $id) === 0) {
+                $this->videoStorage->deleteAll($storageId);
+            }
+        }
     }
 
     public function deleteForTrip(int $tripId): void
