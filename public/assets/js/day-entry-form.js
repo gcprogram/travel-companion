@@ -133,3 +133,22 @@ document.addEventListener('DOMContentLoaded', function () {
   form.addEventListener('change', save);
   form.addEventListener('submit', clearDraft);
 });
+
+/**
+ * Photo/video thumbnail generation runs as an async background job (a few
+ * seconds, sometimes longer under load) - the page reload right after
+ * upload finishing (photo-upload.js/video-upload.js) often lands before
+ * that job has actually run, so it still shows "processing" placeholders
+ * with no further sign of life. Poll and reload once nothing is left
+ * pending, so finished thumbnails show up without the user having to
+ * navigate away and back manually.
+ */
+document.addEventListener('DOMContentLoaded', function () {
+  var hasPending = document.querySelector('.photo-gallery__placeholder:not(.photo-gallery__placeholder--failed)');
+  if (!hasPending) {
+    return;
+  }
+  setTimeout(function () {
+    window.location.reload();
+  }, 4000);
+});

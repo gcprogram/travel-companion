@@ -71,11 +71,6 @@ document.addEventListener('DOMContentLoaded', function () {
     var img = document.createElement('img');
     img.className = 'map-lightbox__media';
     img.alt = '';
-    img.onload = function () {
-      if (img.naturalHeight > img.naturalWidth) {
-        img.classList.add('map-lightbox__media--portrait');
-      }
-    };
     img.onerror = function () {
       console.error('Lightbox image failed to load:', pin.fullUrl);
       img.style.display = 'none';
