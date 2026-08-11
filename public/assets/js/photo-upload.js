@@ -29,7 +29,12 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
     input.disabled = true;
-    status.textContent = input.dataset.msgQueued || '';
+    // Deliberately NOT the "saved on this device" message yet: queuing is
+    // just how the upload is made crash-proof, and online that queue drains
+    // immediately. Saying "will upload once back online" while it's already
+    // uploading is simply wrong - that message is only right if the sync
+    // below actually gets skipped.
+    status.textContent = '';
 
     files.reduce(function (chain, file) {
       return chain.then(function () {
@@ -47,7 +52,15 @@ document.addEventListener('DOMContentLoaded', function () {
         // just now, same as clicking "sync now"; it shouldn't suddenly be
         // held back by the WiFi-only preference that only governs
         // unprompted background syncing (e.g. on reconnect).
-        return OfflineQueue.sync({ csrfToken: csrfField.value, force: true });
+        return OfflineQueue.sync({
+          csrfToken: csrfField.value,
+          force: true,
+          onProgress: function (done, total) {
+            status.textContent = (input.dataset.msgUploading || '')
+              .replace(':current', String(done + 1))
+              .replace(':total', String(total));
+          },
+        });
       })
       .then(function (result) {
         if (result.synced > 0) {
@@ -59,6 +72,10 @@ document.addEventListener('DOMContentLoaded', function () {
           status.textContent = input.dataset.msgLoginRequired || input.dataset.msgError;
         } else if (result.failed > 0) {
           status.textContent = input.dataset.msgError;
+        } else if (result.skipped) {
+          // Offline, or held back by the WiFi-only preference - now the
+          // "saved on this device" message is the accurate one.
+          status.textContent = input.dataset.msgQueued || '';
         } else {
           status.textContent = '';
         }
