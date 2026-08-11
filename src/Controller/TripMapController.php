@@ -13,6 +13,7 @@ use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
 use App\Service\PoiDiscoveryService;
 use App\Service\Settings;
+use App\Service\StayDetectionService;
 use App\Service\TrackSmoothingService;
 use App\Service\TripAccess;
 use App\Support\View;
@@ -22,6 +23,9 @@ use Slim\Exception\HttpNotFoundException;
 
 final class TripMapController
 {
+    /** A stay this close to an existing POI is treated as already recorded. */
+    private const STAY_POI_MATCH_METERS = 150.0;
+
     public function __construct(
         private readonly View $view,
         private readonly TripRepository $trips,
@@ -34,6 +38,7 @@ final class TripMapController
         private readonly PoiMediaRepository $poiMedia,
         private readonly TripAccess $access,
         private readonly Settings $settings,
+        private readonly StayDetectionService $stayDetection,
     ) {
     }
 
@@ -62,8 +67,57 @@ final class TripMapController
             'poiSearchRadius' => $this->settings->getInt('poi.search_radius_meters'),
             'poiSearchCategories' => $this->settings->getList('poi.categories'),
             'searchableCategories' => PoiDiscoveryService::searchableCategories(),
+            'stays' => $this->detectStays((int) $trip['id'], $pois),
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);
+    }
+
+    /**
+     * Places the traveller stopped at long enough to count as a visit,
+     * derived from the raw track (see StayDetectionService). Stays that
+     * already have a POI nearby are dropped, so a stay disappears from the
+     * suggestion list once it's been added - and discovered sights the user
+     * genuinely stopped at don't get offered a second time.
+     *
+     * @param list<array<string, mixed>> $pois
+     * @return list<array<string, mixed>>
+     */
+    private function detectStays(int $tripId, array $pois): array
+    {
+        $track = $this->tracks->findByTrip($tripId);
+        if ($track === null) {
+            return [];
+        }
+
+        $points = array_map(static fn (array $p): array => [
+            'seq' => (int) $p['seq'],
+            'lat' => (float) $p['lat'],
+            'lng' => (float) $p['lng'],
+            'recordedAt' => $p['recorded_at'],
+        ], $this->tracks->findPoints((int) $track['id']));
+
+        $stays = $this->stayDetection->detect($points);
+
+        return array_values(array_filter(
+            $stays,
+            fn (array $stay): bool => !$this->hasPoiNear($pois, $stay['lat'], $stay['lng']),
+        ));
+    }
+
+    /**
+     * @param list<array<string, mixed>> $pois
+     */
+    private function hasPoiNear(array $pois, float $lat, float $lng): bool
+    {
+        foreach ($pois as $poi) {
+            $dLat = deg2rad((float) $poi['lat'] - $lat);
+            $dLng = deg2rad((float) $poi['lng'] - $lng);
+            $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat)) * cos(deg2rad((float) $poi['lat'])) * sin($dLng / 2) ** 2;
+            if (6371000.0 * 2 * atan2(sqrt($a), sqrt(1 - $a)) <= self::STAY_POI_MATCH_METERS) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

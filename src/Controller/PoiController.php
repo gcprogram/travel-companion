@@ -8,6 +8,7 @@ use App\Repository\JobRepository;
 use App\Repository\PoiRepository;
 use App\Repository\TripRepository;
 use App\Service\PoiDiscoveryService;
+use App\Service\ReverseGeocodingService;
 use App\Service\TripAccess;
 use App\Support\Flash;
 use Psr\Http\Message\ResponseInterface;
@@ -27,6 +28,7 @@ final class PoiController
         private readonly PoiRepository $pois,
         private readonly JobRepository $jobs,
         private readonly TripAccess $access,
+        private readonly ReverseGeocodingService $geocoding,
         private readonly Flash $flash,
     ) {
     }
@@ -109,6 +111,59 @@ final class PoiController
         return $this->redirectToMap($response, $trip);
     }
 
+    /**
+     * Turns a detected stay (StayDetectionService) into a sight: the
+     * averaged centre is reverse-geocoded for a name, and the stay's time
+     * span becomes the visit date/note. Marked visited straight away - the
+     * track proves the person was there, which is the whole point.
+     */
+    public function addStay(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireEditable($request, (int) $args['id']);
+        $body = (array) $request->getParsedBody();
+
+        $lat = $body['lat'] ?? '';
+        $lng = $body['lng'] ?? '';
+        if (!is_numeric($lat) || !is_numeric($lng)
+            || (float) $lat < -90.0 || (float) $lat > 90.0 || (float) $lng < -180.0 || (float) $lng > 180.0
+        ) {
+            $this->flash->add('error', t('trip.map.poi_add_error'));
+            return $this->redirectToMap($response, $trip);
+        }
+
+        $lat = round((float) $lat, 6);
+        $lng = round((float) $lng, 6);
+
+        $name = null;
+        try {
+            $name = $this->geocoding->reverseGeocode($lat, $lng);
+        } catch (\Throwable) {
+            // Nominatim unreachable/slow - still worth recording the visit,
+            // just with a fallback name the user can rename.
+        }
+        $name ??= t('trip.map.stay_fallback_name');
+
+        $startedAt = $this->validDateTimeOrNull($body['started_at'] ?? null);
+        $endedAt = $this->validDateTimeOrNull($body['ended_at'] ?? null);
+        $notes = ($startedAt !== null && $endedAt !== null)
+            ? t('trip.map.stay_note', ['from' => $startedAt, 'to' => $endedAt])
+            : null;
+
+        $poiId = $this->pois->createManual(
+            (int) $trip['id'],
+            'other',
+            mb_substr($name, 0, 190),
+            $lat,
+            $lng,
+            $startedAt !== null ? substr($startedAt, 0, 10) : null,
+            $notes,
+        );
+        $this->pois->setVisited($poiId, true);
+
+        $this->flash->add('success', t('trip.map.stay_added', ['name' => $name]));
+        return $this->redirectToMap($response, $trip);
+    }
+
     public function toggleVisited(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         $poi = $this->requireEditablePoi($request, (int) $args['id']);
@@ -135,6 +190,16 @@ final class PoiController
     {
         $location = $trip !== null ? '/trip/' . $trip['slug'] . '/map' : '/';
         return $response->withHeader('Location', $location)->withStatus(302);
+    }
+
+    private function validDateTimeOrNull(mixed $value): ?string
+    {
+        $value = trim((string) ($value ?? ''));
+        if ($value === '') {
+            return null;
+        }
+        $dt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $value);
+        return ($dt !== false && $dt->format('Y-m-d H:i:s') === $value) ? $value : null;
     }
 
     private function validDateOrNull(mixed $value): ?string
