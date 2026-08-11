@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Database\Connection;
 use App\Job\AdminNotifyHandler;
+use App\Job\EntryLocateHandler;
 use App\Job\PingHandler;
 use App\Job\PhotoProcessHandler;
 use App\Job\PoiAssignmentHandler;
@@ -63,6 +64,7 @@ return [
         $worker->register('storage.backfill', $c->get(StorageBackfillHandler::class));
         $worker->register('mail.admin_notify', $c->get(AdminNotifyHandler::class));
         $worker->register('user.delete', $c->get(UserDeleteHandler::class));
+        $worker->register('entry.locate', $c->get(EntryLocateHandler::class));
 
         return $worker;
     },

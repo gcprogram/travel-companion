@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Repository\DayEntryRepository;
+use App\Repository\JobRepository;
 use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
 use App\Service\GpxParser;
@@ -20,11 +22,28 @@ final class TrackController
     public function __construct(
         private readonly TripRepository $trips,
         private readonly TrackRepository $tracks,
+        private readonly DayEntryRepository $entries,
+        private readonly JobRepository $jobs,
         private readonly GpxParser $gpxParser,
         private readonly TrackSimplifier $simplifier,
         private readonly TripAccess $access,
         private readonly Flash $flash,
     ) {
+    }
+
+    /**
+     * A track just arrived (or grew) - dispatch entry.locate for every entry
+     * in the trip that still has no location_name, in case the track can
+     * now fill it (photo/video-derived locations already dispatch this
+     * themselves when they're the source; this covers entries with neither).
+     */
+    private function dispatchLocateForOpenEntries(int $tripId): void
+    {
+        foreach ($this->entries->findByTrip($tripId) as $entry) {
+            if (empty($entry['location_name'])) {
+                $this->jobs->dispatch('entry.locate', ['day_entry_id' => (int) $entry['id']]);
+            }
+        }
     }
 
     public function uploadGpx(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -46,6 +65,7 @@ final class TrackController
 
         $points = $this->simplifier->simplify($points);
         $this->tracks->appendForTrip((int) $trip['id'], 'gpx', $file->getClientFilename(), $points);
+        $this->dispatchLocateForOpenEntries((int) $trip['id']);
 
         $this->flash->add('success', t('trip.map.gpx_uploaded'));
         return $this->redirectToMap($response, $trip);
@@ -100,6 +120,7 @@ final class TrackController
         usort($points, static fn (array $a, array $b): int => $a['recordedAt'] <=> $b['recordedAt']);
         $points = $this->simplifier->simplify($points);
         $this->tracks->appendForTrip((int) $trip['id'], 'points', null, $points);
+        $this->dispatchLocateForOpenEntries((int) $trip['id']);
 
         return $this->json($response, ['ok' => true], 200);
     }

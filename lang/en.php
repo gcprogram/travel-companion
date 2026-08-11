@@ -186,6 +186,8 @@ return [
     'entry.form.mood_label' => 'Mood',
     'entry.form.rating_label' => 'Rating',
     'entry.form.location_label' => 'Location',
+    'entry.form.location_name_placeholder' => 'e.g. Krka National Park',
+    'entry.form.location_name_hint' => 'Optional. Auto-filled once a geotagged photo or a track is available, if left blank.',
     'entry.form.locate_button' => 'Get location',
     'entry.form.location_captured' => 'Captured: :lat, :lng',
     'entry.form.location_none' => 'No location captured yet.',

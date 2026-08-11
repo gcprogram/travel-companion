@@ -89,6 +89,7 @@ final class PhotoProcessHandler implements JobHandlerInterface
 
             if ($meta['lat'] !== null) {
                 $this->dispatchPoiAssignment((int) $photo['day_entry_id']);
+                $this->jobs->dispatch('entry.locate', ['day_entry_id' => (int) $photo['day_entry_id']]);
             }
         } catch (\Throwable $e) {
             $this->photos->markFailed($photoId);

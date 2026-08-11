@@ -42,8 +42,8 @@ final class DayEntryRepository
     {
         $now = gmdate('Y-m-d H:i:s');
         $stmt = $this->pdo->prepare(
-            'INSERT INTO day_entries (trip_id, entry_date, title, body, mood, rating, lat, lng, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO day_entries (trip_id, entry_date, title, body, mood, rating, lat, lng, location_name, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $tripId,
@@ -54,6 +54,7 @@ final class DayEntryRepository
             $data['rating'],
             $data['lat'],
             $data['lng'],
+            $data['location_name'],
             $now,
             $now,
         ]);
@@ -66,7 +67,7 @@ final class DayEntryRepository
     public function update(int $id, array $data): void
     {
         $stmt = $this->pdo->prepare(
-            'UPDATE day_entries SET entry_date = ?, title = ?, body = ?, mood = ?, rating = ?, lat = ?, lng = ?, updated_at = ?
+            'UPDATE day_entries SET entry_date = ?, title = ?, body = ?, mood = ?, rating = ?, lat = ?, lng = ?, location_name = ?, updated_at = ?
              WHERE id = ?'
         );
         $stmt->execute([
@@ -77,9 +78,23 @@ final class DayEntryRepository
             $data['rating'],
             $data['lat'],
             $data['lng'],
+            $data['location_name'],
             gmdate('Y-m-d H:i:s'),
             $id,
         ]);
+    }
+
+    /**
+     * Auto-fill only: never overwrites a name the user already set (typed
+     * manually, or filled by an earlier run of this same method).
+     */
+    public function updateLocationNameIfEmpty(int $id, string $name): void
+    {
+        $stmt = $this->pdo->prepare(
+            "UPDATE day_entries SET location_name = ?, updated_at = ?
+             WHERE id = ? AND (location_name IS NULL OR location_name = '')"
+        );
+        $stmt->execute([$name, gmdate('Y-m-d H:i:s'), $id]);
     }
 
     public function updateWeather(int $id, float $tempC, int $code): void
