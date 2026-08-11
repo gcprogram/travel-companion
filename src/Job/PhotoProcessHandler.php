@@ -178,7 +178,16 @@ final class PhotoProcessHandler implements JobHandlerInterface
         try {
             $blob = $this->buildExifBlob($meta['lat'], $meta['lng'], $meta['takenAt']);
             if ($blob !== null) {
-                $image->setImageProfile('exif', $blob);
+                // setImageProfile() writes the buffer as the literal APP1
+                // payload - it does NOT add the "Exif\0\0" identifier itself,
+                // even though that's mandatory for an APP1 segment to count
+                // as Exif data. Without it, Imagick's own (lenient) reader
+                // still finds the data by recognizing the TIFF header
+                // ("II*\0"/"MM\0*") directly, but PHP's exif_read_data() -
+                // and, per Stefan, at least one external EXIF tool - refuses
+                // to recognize the segment at all. Confirmed by roundtrip
+                // testing against a real processed photo from production.
+                $image->setImageProfile('exif', "Exif\x00\x00" . $blob);
             }
         } catch (\Throwable $e) {
             $this->logger->warning('Photo EXIF re-embedding failed, continuing without it', [
