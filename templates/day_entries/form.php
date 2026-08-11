@@ -33,7 +33,7 @@ $lng = $entry['lng'] ?? null;
   <div class="field">
     <label for="entry_date"><?= e(t('entry.form.date_label')) ?></label>
     <input type="date" id="entry_date" name="entry_date" required
-           value="<?= e($entry['entry_date'] ?? date('Y-m-d')) ?>">
+           value="<?= e($entry['entry_date'] ?? $defaultDate ?? date('Y-m-d')) ?>">
   </div>
 
   <div class="field">
