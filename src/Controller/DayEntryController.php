@@ -40,7 +40,46 @@ final class DayEntryController
             'entry' => null,
             'photos' => [],
             'videos' => [],
+            'defaultDate' => $this->suggestedEntryDate($trip),
         ]);
+    }
+
+    /**
+     * The first date in the trip's range that has no entry yet, capped at
+     * today (never suggests a future date the user hasn't lived through) -
+     * falls back to today outright if the trip has no date range or every
+     * day in it already has an entry.
+     *
+     * @param array<string, mixed> $trip
+     */
+    private function suggestedEntryDate(array $trip): string
+    {
+        $today = new \DateTimeImmutable('today');
+        if ($trip['date_start'] === null || $trip['date_end'] === null) {
+            return $today->format('Y-m-d');
+        }
+
+        $start = new \DateTimeImmutable((string) $trip['date_start']);
+        $end = new \DateTimeImmutable((string) $trip['date_end']);
+
+        $used = array_flip(array_map(
+            static fn (array $e): string => (string) $e['entry_date'],
+            $this->entries->findByTrip((int) $trip['id']),
+        ));
+
+        $firstMissing = null;
+        for ($date = $start; $date <= $end; $date = $date->modify('+1 day')) {
+            if (!isset($used[$date->format('Y-m-d')])) {
+                $firstMissing = $date;
+                break;
+            }
+        }
+
+        if ($firstMissing === null) {
+            return $today->format('Y-m-d');
+        }
+
+        return min($firstMissing, $today)->format('Y-m-d');
     }
 
     public function store(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
