@@ -19,50 +19,6 @@ document.addEventListener('DOMContentLoaded', function () {
   var ZOOM_THUMBNAIL_THRESHOLD = 14;
   var canEdit = container.dataset.canEdit === '1';
 
-  // --- Track trimming from the map ----------------------------------------
-  // Deliberately a mode toggle + tap rather than draggable handles: on a
-  // phone, dragging a marker fights with panning the map, while a big
-  // "trim start"/"trim end" button plus one tap on a point is unambiguous
-  // and needs no fine motor control. The tapped point's raw seq (carried
-  // through smoothing, see TrackSmoothingService) becomes the new cut.
-  var trimPanel = document.querySelector('[data-map-trim]');
-  var trimForm = document.querySelector('[data-trim-form]');
-  var trimStatus = document.querySelector('[data-trim-status]');
-  var trimMode = null;
-
-  function setTrimMode(mode) {
-    trimMode = trimMode === mode ? null : mode;
-    if (trimPanel) {
-      trimPanel.querySelectorAll('[data-trim-mode]').forEach(function (btn) {
-        btn.classList.toggle('is-active', btn.dataset.trimMode === trimMode);
-      });
-    }
-    if (trimStatus) {
-      trimStatus.textContent = trimMode
-        ? (container.dataset['msgTrimPicking' + (trimMode === 'start' ? 'Start' : 'End')] || '')
-        : '';
-    }
-  }
-
-  if (trimPanel) {
-    trimPanel.querySelectorAll('[data-trim-mode]').forEach(function (btn) {
-      btn.addEventListener('click', function () { setTrimMode(btn.dataset.trimMode); });
-    });
-  }
-
-  function applyTrim(point) {
-    if (!trimForm) {
-      return;
-    }
-    // Trimming the start cuts at the point's first raw seq; trimming the
-    // end cuts at its last one, so a collapsed pause keeps everything it
-    // represents rather than half of it.
-    var field = trimMode === 'start' ? 'trim_start' : 'trim_end';
-    var value = trimMode === 'start' ? point.seq : (point.seqEnd !== undefined ? point.seqEnd : point.seq);
-    trimForm.querySelector('[name="' + field + '"]').value = String(value);
-    trimForm.submit();
-  }
-
   function buildPoiPopup(poi) {
     var wrap = document.createElement('div');
     wrap.className = 'map-poi-popup';
@@ -390,11 +346,6 @@ document.addEventListener('DOMContentLoaded', function () {
               fillOpacity: 0.9,
               weight: 1,
             }).bindTooltip(label, { sticky: true });
-            vertex.on('click', function () {
-              if (trimMode) {
-                applyTrim(p);
-              }
-            });
             vertex.addTo(routeGroup);
           });
         }
