@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Repository\DayEntryRepository;
+use App\Repository\GeocodeCacheRepository;
+use App\Repository\JobRepository;
 use App\Repository\PhotoRepository;
 use App\Repository\PoiMediaRepository;
 use App\Repository\PoiRepository;
@@ -41,6 +43,8 @@ final class TripMapController
         private readonly Settings $settings,
         private readonly StayDetectionService $stayDetection,
         private readonly PoiApproachService $poiApproach,
+        private readonly GeocodeCacheRepository $geocodeCache,
+        private readonly JobRepository $jobs,
     ) {
     }
 
@@ -82,6 +86,13 @@ final class TripMapController
      * suggestion list once it's been added - and discovered sights the user
      * genuinely stopped at don't get offered a second time.
      *
+     * Each remaining stay gets a best-effort 'locationName' straight from
+     * the geocode_cache grid - never a live Nominatim call from within this
+     * request (see GeocodeCacheRepository/GeocodeResolveHandler): a cache
+     * miss just dispatches a job and the name shows up on the next page
+     * load. Recomputed on every request since stays themselves aren't
+     * persisted, so this must never turn into a per-stay external call.
+     *
      * @param list<array<string, mixed>> $pois
      * @return list<array<string, mixed>>
      */
@@ -101,10 +112,20 @@ final class TripMapController
 
         $stays = $this->stayDetection->detect($points);
 
-        return array_values(array_filter(
+        $unmatched = array_values(array_filter(
             $stays,
             fn (array $stay): bool => !$this->hasPoiNear($pois, $stay['lat'], $stay['lng']),
         ));
+
+        return array_map(function (array $stay): array {
+            $cached = $this->geocodeCache->find($stay['lat'], $stay['lng']);
+            $stay['locationName'] = $cached['name'];
+            $stay['locationResolved'] = $cached['found'];
+            if (!$cached['found']) {
+                $this->jobs->dispatch('geocode.resolve', ['lat' => $stay['lat'], 'lng' => $stay['lng']]);
+            }
+            return $stay;
+        }, $unmatched);
     }
 
     /**

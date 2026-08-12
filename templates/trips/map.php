@@ -8,33 +8,11 @@
 $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_building', 'other'];
 ?>
 
-<h1><?= e(t('trip.map.title')) ?></h1>
-<p class="field-hint"><?= e($trip['title']) ?></p>
-
-<p class="page-actions">
-  <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>"><?= e(t('trip.map.back_to_trip')) ?></a>
-</p>
-
-<label class="map-view__toggle">
-  <input type="checkbox" data-map-route-toggle checked>
-  <?= e(t('trip.map.show_route')) ?>
-</label>
-
-<?php if ($canEdit && $track !== null && $track['totalPoints'] > 2): ?>
-  <div class="map-trim" data-map-trim>
-    <p class="field-hint"><?= e(t('trip.map.trim_map_hint')) ?></p>
-    <div class="map-trim__modes">
-      <button type="button" class="btn btn-ghost" data-trim-mode="start"><?= e(t('trip.map.trim_mode_start')) ?></button>
-      <button type="button" class="btn btn-ghost" data-trim-mode="end"><?= e(t('trip.map.trim_mode_end')) ?></button>
-    </div>
-    <p class="field-hint" data-trim-status></p>
-    <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/trim" data-trim-form hidden>
-      <?= $csrf->field() ?>
-      <input type="hidden" name="trim_start" value="<?= (int) $track['trimStart'] ?>">
-      <input type="hidden" name="trim_end" value="<?= (int) $track['trimEnd'] ?>">
-    </form>
-  </div>
-<?php endif; ?>
+<div class="map-view__header">
+  <a class="icon-btn" href="/trip/<?= e($trip['slug']) ?>"
+     title="<?= e(t('trip.map.back_to_trip')) ?>" aria-label="<?= e(t('trip.map.back_to_trip')) ?>">&#8592;</a>
+  <h1><?= e(t('trip.map.metadata_heading', ['title' => $trip['title']])) ?></h1>
+</div>
 
 <div class="map-view__canvas" id="trip-map"
      data-data-url="/trip/<?= e($trip['slug']) ?>/map/data"
@@ -44,9 +22,12 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
      data-msg-empty="<?= e(t('trip.map.empty')) ?>"
      data-msg-pause="<?= e(t('trip.map.pause_label')) ?>"
      data-msg-poi-delete="<?= e(t('trip.map.poi_delete')) ?>"
-     data-msg-poi-delete-confirm="<?= e(t('trip.map.poi_delete_confirm')) ?>"
-     data-msg-trim-picking-start="<?= e(t('trip.map.trim_picking_start')) ?>"
-     data-msg-trim-picking-end="<?= e(t('trip.map.trim_picking_end')) ?>"></div>
+     data-msg-poi-delete-confirm="<?= e(t('trip.map.poi_delete_confirm')) ?>"></div>
+
+<label class="map-view__toggle map-view__toggle--under-map">
+  <input type="checkbox" data-map-route-toggle checked>
+  <?= e(t('trip.map.show_route')) ?>
+</label>
 
 <?php if ($canEdit): ?>
   <div class="map-view__track-tools">
@@ -114,6 +95,15 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
     <?php foreach ($stays as $stay): ?>
       <li class="stay-list__item">
         <div>
+          <span class="stay-list__location">
+            <?php if ($stay['locationName'] !== null): ?>
+              <?= e($stay['locationName']) ?>
+            <?php elseif ($stay['locationResolved']): ?>
+              <?= e(t('trip.map.stay_fallback_name')) ?>
+            <?php else: ?>
+              <?= e(t('trip.map.stay_resolving')) ?>
+            <?php endif; ?>
+          </span>
           <span class="stay-list__time">
             <?= e(format_datetime($stay['startedAt'])) ?> – <?= e(format_datetime($stay['endedAt'])) ?>
           </span>
