@@ -20,6 +20,15 @@ use App\Repository\TrackRepository;
  * photo is used only where the nearest existing track point in time is
  * further away than MIN_GAP_SECONDS - i.e. only where the track actually
  * has nothing to say for that moment.
+ *
+ * Runs automatically, never as a manual user action: TrackController calls
+ * it right after every GPX/points upload, and TrackGapFillHandler
+ * (dispatched wherever a geotagged photo finishes processing, mirroring
+ * poi.assign) calls it for photos that arrive after a track already exists.
+ * Idempotent either way - a photo whose gap is already filled just fails
+ * isGap() on the next call. Callers rely on TrackRepository::appendForTrip
+ * sorting the merge by recordedAt so these points end up interleaved with
+ * the rest of the track, not as a disconnected block.
  */
 final class PhotoTrackGapFillService
 {
@@ -88,8 +97,9 @@ final class PhotoTrackGapFillService
 
     /**
      * @param list<int> $existingTimes sorted or not - the full trip is small
-     *        enough that a linear scan is fine, and this only runs once per
-     *        explicit user action, never per-request.
+     *        enough that a linear scan is fine, and this runs at most once
+     *        per track upload or per photo finishing processing, not per
+     *        page request.
      */
     private function isGap(array $existingTimes, string $takenAt): bool
     {

@@ -11,6 +11,7 @@ use App\Repository\PoiRepository;
 use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
+use App\Service\PoiApproachService;
 use App\Service\PoiDiscoveryService;
 use App\Service\Settings;
 use App\Service\StayDetectionService;
@@ -39,6 +40,7 @@ final class TripMapController
         private readonly TripAccess $access,
         private readonly Settings $settings,
         private readonly StayDetectionService $stayDetection,
+        private readonly PoiApproachService $poiApproach,
     ) {
     }
 
@@ -68,6 +70,7 @@ final class TripMapController
             'poiSearchCategories' => $this->settings->getList('poi.categories'),
             'searchableCategories' => PoiDiscoveryService::searchableCategories(),
             'stays' => $this->detectStays((int) $trip['id'], $pois),
+            'poiApproach' => $this->poiApproach->computeForTrip((int) $trip['id'], $pois),
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);
     }
@@ -200,13 +203,38 @@ final class TripMapController
             'visited' => (bool) $p['visited'],
         ], $this->pois->findByTrip((int) $trip['id']));
 
+        $canEdit = $this->access->canEdit($trip, $request->getAttribute('user'));
+
         $response->getBody()->write((string) json_encode([
             'pins' => $pins,
             'track' => $this->buildTrack((int) $trip['id']),
+            // Full-resolution, untrimmed, unsmoothed points - only the trim
+            // slider UI needs these (to look up a time for any given seq, or
+            // preview the selection live before it's committed), so this is
+            // left out entirely for read-only viewers.
+            'trackFull' => $canEdit ? $this->buildRawTrackPoints((int) $trip['id']) : null,
             'pois' => $pois,
         ], JSON_THROW_ON_ERROR));
 
         return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    /**
+     * @return list<array{seq: int, lat: float, lng: float, recordedAt: ?string}>
+     */
+    private function buildRawTrackPoints(int $tripId): array
+    {
+        $track = $this->tracks->findByTrip($tripId);
+        if ($track === null) {
+            return [];
+        }
+
+        return array_map(static fn (array $p): array => [
+            'seq' => (int) $p['seq'],
+            'lat' => (float) $p['lat'],
+            'lng' => (float) $p['lng'],
+            'recordedAt' => $p['recorded_at'],
+        ], $this->tracks->findPoints((int) $track['id']));
     }
 
     /**

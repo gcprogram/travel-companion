@@ -159,6 +159,124 @@ document.addEventListener('DOMContentLoaded', function () {
     lightbox.hidden = false;
   }
 
+  // --- Trim slider live preview -------------------------------------------
+  // The committed trim (server-side, via TrackController::trim) only changes
+  // on a real form submit. Everything below - the time fields and the
+  // preview line - is a client-side-only view of what *would* be submitted,
+  // built from the full-resolution, untrimmed point list (trackFull) so a
+  // seq maps to an exact time even for points collapsed by smoothing or
+  // currently outside the committed trim range.
+  function initTrimSliders(trackFull) {
+    var form = document.querySelector('[data-trim-slider-form]');
+    if (!form || !trackFull || trackFull.length === 0) {
+      return;
+    }
+    var startRange = form.querySelector('[data-trim-range="start"]');
+    var endRange = form.querySelector('[data-trim-range="end"]');
+    var startTime = form.querySelector('[data-trim-time="start"]');
+    var endTime = form.querySelector('[data-trim-time="end"]');
+    if (!startRange || !endRange || !startTime || !endTime) {
+      return;
+    }
+
+    var bySeq = {};
+    trackFull.forEach(function (p) { bySeq[p.seq] = p; });
+
+    function toLocalDatetimeValue(isoUtc) {
+      var d = new Date(isoUtc.replace(' ', 'T') + 'Z');
+      if (isNaN(d.getTime())) {
+        return '';
+      }
+      var pad = function (n) { return String(n).padStart(2, '0'); };
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    }
+
+    function nearestSeqForLocalValue(value) {
+      var target = new Date(value).getTime();
+      if (isNaN(target)) {
+        return null;
+      }
+      var bestSeq = null;
+      var bestDiff = Infinity;
+      trackFull.forEach(function (p) {
+        if (!p.recordedAt) {
+          return;
+        }
+        var diff = Math.abs(new Date(p.recordedAt.replace(' ', 'T') + 'Z').getTime() - target);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestSeq = p.seq;
+        }
+      });
+      return bestSeq;
+    }
+
+    function updateTimeField(input, seq) {
+      var p = bySeq[seq];
+      input.value = (p && p.recordedAt) ? toLocalDatetimeValue(p.recordedAt) : '';
+    }
+
+    var previewActive = false;
+    var previewContext = L.polyline([], { color: '#6b6357', weight: 2, opacity: 0.4, dashArray: '4,4' });
+    var previewLine = L.polyline([], { color: '#c56a3c', weight: 4, opacity: 0.9 });
+
+    function updatePreview() {
+      if (!previewActive) {
+        previewActive = true;
+        previewContext.setLatLngs(trackFull.map(function (p) { return [p.lat, p.lng]; }));
+        previewContext.addTo(map);
+        previewLine.addTo(map);
+      }
+      var start = parseInt(startRange.value, 10);
+      var end = parseInt(endRange.value, 10);
+      var selected = trackFull.filter(function (p) { return p.seq >= start && p.seq <= end; });
+      previewLine.setLatLngs(selected.map(function (p) { return [p.lat, p.lng]; }));
+    }
+
+    function onRangeInput(which) {
+      var startSeq = parseInt(startRange.value, 10);
+      var endSeq = parseInt(endRange.value, 10);
+      if (which === 'start' && startSeq > endSeq) {
+        endRange.value = String(startSeq);
+      } else if (which === 'end' && endSeq < startSeq) {
+        startRange.value = String(endSeq);
+      }
+      updateTimeField(startTime, parseInt(startRange.value, 10));
+      updateTimeField(endTime, parseInt(endRange.value, 10));
+      updatePreview();
+    }
+
+    function onTimeChange(which) {
+      var input = which === 'start' ? startTime : endTime;
+      if (!input.value) {
+        return;
+      }
+      var seq = nearestSeqForLocalValue(input.value);
+      if (seq === null) {
+        return;
+      }
+      if (which === 'start') {
+        seq = Math.min(seq, parseInt(endRange.value, 10));
+        startRange.value = String(seq);
+      } else {
+        seq = Math.max(seq, parseInt(startRange.value, 10));
+        endRange.value = String(seq);
+      }
+      updateTimeField(startTime, parseInt(startRange.value, 10));
+      updateTimeField(endTime, parseInt(endRange.value, 10));
+      updatePreview();
+    }
+
+    startRange.addEventListener('input', function () { onRangeInput('start'); });
+    endRange.addEventListener('input', function () { onRangeInput('end'); });
+    startTime.addEventListener('change', function () { onTimeChange('start'); });
+    endTime.addEventListener('change', function () { onTimeChange('end'); });
+
+    updateTimeField(startTime, parseInt(startRange.value, 10));
+    updateTimeField(endTime, parseInt(endRange.value, 10));
+  }
+
   function formatTime(isoUtc) {
     // Stored as UTC ('YYYY-MM-DD HH:MM:SS'); displayed in the viewer's local time.
     var d = new Date(isoUtc.replace(' ', 'T') + 'Z');
@@ -320,6 +438,8 @@ document.addEventListener('DOMContentLoaded', function () {
       map.on('zoomend', applyIconsForZoom);
       map.fitBounds(pinLatlngs.concat(trackLatlngs).concat(poiLatlngs), { padding: [40, 40], maxZoom: 16 });
       applyIconsForZoom();
+
+      initTrimSliders(data.trackFull);
     })
     .catch(function (err) {
       console.error('Trip map data fetch failed:', err);

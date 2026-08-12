@@ -11,6 +11,7 @@ use App\Job\PhotoProcessHandler;
 use App\Job\PoiAssignmentHandler;
 use App\Job\PoiDiscoveryHandler;
 use App\Job\StorageBackfillHandler;
+use App\Job\TrackGapFillHandler;
 use App\Job\UserDeleteHandler;
 use App\Job\VideoProcessHandler;
 use App\Job\WeatherFetchHandler;
@@ -69,6 +70,7 @@ return [
         $worker->register('mail.admin_notify', $c->get(AdminNotifyHandler::class));
         $worker->register('user.delete', $c->get(UserDeleteHandler::class));
         $worker->register('entry.locate', $c->get(EntryLocateHandler::class));
+        $worker->register('track.gapfill', $c->get(TrackGapFillHandler::class));
 
         return $worker;
     },

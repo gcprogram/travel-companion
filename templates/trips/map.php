@@ -4,6 +4,7 @@
 /** @var array{totalPoints: int, trimStart: int, trimEnd: int}|null $track */
 /** @var list<array<string, mixed>> $pois */
 /** @var array<int, array{photos: list<array<string, mixed>>, videos: list<array<string, mixed>>}> $poiMedia */
+/** @var array<int, array{distanceMeters: float, closestAt: ?string}> $poiApproach */
 $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_building', 'other'];
 ?>
 
@@ -72,26 +73,29 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
       <p class="field-hint" data-track-folder-status></p>
     </div>
 
-    <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/fill-gaps">
-      <?= $csrf->field() ?>
-      <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.track_gap_fill')) ?></button>
-      <p class="field-hint"><?= e(t('trip.map.track_gap_fill_hint')) ?></p>
-    </form>
-
     <?php if ($track !== null): ?>
       <?php if ($track['totalPoints'] > 2): ?>
-        <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/trim" class="map-view__trim-form">
+        <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/trim" class="map-view__trim-form" data-trim-slider-form>
           <?= $csrf->field() ?>
-          <label>
-            <?= e(t('trip.map.trim_start')) ?>
-            <input type="range" name="trim_start" min="0" max="<?= (int) $track['totalPoints'] - 1 ?>" value="<?= (int) $track['trimStart'] ?>">
-          </label>
-          <label>
-            <?= e(t('trip.map.trim_end')) ?>
-            <input type="range" name="trim_end" min="0" max="<?= (int) $track['totalPoints'] - 1 ?>" value="<?= (int) $track['trimEnd'] ?>">
-          </label>
-          <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.trim_apply')) ?></button>
+          <span class="map-view__trim-group">
+            <label>
+              <?= e(t('trip.map.trim_start')) ?>
+              <input type="range" name="trim_start" min="0" max="<?= (int) $track['totalPoints'] - 1 ?>"
+                     value="<?= (int) $track['trimStart'] ?>" data-trim-range="start">
+            </label>
+            <input type="datetime-local" step="1" class="map-view__trim-time" data-trim-time="start">
+          </span>
+          <span class="map-view__trim-group">
+            <label>
+              <?= e(t('trip.map.trim_end')) ?>
+              <input type="range" name="trim_end" min="0" max="<?= (int) $track['totalPoints'] - 1 ?>"
+                     value="<?= (int) $track['trimEnd'] ?>" data-trim-range="end">
+            </label>
+            <input type="datetime-local" step="1" class="map-view__trim-time" data-trim-time="end">
+          </span>
+          <button type="submit" class="btn btn-primary"><?= e(t('trip.map.trim_apply')) ?></button>
         </form>
+        <p class="field-hint"><?= e(t('trip.map.trim_slider_hint')) ?></p>
       <?php endif; ?>
 
       <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/delete"
@@ -173,8 +177,17 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
   <ul class="poi-list">
     <?php foreach ($pois as $poi): ?>
       <li class="poi-list__item<?= $poi['visited'] ? ' poi-list__item--visited' : '' ?>">
+        <?php $approach = $poiApproach[(int) $poi['id']] ?? null; ?>
+        <?php if ($approach !== null && $approach['closestAt'] !== null): ?>
+          <span class="poi-list__approach"><?= e(format_short_datetime($approach['closestAt'])) ?></span>
+        <?php endif; ?>
         <span class="poi-list__category"><?= e(t('trip.map.category.' . $poi['category'])) ?></span>
-        <span class="poi-list__name"><?= e($poi['name']) ?></span>
+        <span class="poi-list__name">
+          <?= e($poi['name']) ?>
+          <?php if ($approach !== null): ?>
+            <span class="poi-list__distance">(<?= (int) round($approach['distanceMeters']) ?> m)</span>
+          <?php endif; ?>
+        </span>
         <?php if (!empty($poi['notes'])): ?>
           <p class="field-hint"><?= nl2br(e($poi['notes'])) ?></p>
         <?php endif; ?>
@@ -199,17 +212,21 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
           </ul>
         <?php endif; ?>
         <?php if ($canEdit): ?>
-          <form method="post" action="/pois/<?= (int) $poi['id'] ?>/visited" class="poi-list__actions">
-            <?= $csrf->field() ?>
-            <button type="submit" class="btn btn-ghost btn-small">
-              <?= $poi['visited'] ? e(t('trip.map.poi_mark_unvisited')) : e(t('trip.map.poi_mark_visited')) ?>
-            </button>
-          </form>
-          <form method="post" action="/pois/<?= (int) $poi['id'] ?>/delete" class="poi-list__actions"
-                data-confirm="<?= e(t('trip.map.poi_delete_confirm')) ?>">
-            <?= $csrf->field() ?>
-            <button type="submit" class="btn btn-ghost btn-small"><?= e(t('trip.map.poi_delete')) ?></button>
-          </form>
+          <span class="poi-list__actions">
+            <form method="post" action="/pois/<?= (int) $poi['id'] ?>/visited" class="poi-list__action-form">
+              <?= $csrf->field() ?>
+              <button type="submit"
+                      class="poi-list__icon-btn poi-list__icon-btn--visited<?= $poi['visited'] ? ' is-active' : '' ?>"
+                      title="<?= $poi['visited'] ? e(t('trip.map.poi_mark_unvisited')) : e(t('trip.map.poi_mark_visited')) ?>"
+                      aria-label="<?= $poi['visited'] ? e(t('trip.map.poi_mark_unvisited')) : e(t('trip.map.poi_mark_visited')) ?>">&#10003;</button>
+            </form>
+            <form method="post" action="/pois/<?= (int) $poi['id'] ?>/delete" class="poi-list__action-form"
+                  data-confirm="<?= e(t('trip.map.poi_delete_confirm')) ?>">
+              <?= $csrf->field() ?>
+              <button type="submit" class="poi-list__icon-btn poi-list__icon-btn--delete"
+                      title="<?= e(t('trip.map.poi_delete')) ?>" aria-label="<?= e(t('trip.map.poi_delete')) ?>">&#10005;</button>
+            </form>
+          </span>
         <?php elseif ($poi['visited']): ?>
           <span class="poi-list__visited-badge"><?= e(t('trip.map.poi_visited_badge')) ?></span>
         <?php endif; ?>

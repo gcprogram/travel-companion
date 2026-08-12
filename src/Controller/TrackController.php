@@ -67,6 +67,7 @@ final class TrackController
 
         $points = $this->simplifier->simplify($points);
         $this->tracks->appendForTrip((int) $trip['id'], 'gpx', $file->getClientFilename(), $points);
+        $this->gapFill->fillGaps((int) $trip['id']);
         $this->dispatchLocateForOpenEntries((int) $trip['id']);
 
         $this->flash->add('success', t('trip.map.gpx_uploaded'));
@@ -122,6 +123,7 @@ final class TrackController
         usort($points, static fn (array $a, array $b): int => $a['recordedAt'] <=> $b['recordedAt']);
         $points = $this->simplifier->simplify($points);
         $this->tracks->appendForTrip((int) $trip['id'], 'points', null, $points);
+        $this->gapFill->fillGaps((int) $trip['id']);
         $this->dispatchLocateForOpenEntries((int) $trip['id']);
 
         return $this->json($response, ['ok' => true], 200);
@@ -152,19 +154,6 @@ final class TrackController
         $this->tracks->deleteForTrip((int) $trip['id']);
 
         $this->flash->add('success', t('trip.map.track_deleted'));
-        return $this->redirectToMap($response, $trip);
-    }
-
-    /**
-     * Fills real gaps in the track with the trip's own geotagged photos -
-     * see PhotoTrackGapFillService for what counts as a gap.
-     */
-    public function fillGapsFromPhotos(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
-    {
-        $trip = $this->requireEditable($request, (int) $args['id']);
-        $added = $this->gapFill->fillGaps((int) $trip['id']);
-
-        $this->flash->add('success', t('trip.map.track_gap_fill_result', ['count' => (string) $added]));
         return $this->redirectToMap($response, $trip);
     }
 

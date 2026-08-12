@@ -139,10 +139,11 @@ final class PhotoUploadController
             if ($existing['lat'] !== null) {
                 // No photo.process job runs for a reference (nothing to
                 // process), so this entry would otherwise never get the
-                // POI/location follow-ups a freshly processed geotagged
-                // photo normally triggers.
+                // POI/location/track follow-ups a freshly processed
+                // geotagged photo normally triggers.
                 $this->jobs->dispatch('poi.assign', ['trip_id' => $tripId]);
                 $this->jobs->dispatch('entry.locate', ['day_entry_id' => $entryId]);
+                $this->jobs->dispatch('track.gapfill', ['trip_id' => $tripId]);
             }
 
             return $this->json($response, ['status' => 'ready', 'photo_id' => $photoId]);
