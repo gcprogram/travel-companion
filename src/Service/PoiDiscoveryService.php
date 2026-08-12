@@ -85,6 +85,19 @@ final class PoiDiscoveryService
         $count = 0;
         foreach ($boxes as $box) {
             foreach ($this->queryOverpass($box, $categories) as $element) {
+                // The bbox itself can be far larger than radiusMeters: a
+                // cluster only breaks on a >2km hop between *consecutive*
+                // track points, so one continuous day of driving/walking -
+                // however many km it actually covers - stays a single
+                // cluster, and its bbox spans the whole thing corner to
+                // corner. Overpass elements near one corner of that
+                // rectangle can be tens of km from the route that's actually
+                // a thin line through it, so the bbox alone isn't a
+                // sufficient filter - only the true distance to this
+                // cluster's own points is.
+                if (!$this->withinRadius($box['points'], $element['lat'], $element['lng'], $radiusMeters)) {
+                    continue;
+                }
                 $this->pois->upsertFromOverpass(
                     $tripId,
                     $element['type'] . '/' . $element['id'],
@@ -100,7 +113,20 @@ final class PoiDiscoveryService
     }
 
     /**
-     * @return list<array{south: float, west: float, north: float, east: float}>
+     * @param list<array{lat: float, lng: float}> $points
+     */
+    private function withinRadius(array $points, float $lat, float $lng, int $radiusMeters): bool
+    {
+        foreach ($points as $point) {
+            if ($this->haversineMeters($point['lat'], $point['lng'], $lat, $lng) <= $radiusMeters) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @return list<array{south: float, west: float, north: float, east: float, points: list<array{lat: float, lng: float}>}>
      */
     private function buildBoundingBoxes(int $tripId, float $bufferDegrees): array
     {
@@ -135,6 +161,7 @@ final class PoiDiscoveryService
                 'west' => min($lngs) - $bufferDegrees,
                 'north' => max($lats) + $bufferDegrees,
                 'east' => max($lngs) + $bufferDegrees,
+                'points' => $cluster,
             ];
         }
         return $boxes;
