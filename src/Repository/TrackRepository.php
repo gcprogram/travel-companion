@@ -89,12 +89,25 @@ final class TrackRepository
 
     /**
      * Merges freshly parsed points into the trip's existing track instead of
-     * replacing it, so repeated uploads (e.g. one GPX per day) accumulate
-     * into a single continuous track rather than each one wiping the last.
-     * Points are re-sorted by recordedAt when every point (existing + new)
-     * has one; otherwise the new points are appended after the existing
-     * ones as-is. Trim range resets to the full track, since old trim
-     * indices no longer line up once points are re-sequenced.
+     * replacing it, so repeated uploads (e.g. one GPX per day, or a photo
+     * position squeezed in later - see PhotoTrackGapFillService) accumulate
+     * into a single continuous, chronologically-connected track rather than
+     * each one wiping the last or leaving a straight "teleport" line between
+     * unrelated points.
+     *
+     * Every point that has a recordedAt is sorted into place by time, so a
+     * sparse set (e.g. photo-derived points) properly interleaves with a
+     * denser one (e.g. a GPX track) instead of forming its own disconnected
+     * segment. Points with no recordedAt at all can't be placed
+     * chronologically - those keep their relative order and are appended
+     * after the timed ones, same as a plain, timestamp-less GPX track was
+     * appended before this method understood partial timestamps. This used
+     * to be all-or-nothing (any single untimed point skipped sorting for the
+     * *entire* merged set), which is what produced those teleport lines
+     * whenever a GPX export was missing <time> on part of the file.
+     *
+     * Trim range resets to the full track, since old trim indices no longer
+     * line up once points are re-sequenced.
      *
      * @param list<array{lat: float, lng: float, elevation: ?float, recordedAt: ?string, accuracy: ?float}> $newPoints
      */
@@ -115,14 +128,10 @@ final class TrackRepository
         ], $this->findPoints($trackId));
 
         $merged = array_merge($existingPoints, $newPoints);
-        $allTimed = array_reduce(
-            $merged,
-            static fn (bool $carry, array $p): bool => $carry && $p['recordedAt'] !== null,
-            true,
-        );
-        if ($allTimed) {
-            usort($merged, static fn (array $a, array $b): int => $a['recordedAt'] <=> $b['recordedAt']);
-        }
+        $timed = array_values(array_filter($merged, static fn (array $p): bool => $p['recordedAt'] !== null));
+        $untimed = array_values(array_filter($merged, static fn (array $p): bool => $p['recordedAt'] === null));
+        usort($timed, static fn (array $a, array $b): int => $a['recordedAt'] <=> $b['recordedAt']);
+        $merged = array_merge($timed, $untimed);
 
         $this->pdo->beginTransaction();
         try {

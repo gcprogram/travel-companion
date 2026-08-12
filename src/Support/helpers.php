@@ -120,6 +120,23 @@ if (!function_exists('format_datetime')) {
     }
 }
 
+if (!function_exists('format_short_datetime')) {
+    /**
+     * 'YYYY-MM-DD HH:MM:SS' (DB, UTC) -> 'DD MMM HH:MM' (display, e.g. "25 Jul
+     * 14:32") - compact enough for the POI list's "closest approach" column,
+     * where format_datetime()'s full 'DD.MM.YYYY' would push the distance
+     * off narrow screens. Invalid values pass through unchanged.
+     */
+    function format_short_datetime(?string $isoDateTime): string
+    {
+        if ($isoDateTime === null || $isoDateTime === '') {
+            return '';
+        }
+        $dt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $isoDateTime);
+        return $dt !== false ? $dt->format('d M H:i') : $isoDateTime;
+    }
+}
+
 if (!function_exists('format_bytes')) {
     /**
      * Byte count -> compact human-readable size (MB below 1 GB, GB above).

@@ -88,7 +88,7 @@ final class PhotoProcessHandler implements JobHandlerInterface
             @unlink($originalPath);
 
             if ($meta['lat'] !== null) {
-                $this->dispatchPoiAssignment((int) $photo['day_entry_id']);
+                $this->dispatchTripWideFollowUps((int) $photo['day_entry_id']);
                 $this->jobs->dispatch('entry.locate', ['day_entry_id' => (int) $photo['day_entry_id']]);
             }
         } catch (\Throwable $e) {
@@ -98,17 +98,20 @@ final class PhotoProcessHandler implements JobHandlerInterface
     }
 
     /**
-     * A cheap no-op via PoiAssignmentService when the trip has no confirmed
-     * POIs yet — dispatched unconditionally rather than checking first, to
-     * avoid this job needing its own PoiRepository dependency.
+     * Both cheap no-ops (PoiAssignmentService when the trip has no confirmed
+     * POIs yet, PhotoTrackGapFillService when the photo doesn't fall in a
+     * gap) — dispatched unconditionally rather than checking first, to avoid
+     * this job needing its own PoiRepository/TrackRepository dependencies.
      */
-    private function dispatchPoiAssignment(int $dayEntryId): void
+    private function dispatchTripWideFollowUps(int $dayEntryId): void
     {
         $entry = $this->entries->findById($dayEntryId);
         if ($entry === null) {
             return;
         }
-        $this->jobs->dispatch('poi.assign', ['trip_id' => (int) $entry['trip_id']]);
+        $tripId = (int) $entry['trip_id'];
+        $this->jobs->dispatch('poi.assign', ['trip_id' => $tripId]);
+        $this->jobs->dispatch('track.gapfill', ['trip_id' => $tripId]);
     }
 
     /**
