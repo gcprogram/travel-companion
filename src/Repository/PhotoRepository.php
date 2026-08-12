@@ -193,13 +193,21 @@ final class PhotoRepository
      * (migration 0019) already has lat/lng/taken_at copied from its
      * canonical at creation, so it doesn't need special-casing here.
      *
+     * taken_at (EXIF DateTimeOriginal) is frequently NULL - GPS and capture
+     * time are extracted independently in PhotoProcessHandler, so a photo
+     * can have a position without it. Falls back to created_at (upload
+     * time), same as TripMapController::data()'s pin list - otherwise these
+     * photos show as pins on the map but silently never count as filling a
+     * gap.
+     *
      * @return list<array{lat: float, lng: float, takenAt: string}>
      */
     public function findGeotaggedByTrip(int $tripId): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT p.lat, p.lng, p.taken_at FROM photos p JOIN day_entries e ON e.id = p.day_entry_id
-             WHERE e.trip_id = ? AND p.status = \'ready\' AND p.lat IS NOT NULL AND p.lng IS NOT NULL AND p.taken_at IS NOT NULL'
+            'SELECT p.lat, p.lng, COALESCE(p.taken_at, p.created_at) AS taken_at
+             FROM photos p JOIN day_entries e ON e.id = p.day_entry_id
+             WHERE e.trip_id = ? AND p.status = \'ready\' AND p.lat IS NOT NULL AND p.lng IS NOT NULL'
         );
         $stmt->execute([$tripId]);
         return array_map(static fn (array $r): array => [
