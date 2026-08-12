@@ -10,7 +10,12 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
 
 <div class="map-view__header">
   <a class="icon-btn" href="/trip/<?= e($trip['slug']) ?>"
-     title="<?= e(t('trip.map.back_to_trip')) ?>" aria-label="<?= e(t('trip.map.back_to_trip')) ?>">&#8592;</a>
+     title="<?= e(t('trip.map.back_to_trip')) ?>" aria-label="<?= e(t('trip.map.back_to_trip')) ?>">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+         stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M19 12H5M11 5l-7 7 7 7"/>
+    </svg>
+  </a>
   <h1><?= e(t('trip.map.metadata_heading', ['title' => $trip['title']])) ?></h1>
 </div>
 
@@ -31,27 +36,36 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
 
 <?php if ($canEdit): ?>
   <div class="map-view__track-tools">
-    <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/gpx" enctype="multipart/form-data" class="map-view__gpx-form">
-      <?= $csrf->field() ?>
-      <label for="gpx-file"><?= e(t('trip.map.gpx_label')) ?></label>
-      <input type="file" id="gpx-file" name="gpx" accept=".gpx,application/gpx+xml">
-      <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.gpx_upload')) ?></button>
-    </form>
+    <h2><?= e(t('trip.map.track_tools_heading')) ?></h2>
 
-    <p class="field-hint"><?= e(t('trip.map.folder_intro')) ?></p>
-    <div class="map-view__folder-form">
-      <label class="btn btn-ghost" for="track-folder-input"><?= e(t('trip.map.folder_pick')) ?></label>
-      <input type="file" id="track-folder-input" webkitdirectory multiple
-             data-track-folder-input
-             data-submit-url="/trips/<?= (int) $trip['id'] ?>/track/points"
-             data-csrf-token="<?= e($csrf->token()) ?>"
-             data-msg-no-media="<?= e(t('trip.map.folder_no_media')) ?>"
-             data-msg-scanning="<?= e(t('trip.map.folder_scanning')) ?>"
-             data-msg-no-points="<?= e(t('trip.map.folder_no_points')) ?>"
-             data-msg-uploading="<?= e(t('trip.map.folder_uploading')) ?>"
-             data-msg-error="<?= e(t('trip.map.folder_error')) ?>"
-             class="visually-hidden">
-      <p class="field-hint" data-track-folder-status></p>
+    <div class="map-view__track-method">
+      <strong><?= e(t('trip.map.track_method_gpx')) ?></strong>
+      <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/gpx" enctype="multipart/form-data" class="map-view__gpx-form">
+        <?= $csrf->field() ?>
+        <label for="gpx-file"><?= e(t('trip.map.gpx_label')) ?></label>
+        <input type="file" id="gpx-file" name="gpx" accept=".gpx,application/gpx+xml">
+        <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.gpx_upload')) ?></button>
+      </form>
+    </div>
+
+    <div class="map-view__track-method">
+      <strong><?= e(t('trip.map.track_method_photos')) ?></strong>
+      <p class="field-hint"><?= e(t('trip.map.track_method_photos_hint')) ?></p>
+      <p class="field-hint"><?= e(t('trip.map.folder_intro')) ?></p>
+      <div class="map-view__folder-form">
+        <label class="btn btn-ghost" for="track-folder-input"><?= e(t('trip.map.folder_pick')) ?></label>
+        <input type="file" id="track-folder-input" webkitdirectory multiple
+               data-track-folder-input
+               data-submit-url="/trips/<?= (int) $trip['id'] ?>/track/points"
+               data-csrf-token="<?= e($csrf->token()) ?>"
+               data-msg-no-media="<?= e(t('trip.map.folder_no_media')) ?>"
+               data-msg-scanning="<?= e(t('trip.map.folder_scanning')) ?>"
+               data-msg-no-points="<?= e(t('trip.map.folder_no_points')) ?>"
+               data-msg-uploading="<?= e(t('trip.map.folder_uploading')) ?>"
+               data-msg-error="<?= e(t('trip.map.folder_error')) ?>"
+               class="visually-hidden">
+        <p class="field-hint" data-track-folder-status></p>
+      </div>
     </div>
 
     <?php if ($track !== null): ?>
