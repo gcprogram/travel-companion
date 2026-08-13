@@ -236,6 +236,8 @@ return [
     'entry.weather_rain' => 'Rain',
     'entry.weather_wind' => 'Wind',
     'entry.delete_confirm' => 'Really delete this diary entry?',
+    'entry.panel_loading' => 'Loading …',
+    'entry.panel_error' => 'Could not load this. Please try again.',
 
     'entry.form.title_new' => 'New diary entry',
     'entry.form.title_edit' => 'Edit diary entry',

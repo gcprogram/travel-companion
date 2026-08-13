@@ -271,7 +271,15 @@ form.auth-form { max-width: 420px; }
   align-items: baseline;
   flex-wrap: wrap;
   gap: 0.5rem;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
   margin-bottom: 0.4rem;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .day-entry-card__date { font-weight: 600; }
@@ -279,6 +287,16 @@ form.auth-form { max-width: 420px; }
 .day-entry-card__mood { font-size: 1.1rem; }
 .day-entry-card__rating { color: var(--color-accent); letter-spacing: 0.1rem; }
 .day-entry-card__weather { color: var(--color-muted); font-size: 0.9rem; }
+
+.day-entry-card__chevron {
+  margin-left: auto;
+  color: var(--color-muted);
+  transition: transform 0.15s ease;
+}
+.day-entry-card.is-open .day-entry-card__chevron { transform: rotate(-180deg); }
+
+.day-entry-card__body[hidden] { display: none; }
+.day-entry-card__loading { color: var(--color-muted); font-size: 0.9rem; }
 
 .weather-hours { margin: 0.4rem 0; font-size: 0.9rem; }
 .weather-hours summary { cursor: pointer; color: var(--color-brand); }

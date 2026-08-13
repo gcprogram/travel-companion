@@ -19,6 +19,90 @@ document.addEventListener('DOMContentLoaded', function () {
   var ZOOM_THUMBNAIL_THRESHOLD = 14;
   var canEdit = container.dataset.canEdit === '1';
 
+  // Day-accordion filtering (see day-entry-accordion.js): only relevant on
+  // the trip page, a no-op everywhere else since no 'day-entry-toggle'
+  // event is ever fired without that script. Populated once /map/data
+  // resolves; toggles that happen before then just update openEntryDates,
+  // applied as soon as the data arrives.
+  var openEntryDates = {};
+  var mapDataLoaded = false;
+  var dayMarkers = [];
+  var dayTrackPoints = [];
+  var fullRouteGroup = null;
+  var dayRouteLine = L.polyline([], { color: '#c56a3c', weight: 4, opacity: 0.9 });
+  var fullFitLatLngs = [];
+
+  function localDateOf(isoUtc) {
+    var d = new Date(isoUtc.replace(' ', 'T') + 'Z');
+    if (isNaN(d.getTime())) {
+      return '';
+    }
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+
+  function applyDayFilter() {
+    if (!mapDataLoaded) {
+      return;
+    }
+    var activeDates = Object.keys(openEntryDates).filter(function (d) { return openEntryDates[d]; });
+
+    if (activeDates.length === 0) {
+      dayMarkers.forEach(function (m) {
+        if (!map.hasLayer(m.marker)) {
+          m.marker.addTo(map);
+        }
+      });
+      map.removeLayer(dayRouteLine);
+      if (fullRouteGroup && (!routeToggle || routeToggle.checked)) {
+        fullRouteGroup.addTo(map);
+      }
+      if (fullFitLatLngs.length > 0) {
+        map.fitBounds(fullFitLatLngs, { padding: [40, 40], maxZoom: 16 });
+      }
+      return;
+    }
+
+    var activeSet = {};
+    activeDates.forEach(function (d) { activeSet[d] = true; });
+
+    var boundsLatLngs = [];
+    dayMarkers.forEach(function (m) {
+      if (activeSet[m.pin.entryDate]) {
+        if (!map.hasLayer(m.marker)) {
+          m.marker.addTo(map);
+        }
+        boundsLatLngs.push([m.pin.lat, m.pin.lng]);
+      } else if (map.hasLayer(m.marker)) {
+        map.removeLayer(m.marker);
+      }
+    });
+
+    if (fullRouteGroup) {
+      map.removeLayer(fullRouteGroup);
+    }
+
+    var dayLatLngs = dayTrackPoints
+      .filter(function (p) { return p.recordedAt && activeSet[localDateOf(p.recordedAt)]; })
+      .map(function (p) { return [p.lat, p.lng]; });
+    dayRouteLine.setLatLngs(dayLatLngs);
+    if (dayLatLngs.length > 1 && (!routeToggle || routeToggle.checked)) {
+      dayRouteLine.addTo(map);
+    } else {
+      map.removeLayer(dayRouteLine);
+    }
+
+    boundsLatLngs = boundsLatLngs.concat(dayLatLngs);
+    if (boundsLatLngs.length > 0) {
+      map.fitBounds(boundsLatLngs, { padding: [40, 40], maxZoom: 16 });
+    }
+  }
+
+  window.addEventListener('day-entry-toggle', function (e) {
+    openEntryDates[e.detail.date] = e.detail.open;
+    applyDayFilter();
+  });
+
   function buildPoiPopup(poi) {
     var wrap = document.createElement('div');
     wrap.className = 'map-poi-popup';
@@ -387,10 +471,17 @@ document.addEventListener('DOMContentLoaded', function () {
       });
 
       map.on('zoomend', applyIconsForZoom);
-      map.fitBounds(pinLatlngs.concat(trackLatlngs).concat(poiLatlngs), { padding: [40, 40], maxZoom: 16 });
+      fullFitLatLngs = pinLatlngs.concat(trackLatlngs).concat(poiLatlngs);
+      map.fitBounds(fullFitLatLngs, { padding: [40, 40], maxZoom: 16 });
       applyIconsForZoom();
 
       initTrimSliders(data.trackFull);
+
+      dayMarkers = markers;
+      dayTrackPoints = (track && track.points) || [];
+      fullRouteGroup = routeGroup || null;
+      mapDataLoaded = true;
+      applyDayFilter();
     })
     .catch(function (err) {
       console.error('Trip map data fetch failed:', err);

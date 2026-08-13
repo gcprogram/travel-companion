@@ -236,6 +236,8 @@ return [
     'entry.weather_rain' => 'Regen',
     'entry.weather_wind' => 'Wind',
     'entry.delete_confirm' => 'Diesen Tagebucheintrag wirklich löschen?',
+    'entry.panel_loading' => 'Wird geladen …',
+    'entry.panel_error' => 'Konnte nicht geladen werden. Bitte erneut versuchen.',
 
     'entry.form.title_new' => 'Neuer Tagebucheintrag',
     'entry.form.title_edit' => 'Tagebucheintrag bearbeiten',
