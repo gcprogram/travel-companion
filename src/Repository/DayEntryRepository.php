@@ -97,6 +97,23 @@ final class DayEntryRepository
         $stmt->execute([$name, gmdate('Y-m-d H:i:s'), $id]);
     }
 
+    /**
+     * Auto-fill only: never overwrites coordinates the user already set
+     * (the "Standort erfassen" button), same convention as
+     * updateLocationNameIfEmpty(). Lets EntryLocateHandler give an entry a
+     * numeric location automatically from photos/track, not just a
+     * display name - which in turn is what lets weather.fetch run without
+     * anyone touching that button.
+     */
+    public function updateCoordinatesIfEmpty(int $id, float $lat, float $lng): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE day_entries SET lat = ?, lng = ?, updated_at = ?
+             WHERE id = ? AND lat IS NULL AND lng IS NULL'
+        );
+        $stmt->execute([$lat, $lng, gmdate('Y-m-d H:i:s'), $id]);
+    }
+
     public function updateWeather(int $id, float $tempC, int $code): void
     {
         $stmt = $this->pdo->prepare(

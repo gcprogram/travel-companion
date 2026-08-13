@@ -214,7 +214,7 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
 <?php else: ?>
   <ul class="poi-list">
     <?php foreach ($pois as $poi): ?>
-      <li class="poi-list__item<?= $poi['visited'] ? ' poi-list__item--visited' : '' ?>">
+      <li class="poi-list__item<?= $poi['visited'] ? ' poi-list__item--visited' : '' ?>" data-delete-item>
         <?php $approach = $poiApproach[(int) $poi['id']] ?? null; ?>
         <?php if ($approach !== null && $approach['closestAt'] !== null): ?>
           <span class="poi-list__approach"><?= e(format_short_datetime($approach['closestAt'])) ?></span>
@@ -259,7 +259,11 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
                       aria-label="<?= $poi['visited'] ? e(t('trip.map.poi_mark_unvisited')) : e(t('trip.map.poi_mark_visited')) ?>">&#10003;</button>
             </form>
             <form method="post" action="/pois/<?= (int) $poi['id'] ?>/delete" class="poi-list__action-form"
-                  data-confirm="<?= e(t('trip.map.poi_delete_confirm')) ?>">
+                  data-confirm-group="poi_delete" data-delete-inline
+                  data-confirm-message="<?= e(t('trip.map.poi_delete_confirm')) ?>"
+                  data-confirm-yes="<?= e(t('entry.form.confirm_yes')) ?>"
+                  data-confirm-no="<?= e(t('entry.form.confirm_no')) ?>"
+                  data-confirm-all="<?= e(t('entry.form.confirm_all')) ?>">
               <?= $csrf->field() ?>
               <button type="submit" class="poi-list__icon-btn poi-list__icon-btn--delete"
                       title="<?= e(t('trip.map.poi_delete')) ?>" aria-label="<?= e(t('trip.map.poi_delete')) ?>">&#10005;</button>

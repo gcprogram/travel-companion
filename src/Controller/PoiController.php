@@ -227,6 +227,13 @@ final class PoiController
         $poi = $this->requireEditablePoi($request, (int) $args['id']);
         $this->pois->delete((int) $poi['id']);
 
+        // confirm-remember.js's inline-delete path: the list row is already
+        // removed client-side, no navigation happens for a flash message or
+        // redirect target to matter.
+        if ($request->getHeaderLine('X-Inline-Delete') === '1') {
+            return $response->withStatus(204);
+        }
+
         $trip = $this->trips->findById((int) $poi['trip_id']);
         $this->flash->add('success', t('trip.map.poi_deleted'));
         return $this->redirectToMap($response, $trip);
