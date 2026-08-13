@@ -29,6 +29,10 @@ final class AdminSettingsController
         return $this->view->render($response, 'admin/settings', [
             'values' => $this->settings->allEffective(),
             'searchableCategories' => PoiDiscoveryService::searchableCategories(),
+            // Never the decrypted key itself - just whether one is stored,
+            // so the field can render as blank-but-configured rather than
+            // ever putting the secret back into the page/browser.
+            'placesApiKeyConfigured' => $this->settings->getSecret('google.places_api_key') !== null,
         ]);
     }
 
@@ -63,6 +67,16 @@ final class AdminSettingsController
             if ($valid !== []) {
                 $this->settings->set('poi.categories', implode(',', $valid));
             }
+        }
+
+        // Blank submitted = leave the stored key untouched (the field never
+        // shows the real value, so "blank" can't mean "the admin wants to
+        // clear it" - that's what the separate checkbox is for).
+        $placesApiKey = trim((string) ($body['google_places_api_key'] ?? ''));
+        if (!empty($body['google_places_api_key_clear'])) {
+            $this->settings->setSecret('google.places_api_key', null);
+        } elseif ($placesApiKey !== '') {
+            $this->settings->setSecret('google.places_api_key', $placesApiKey);
         }
 
         $this->flash->add('success', t('admin.settings_saved'));

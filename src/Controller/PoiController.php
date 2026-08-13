@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Repository\JobRepository;
+use App\Repository\PlaceDetailsCacheRepository;
 use App\Repository\PoiRepository;
 use App\Repository\TripRepository;
+use App\Service\GooglePlacesService;
 use App\Service\PoiDiscoveryService;
 use App\Service\ReverseGeocodingService;
 use App\Service\TripAccess;
@@ -29,6 +31,8 @@ final class PoiController
         private readonly JobRepository $jobs,
         private readonly TripAccess $access,
         private readonly ReverseGeocodingService $geocoding,
+        private readonly GooglePlacesService $places,
+        private readonly PlaceDetailsCacheRepository $placeCache,
         private readonly Flash $flash,
     ) {
     }
@@ -142,7 +146,36 @@ final class PoiController
         $lng = round((float) $lng, 6);
 
         $providedName = trim((string) ($body['name'] ?? ''));
+        $address = trim((string) ($body['address'] ?? ''));
+        $placeId = trim((string) ($body['place_id'] ?? ''));
         $name = $providedName !== '' ? $providedName : null;
+
+        // A Google Timeline "visit" from the newer export generation has a
+        // placeId but no plain-text name (see google-timeline-import.js) -
+        // resolve it via the Places API (admin-configured key required,
+        // cached by placeId since it's a paid call) before falling back to
+        // Nominatim like a track-detected stay would.
+        if ($name === null && $placeId !== '') {
+            $cached = $this->placeCache->find($placeId);
+            if (!$cached['found']) {
+                $details = $this->places->fetchDetails($placeId);
+                $this->placeCache->store(
+                    $placeId,
+                    $details['name'] ?? null,
+                    $details['address'] ?? null,
+                    $details['lat'] ?? null,
+                    $details['lng'] ?? null,
+                );
+                $cached = ['found' => true, 'name' => $details['name'] ?? null, 'address' => $details['address'] ?? null];
+            }
+            if ($cached['name'] !== null) {
+                $name = $cached['name'];
+            }
+            if ($address === '' && !empty($cached['address'])) {
+                $address = $cached['address'];
+            }
+        }
+
         if ($name === null) {
             try {
                 $name = $this->geocoding->reverseGeocode($lat, $lng);
@@ -155,7 +188,6 @@ final class PoiController
 
         $startedAt = $this->validDateTimeOrNull($body['started_at'] ?? null);
         $endedAt = $this->validDateTimeOrNull($body['ended_at'] ?? null);
-        $address = trim((string) ($body['address'] ?? ''));
 
         $noteParts = [];
         if ($address !== '') {
