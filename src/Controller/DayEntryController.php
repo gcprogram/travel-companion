@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Repository\DayEntryRepository;
+use App\Repository\DayEntryWeatherHourRepository;
 use App\Repository\JobRepository;
 use App\Repository\PhotoRepository;
+use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
 use App\Service\DayEntryAccess;
 use App\Service\MediaCleanupService;
+use App\Service\TripAccess;
 use App\Support\Flash;
 use App\Support\View;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Slim\Exception\HttpNotFoundException;
 
 final class DayEntryController
 {
@@ -24,8 +28,11 @@ final class DayEntryController
         private readonly DayEntryRepository $entries,
         private readonly PhotoRepository $photos,
         private readonly VideoRepository $videos,
+        private readonly DayEntryWeatherHourRepository $weatherHours,
+        private readonly TripRepository $trips,
         private readonly JobRepository $jobs,
         private readonly DayEntryAccess $access,
+        private readonly TripAccess $tripAccess,
         private readonly MediaCleanupService $mediaCleanup,
         private readonly Flash $flash,
     ) {
@@ -170,6 +177,34 @@ final class DayEntryController
 
         $response->getBody()->write((string) json_encode(['pending' => $pending], JSON_THROW_ON_ERROR));
         return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    /**
+     * Lazily-fetched entry body: text, hourly weather, photos, videos, and
+     * (for editors) the edit/delete actions - everything the collapsed
+     * accordion row on the trip page doesn't need up front. Kept as its own
+     * view-gated (not edit-gated) route so it works the same for a visitor
+     * as for the owner, matching how the trip page itself is public.
+     */
+    public function panel(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $entry = $this->entries->findById((int) $args['id']);
+        if ($entry === null) {
+            throw new HttpNotFoundException($request);
+        }
+
+        $trip = $this->trips->findById((int) $entry['trip_id']);
+        if ($trip === null || !$this->tripAccess->canView($trip, $request->getAttribute('user'), $request)) {
+            throw new HttpNotFoundException($request);
+        }
+
+        return $this->view->render($response, 'day_entries/panel', [
+            'entry' => $entry,
+            'photos' => $this->photos->findByEntry((int) $entry['id']),
+            'videos' => $this->videos->findByEntry((int) $entry['id']),
+            'weatherHours' => $this->weatherHours->findByEntry((int) $entry['id']),
+            'canEdit' => $this->tripAccess->canEdit($trip, $request->getAttribute('user'), $request),
+        ], layout: null);
     }
 
     public function delete(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface

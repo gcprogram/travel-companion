@@ -112,6 +112,11 @@ return static function (App $app): void {
 
     $app->get('/trip/{slug}', [TripController::class, 'show']);
 
+    // Same visibility rule as the trip page itself, checked inside the
+    // controller - lets the collapsed diary accordion lazy-load an entry's
+    // body/photos/videos on first expand instead of shipping them all upfront.
+    $app->get('/entries/{id:[0-9]+}/panel', [DayEntryController::class, 'panel']);
+
     // Same visibility rule as the trip page itself, checked inside the controller.
     $app->get('/trip/{slug}/map', [TripMapController::class, 'show']);
     $app->get('/trip/{slug}/map/data', [TripMapController::class, 'data']);
