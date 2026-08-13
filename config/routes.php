@@ -12,6 +12,7 @@ use App\Controller\PhotoController;
 use App\Controller\PhotoUploadController;
 use App\Controller\PoiController;
 use App\Controller\ServiceWorkerController;
+use App\Controller\ShareController;
 use App\Controller\TrackController;
 use App\Controller\TripController;
 use App\Controller\TripMapController;
@@ -50,6 +51,11 @@ return static function (App $app): void {
         $group->get('/trips/{id:[0-9]+}/edit', [TripController::class, 'edit']);
         $group->post('/trips/{id:[0-9]+}', [TripController::class, 'update']);
         $group->post('/trips/{id:[0-9]+}/delete', [TripController::class, 'delete']);
+
+        // Share tokens: owner/admin only, checked directly against the real
+        // user inside the controller (never satisfied by a share token itself).
+        $group->post('/trips/{id:[0-9]+}/share-tokens', [ShareController::class, 'create']);
+        $group->post('/share-tokens/{id:[0-9]+}/delete', [ShareController::class, 'delete']);
 
         // Track: one per trip, re-upload replaces it (see TrackRepository::replaceForTrip).
         $group->post('/trips/{id:[0-9]+}/track/gpx', [TrackController::class, 'uploadGpx']);
@@ -98,6 +104,10 @@ return static function (App $app): void {
         $group->get('/settings', [AdminSettingsController::class, 'show']);
         $group->post('/settings', [AdminSettingsController::class, 'save']);
     })->add(RequireAdmin::class);
+
+    // Public: sets the share_access cookie (ShareAccessCookie) and redirects
+    // to the trip. No RequireLogin - that's the whole point of a share link.
+    $app->get('/share/{token}', [ShareController::class, 'redeem']);
 
     $app->get('/trip/{slug}', [TripController::class, 'show']);
 

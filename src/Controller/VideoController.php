@@ -105,7 +105,7 @@ final class VideoController
 
         $entry = $this->entries->findById((int) $video['day_entry_id']);
         $trip = $entry !== null ? $this->trips->findById((int) $entry['trip_id']) : null;
-        if ($trip === null || !$this->tripAccess->canView($trip, $request->getAttribute('user'))) {
+        if ($trip === null || !$this->tripAccess->canView($trip, $request->getAttribute('user'), $request)) {
             // Treat videos on a private trip as "doesn't exist" for strangers, same as everything else.
             throw new HttpNotFoundException($request);
         }

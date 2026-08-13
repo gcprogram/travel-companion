@@ -33,7 +33,7 @@ final class DayEntryAccess
         if ($trip === null) {
             throw new HttpNotFoundException($request);
         }
-        if (!$this->access->canEdit($trip, $request->getAttribute('user'))) {
+        if (!$this->access->canEdit($trip, $request->getAttribute('user'), $request)) {
             throw new HttpForbiddenException($request);
         }
         return $trip;

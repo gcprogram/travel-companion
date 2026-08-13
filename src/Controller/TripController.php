@@ -6,12 +6,14 @@ namespace App\Controller;
 
 use App\Repository\DayEntryRepository;
 use App\Repository\PhotoRepository;
+use App\Repository\ShareTokenRepository;
 use App\Repository\StationRepository;
 use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
 use App\Service\MediaCleanupService;
 use App\Service\Slugger;
 use App\Service\TripAccess;
+use App\Support\Env;
 use App\Support\Flash;
 use App\Support\View;
 use Psr\Http\Message\ResponseInterface;
@@ -28,6 +30,7 @@ final class TripController
         private readonly DayEntryRepository $entries,
         private readonly PhotoRepository $photos,
         private readonly VideoRepository $videos,
+        private readonly ShareTokenRepository $shareTokens,
         private readonly Slugger $slugger,
         private readonly TripAccess $access,
         private readonly MediaCleanupService $mediaCleanup,
@@ -43,7 +46,7 @@ final class TripController
         }
 
         $user = $request->getAttribute('user');
-        if (!$this->access->canView($trip, $user)) {
+        if (!$this->access->canView($trip, $user, $request)) {
             // Treat private trips as "doesn't exist" for strangers.
             throw new HttpNotFoundException($request);
         }
@@ -56,13 +59,21 @@ final class TripController
             $videosByEntry[(int) $entry['id']] = $this->videos->findByEntry((int) $entry['id']);
         }
 
+        // Deliberately the plain, non-token-aware check (no $request) -
+        // sharing is managed by the real owner/admin only, never by someone
+        // who got in via an edit share token themselves.
+        $canManageSharing = $this->access->canEdit($trip, $user);
+
         return $this->view->render($response, 'trips/show', [
             'trip' => $trip,
             'stations' => $this->stations->findByTrip((int) $trip['id']),
             'entries' => $entries,
             'photosByEntry' => $photosByEntry,
             'videosByEntry' => $videosByEntry,
-            'canEdit' => $this->access->canEdit($trip, $user),
+            'canEdit' => $this->access->canEdit($trip, $user, $request),
+            'canManageSharing' => $canManageSharing,
+            'shareTokens' => $canManageSharing ? $this->shareTokens->findByTrip((int) $trip['id']) : [],
+            'shareBaseUrl' => rtrim((string) Env::get('APP_URL', ''), '/') . '/share/',
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);
     }

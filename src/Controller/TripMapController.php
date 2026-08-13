@@ -64,7 +64,7 @@ final class TripMapController
 
         return $this->view->render($response, 'trips/map', [
             'trip' => $trip,
-            'canEdit' => $this->access->canEdit($trip, $request->getAttribute('user')),
+            'canEdit' => $this->access->canEdit($trip, $request->getAttribute('user'), $request),
             'track' => $this->trackSummary((int) $trip['id']),
             'pois' => $pois,
             'poiMedia' => $poiMedia,
@@ -224,7 +224,7 @@ final class TripMapController
             'visited' => (bool) $p['visited'],
         ], $this->pois->findByTrip((int) $trip['id']));
 
-        $canEdit = $this->access->canEdit($trip, $request->getAttribute('user'));
+        $canEdit = $this->access->canEdit($trip, $request->getAttribute('user'), $request);
 
         $response->getBody()->write((string) json_encode([
             'pins' => $pins,
@@ -306,7 +306,7 @@ final class TripMapController
         if ($trip === null) {
             throw new HttpNotFoundException($request);
         }
-        if (!$this->access->canView($trip, $request->getAttribute('user'))) {
+        if (!$this->access->canView($trip, $request->getAttribute('user'), $request)) {
             // Treat private trips as "doesn't exist" for strangers, matching TripController::show.
             throw new HttpNotFoundException($request);
         }
