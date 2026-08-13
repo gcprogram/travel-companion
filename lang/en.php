@@ -238,6 +238,8 @@ return [
     'entry.delete_confirm' => 'Really delete this diary entry?',
     'entry.panel_loading' => 'Loading …',
     'entry.panel_error' => 'Could not load this. Please try again.',
+    'entry.weather_day' => 'Daytime weather',
+    'entry.weather_night' => 'Overnight weather',
 
     'entry.form.title_new' => 'New diary entry',
     'entry.form.title_edit' => 'Edit diary entry',

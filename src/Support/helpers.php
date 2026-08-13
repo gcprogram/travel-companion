@@ -129,6 +129,40 @@ if (!function_exists('weather_emoji')) {
     }
 }
 
+if (!function_exists('day_night_weather_summary')) {
+    /**
+     * Compact "high/low" reading from a day's 24 hourly rows (see
+     * day_entry_weather_hours / DayEntryWeatherHourRepository) for the
+     * collapsed diary entry header - the warmest daytime hour (06-17) and
+     * the coldest evening/night hour (18-23, 00-05), rather than every hour
+     * (that's what the full hourly table, still one click away, is for).
+     *
+     * @param list<array<string, mixed>> $hours
+     * @return array{day: ?array{tempC: float, code: ?int}, night: ?array{tempC: float, code: ?int}}
+     */
+    function day_night_weather_summary(array $hours): array
+    {
+        $day = null;
+        $night = null;
+        foreach ($hours as $h) {
+            if ($h['temp_c'] === null) {
+                continue;
+            }
+            $hour = (int) $h['hour'];
+            $temp = (float) $h['temp_c'];
+            $code = $h['weather_code'] !== null ? (int) $h['weather_code'] : null;
+            if ($hour >= 6 && $hour <= 17) {
+                if ($day === null || $temp > $day['tempC']) {
+                    $day = ['tempC' => $temp, 'code' => $code];
+                }
+            } elseif ($night === null || $temp < $night['tempC']) {
+                $night = ['tempC' => $temp, 'code' => $code];
+            }
+        }
+        return ['day' => $day, 'night' => $night];
+    }
+}
+
 if (!function_exists('format_datetime')) {
     /**
      * 'YYYY-MM-DD HH:MM:SS' (DB, UTC) -> 'DD.MM.YYYY HH:MM' (display).

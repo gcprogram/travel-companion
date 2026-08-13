@@ -238,6 +238,8 @@ return [
     'entry.delete_confirm' => 'Diesen Tagebucheintrag wirklich löschen?',
     'entry.panel_loading' => 'Wird geladen …',
     'entry.panel_error' => 'Konnte nicht geladen werden. Bitte erneut versuchen.',
+    'entry.weather_day' => 'Tageswetter',
+    'entry.weather_night' => 'Nachtwetter',
 
     'entry.form.title_new' => 'Neuer Tagebucheintrag',
     'entry.form.title_edit' => 'Tagebucheintrag bearbeiten',
