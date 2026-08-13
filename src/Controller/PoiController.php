@@ -112,10 +112,17 @@ final class PoiController
     }
 
     /**
-     * Turns a detected stay (StayDetectionService) into a sight: the
-     * averaged centre is reverse-geocoded for a name, and the stay's time
-     * span becomes the visit date/note. Marked visited straight away - the
-     * track proves the person was there, which is the whole point.
+     * Turns a detected stay into a sight - either one StayDetectionService
+     * inferred from GPS wobble (no name, reverse-geocoded here for one),
+     * or a "place visit" a client-side Google Timeline import already knows
+     * the name/address of (old-format Semantic Location History embeds
+     * both directly - see google-timeline-import.js). A supplied name
+     * always wins over reverse-geocoding, both to avoid the pointless
+     * Nominatim call and because Google's own name is more precise than
+     * "nearest town" for an actual venue. The stay's time span becomes the
+     * visit date/note. Marked visited straight away - the track (or
+     * Google's own visit detection) proves the person was there, which is
+     * the whole point.
      */
     public function addStay(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
@@ -134,20 +141,30 @@ final class PoiController
         $lat = round((float) $lat, 6);
         $lng = round((float) $lng, 6);
 
-        $name = null;
-        try {
-            $name = $this->geocoding->reverseGeocode($lat, $lng);
-        } catch (\Throwable) {
-            // Nominatim unreachable/slow - still worth recording the visit,
-            // just with a fallback name the user can rename.
+        $providedName = trim((string) ($body['name'] ?? ''));
+        $name = $providedName !== '' ? $providedName : null;
+        if ($name === null) {
+            try {
+                $name = $this->geocoding->reverseGeocode($lat, $lng);
+            } catch (\Throwable) {
+                // Nominatim unreachable/slow - still worth recording the visit,
+                // just with a fallback name the user can rename.
+            }
         }
         $name ??= t('trip.map.stay_fallback_name');
 
         $startedAt = $this->validDateTimeOrNull($body['started_at'] ?? null);
         $endedAt = $this->validDateTimeOrNull($body['ended_at'] ?? null);
-        $notes = ($startedAt !== null && $endedAt !== null)
-            ? t('trip.map.stay_note', ['from' => $startedAt, 'to' => $endedAt])
-            : null;
+        $address = trim((string) ($body['address'] ?? ''));
+
+        $noteParts = [];
+        if ($address !== '') {
+            $noteParts[] = mb_substr($address, 0, 300);
+        }
+        if ($startedAt !== null && $endedAt !== null) {
+            $noteParts[] = t('trip.map.stay_note', ['from' => $startedAt, 'to' => $endedAt]);
+        }
+        $notes = $noteParts !== [] ? implode("\n\n", $noteParts) : null;
 
         $poiId = $this->pois->createManual(
             (int) $trip['id'],
