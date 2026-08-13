@@ -68,6 +68,40 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
       </div>
     </div>
 
+    <div class="map-view__track-method">
+      <strong><?= e(t('trip.map.track_method_timeline')) ?></strong>
+      <p class="field-hint"><?= e(t('trip.map.track_method_timeline_hint')) ?></p>
+      <div class="field">
+        <label for="timeline-file"><?= e(t('trip.map.timeline_file_label')) ?></label>
+        <input type="file" id="timeline-file" accept=".json,application/json"
+               data-timeline-file-input
+               data-track-submit-url="/trips/<?= (int) $trip['id'] ?>/track/points"
+               data-stay-url="/trips/<?= (int) $trip['id'] ?>/pois/stay"
+               data-csrf-token="<?= e($csrf->token()) ?>"
+               data-msg-reading="<?= e(t('trip.map.timeline_reading')) ?>"
+               data-msg-parsing="<?= e(t('trip.map.timeline_parsing')) ?>"
+               data-msg-parsed="<?= e(t('trip.map.timeline_parsed')) ?>"
+               data-msg-unrecognized="<?= e(t('trip.map.timeline_unrecognized')) ?>"
+               data-msg-uploading="<?= e(t('trip.map.timeline_uploading')) ?>"
+               data-msg-error="<?= e(t('trip.map.timeline_error')) ?>"
+               data-msg-visit-unnamed="<?= e(t('trip.map.timeline_visit_unnamed')) ?>"
+               data-msg-visit-add="<?= e(t('trip.map.stay_add')) ?>">
+      </div>
+      <div class="timeline-import__range">
+        <label><?= e(t('trip.map.timeline_from_label')) ?>
+          <input type="date" data-timeline-from value="<?= e($trip['date_start'] ?? '') ?>">
+        </label>
+        <label><?= e(t('trip.map.timeline_to_label')) ?>
+          <input type="date" data-timeline-to value="<?= e($trip['date_end'] ?? '') ?>">
+        </label>
+      </div>
+      <p class="field-hint" data-timeline-status></p>
+      <div data-timeline-summary hidden>
+        <button type="button" class="btn btn-ghost" data-timeline-submit-track><?= e(t('trip.map.timeline_submit_track')) ?></button>
+        <ul class="stay-list" data-timeline-visits></ul>
+      </div>
+    </div>
+
     <?php if ($track !== null): ?>
       <?php if ($track['totalPoints'] > 2): ?>
         <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/trim" class="map-view__trim-form" data-trim-slider-form>
@@ -286,4 +320,5 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
   <script src="/assets/js/photo-geotag.js"></script>
   <script src="/assets/js/video-geotag.js"></script>
   <script src="/assets/js/track-folder-scan.js"></script>
+  <script src="/assets/js/google-timeline-import.js"></script>
 <?php endif; ?>
