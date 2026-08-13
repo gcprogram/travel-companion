@@ -21,6 +21,8 @@
           <?= e($trip['title']) ?>
           <?php if ($trip['visibility'] === 'private'): ?>
             <span class="trip-card__badge"><?= e(t('trip.badge_private')) ?></span>
+          <?php elseif ($trip['visibility'] === 'member_only'): ?>
+            <span class="trip-card__badge"><?= e(t('trip.badge_member_only')) ?></span>
           <?php endif; ?>
         </h2>
         <div class="trip-card__meta">

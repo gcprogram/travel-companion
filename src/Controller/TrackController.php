@@ -72,6 +72,7 @@ final class TrackController
         $this->tracks->appendForTrip((int) $trip['id'], 'gpx', $file->getClientFilename(), $points);
         $this->gapFill->fillGaps((int) $trip['id']);
         $this->dispatchLocateForOpenEntries((int) $trip['id']);
+        $this->jobs->dispatch('trip.metadata_refresh', ['trip_id' => (int) $trip['id']]);
 
         $this->flash->add('success', t('trip.map.gpx_uploaded'));
         return $this->redirectToMap($response, $trip);
@@ -128,6 +129,7 @@ final class TrackController
         $this->tracks->appendForTrip((int) $trip['id'], 'points', null, $points);
         $this->gapFill->fillGaps((int) $trip['id']);
         $this->dispatchLocateForOpenEntries((int) $trip['id']);
+        $this->jobs->dispatch('trip.metadata_refresh', ['trip_id' => (int) $trip['id']]);
 
         return $this->json($response, ['ok' => true], 200);
     }

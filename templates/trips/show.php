@@ -13,6 +13,8 @@
   <?= e($trip['title']) ?>
   <?php if ($trip['visibility'] === 'private'): ?>
     <span class="trip-card__badge"><?= e(t('trip.badge_private')) ?></span>
+  <?php elseif ($trip['visibility'] === 'member_only'): ?>
+    <span class="trip-card__badge"><?= e(t('trip.badge_member_only')) ?></span>
   <?php endif; ?>
 </h1>
 
@@ -128,7 +130,7 @@
 <?php endif; ?>
 
 <?php if ($canManageSharing): ?>
-  <h2><?= e(t('trip.share.heading')) ?></h2>
+  <h2 id="share-tokens"><?= e(t('trip.share.heading')) ?></h2>
   <p class="field-hint"><?= e(t('trip.share.hint')) ?></p>
 
   <?php if ($shareTokens !== []): ?>

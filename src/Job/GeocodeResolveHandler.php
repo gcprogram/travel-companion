@@ -38,13 +38,12 @@ final class GeocodeResolveHandler implements JobHandlerInterface
             return; // Resolved by an earlier, duplicate job already.
         }
 
-        $name = null;
         try {
-            $name = $this->geocoding->reverseGeocode($lat, $lng);
+            $result = $this->geocoding->reverseGeocode($lat, $lng);
         } catch (\Throwable) {
             return; // Leave uncached - worth a retry on the next miss, unlike a genuine "nothing found".
         }
 
-        $this->cache->store($lat, $lng, $name);
+        $this->cache->store($lat, $lng, $result['name'], $result['country']);
     }
 }

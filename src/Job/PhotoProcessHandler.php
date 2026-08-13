@@ -106,10 +106,13 @@ final class PhotoProcessHandler implements JobHandlerInterface
     }
 
     /**
-     * Both cheap no-ops (PoiAssignmentService when the trip has no confirmed
-     * POIs yet, PhotoTrackGapFillService when the photo doesn't fall in a
-     * gap) — dispatched unconditionally rather than checking first, to avoid
-     * this job needing its own PoiRepository/TrackRepository dependencies.
+     * All cheap no-ops when there's nothing new for them to do
+     * (PoiAssignmentService when the trip has no confirmed POIs yet,
+     * PhotoTrackGapFillService when the photo doesn't fall in a gap,
+     * TripMetadataAutoFillHandler when country/dates are already filled) —
+     * dispatched unconditionally rather than checking first, to avoid this
+     * job needing its own PoiRepository/TrackRepository/TripRepository
+     * dependencies.
      */
     private function dispatchTripWideFollowUps(int $dayEntryId): void
     {
@@ -120,6 +123,7 @@ final class PhotoProcessHandler implements JobHandlerInterface
         $tripId = (int) $entry['trip_id'];
         $this->jobs->dispatch('poi.assign', ['trip_id' => $tripId]);
         $this->jobs->dispatch('track.gapfill', ['trip_id' => $tripId]);
+        $this->jobs->dispatch('trip.metadata_refresh', ['trip_id' => $tripId]);
     }
 
     /**

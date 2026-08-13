@@ -178,7 +178,7 @@ final class PoiController
 
         if ($name === null) {
             try {
-                $name = $this->geocoding->reverseGeocode($lat, $lng);
+                $name = $this->geocoding->reverseGeocode($lat, $lng)['name'];
             } catch (\Throwable) {
                 // Nominatim unreachable/slow - still worth recording the visit,
                 // just with a fallback name the user can rename.

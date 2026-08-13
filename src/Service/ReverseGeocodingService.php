@@ -20,7 +20,10 @@ final class ReverseGeocodingService
 {
     private const ENDPOINT = 'https://nominatim.openstreetmap.org/reverse';
 
-    public function reverseGeocode(float $lat, float $lng): ?string
+    /**
+     * @return array{name: ?string, country: ?string}
+     */
+    public function reverseGeocode(float $lat, float $lng): array
     {
         $url = self::ENDPOINT . '?' . http_build_query([
             'format' => 'jsonv2',
@@ -41,16 +44,16 @@ final class ReverseGeocodingService
         curl_close($ch);
 
         if ($body === false || $status !== 200) {
-            return null;
+            return ['name' => null, 'country' => null];
         }
 
         try {
             $data = json_decode((string) $body, true, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
-            return null;
+            return ['name' => null, 'country' => null];
         }
 
-        return $this->pickName($data);
+        return ['name' => $this->pickName($data), 'country' => $this->pickCountry($data)];
     }
 
     /**
@@ -85,5 +88,17 @@ final class ReverseGeocodingService
         }
 
         return null;
+    }
+
+    /**
+     * @param mixed $data decoded Nominatim jsonv2 response
+     */
+    private function pickCountry(mixed $data): ?string
+    {
+        if (!is_array($data)) {
+            return null;
+        }
+        $country = $data['address']['country'] ?? null;
+        return (is_string($country) && $country !== '') ? mb_substr($country, 0, 100) : null;
     }
 }
