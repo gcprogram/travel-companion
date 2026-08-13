@@ -13,7 +13,8 @@ return [
     'date_range.until' => 'until',
 
     'flash.please_login' => 'Please log in.',
-    'errors.csrf_invalid' => 'Invalid or expired form. Please go back, reload the page, and submit again.',
+    'errors.csrf_invalid' => "Your session expired, or the form was left open too long. You'll be redirected to the homepage shortly.",
+    'errors.bounce_continue' => 'Continue to the homepage',
     'flash.registration_closed' => 'Registration is currently closed.',
     'flash.welcome' => 'Welcome! Your account has been created.',
     'flash.registration_check_email' => "Almost there — check your inbox for a confirmation link. It's valid for a few minutes, so please confirm soon.",
@@ -30,6 +31,7 @@ return [
     'flash.video_added' => 'Video added.',
     'flash.video_deleted' => 'Video deleted.',
 
+    'auth.logged_out' => "You've been logged out. You'll be redirected to the homepage shortly.",
     'auth.login.title' => 'Log in',
     'auth.login.email' => 'Email address',
     'auth.login.password' => 'Password',
@@ -85,6 +87,8 @@ return [
 
     'home.title' => 'Our trips',
     'home.empty' => 'No trips here yet.',
+    'home.my_trips_title' => 'My trips',
+    'home.my_trips_empty' => "You haven't created any trips yet.",
     'home.create_first' => 'Create first trip',
     'trip.badge_private' => 'private',
     'media.geotagged_hint' => 'Location saved',

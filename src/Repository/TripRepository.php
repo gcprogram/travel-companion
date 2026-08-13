@@ -42,6 +42,22 @@ final class TripRepository
     }
 
     /**
+     * Only this user's own trips, private included - unlike findVisibleFor()
+     * this never mixes in other people's public trips. Used by the "my
+     * trips" page (nav username link).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function findByUser(int $userId): array
+    {
+        $stmt = $this->pdo->prepare(
+            $this->baseSelect() . ' WHERE t.user_id = ? ORDER BY t.date_start DESC, t.id DESC'
+        );
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     public function findBySlug(string $slug): ?array
