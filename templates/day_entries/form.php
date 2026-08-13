@@ -123,7 +123,7 @@ $lng = $entry['lng'] ?? null;
       data-msg-remove="<?= e(t('offline.queue_remove')) ?>"
       data-msg-remove-confirm="<?= e(t('offline.queue_remove_confirm')) ?>">
     <?php foreach ($photos as $photo): ?>
-      <li class="photo-gallery__item">
+      <li class="photo-gallery__item" data-delete-item>
         <?php if ($photo['status'] === 'ready'): ?>
           <a href="/photos/<?= (int) $photo['id'] ?>/web" target="_blank" rel="noopener">
             <img src="/photos/<?= (int) $photo['id'] ?>/thumb" alt="" loading="lazy">
@@ -137,7 +137,7 @@ $lng = $entry['lng'] ?? null;
           <div class="photo-gallery__placeholder"><?= e(t('entry.form.photo_processing')) ?></div>
         <?php endif; ?>
         <form method="post" action="/photos/<?= (int) $photo['id'] ?>/delete"
-              data-confirm-group="photo_delete"
+              data-confirm-group="photo_delete" data-delete-inline
               data-confirm-message="<?= e(t('entry.form.photo_delete_confirm')) ?>"
               data-confirm-yes="<?= e(t('entry.form.confirm_yes')) ?>"
               data-confirm-no="<?= e(t('entry.form.confirm_no')) ?>"

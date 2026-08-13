@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Job;
 
 use App\Repository\DayEntryRepository;
+use App\Repository\JobRepository;
 use App\Repository\PhotoRepository;
 use App\Repository\TrackRepository;
 use App\Repository\VideoRepository;
@@ -14,16 +15,24 @@ use Psr\Log\LoggerInterface;
 /**
  * Job type "entry.locate". Payload: {"day_entry_id": int}.
  * Auto-fills a diary entry's free-text location_name (see
- * templates/day_entries/form.php) - never overwrites one the user already
- * typed. Dispatched whenever new location data becomes available for the
- * entry's trip: a geotagged photo/video finishes processing, or a GPS track
- * gets uploaded. Coordinates are picked in this priority, matching how
- * confidently they represent "where this entry actually happened":
+ * templates/day_entries/form.php) AND its numeric lat/lng - neither ever
+ * overwrites a value the user already set (typed a name, or used "Standort
+ * erfassen" for coordinates). Dispatched whenever new location data becomes
+ * available for the entry's trip: a geotagged photo/video finishes
+ * processing, or a GPS track gets uploaded. Coordinates are picked in this
+ * priority, matching how confidently they represent "where this entry
+ * actually happened":
  * 1. A geotagged photo attached to the entry
  * 2. A geotagged video attached to the entry
  * 3. The trip's GPS track, at the point closest in time to the entry's date
  * A missing/failed geocode is a cosmetic gap, not a job failure - swallowed
  * and logged rather than retried.
+ *
+ * Setting lat/lng here (not just at handler entry, but as a real,
+ * independently-useful side effect) is also what lets weather.fetch run
+ * without the user ever touching "Standort erfassen" - previously that
+ * button was the *only* way an entry got coordinates at all, so a trip
+ * built entirely from photos/track never got weather.
  */
 final class EntryLocateHandler implements JobHandlerInterface
 {
@@ -35,6 +44,7 @@ final class EntryLocateHandler implements JobHandlerInterface
         private readonly VideoRepository $videos,
         private readonly TrackRepository $tracks,
         private readonly ReverseGeocodingService $geocoding,
+        private readonly JobRepository $jobs,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -43,8 +53,14 @@ final class EntryLocateHandler implements JobHandlerInterface
     {
         $entryId = (int) ($payload['day_entry_id'] ?? 0);
         $entry = $this->entries->findById($entryId);
-        if ($entry === null || !empty($entry['location_name'])) {
-            return; // Gone, or already named (by the user or an earlier run).
+        if ($entry === null) {
+            return; // Gone.
+        }
+
+        $needsName = empty($entry['location_name']);
+        $needsCoords = $entry['lat'] === null || $entry['lng'] === null;
+        if (!$needsName && !$needsCoords) {
+            return; // Already has both (user-set or an earlier run) - nothing to do.
         }
 
         $coords = $this->findCoordinates($entry);
@@ -52,18 +68,23 @@ final class EntryLocateHandler implements JobHandlerInterface
             return;
         }
 
-        try {
-            $name = $this->geocoding->reverseGeocode($coords['lat'], $coords['lng']);
-        } catch (\Throwable $e) {
-            $this->logger->warning('Entry location lookup failed (non-fatal)', [
-                'day_entry_id' => $entryId,
-                'error' => $e->getMessage(),
-            ]);
-            return;
+        if ($needsCoords) {
+            $this->entries->updateCoordinatesIfEmpty($entryId, $coords['lat'], $coords['lng']);
+            $this->jobs->dispatch('weather.fetch', ['day_entry_id' => $entryId]);
         }
 
-        if ($name !== null) {
-            $this->entries->updateLocationNameIfEmpty($entryId, $name);
+        if ($needsName) {
+            try {
+                $name = $this->geocoding->reverseGeocode($coords['lat'], $coords['lng']);
+                if ($name !== null) {
+                    $this->entries->updateLocationNameIfEmpty($entryId, $name);
+                }
+            } catch (\Throwable $e) {
+                $this->logger->warning('Entry location lookup failed (non-fatal)', [
+                    'day_entry_id' => $entryId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 

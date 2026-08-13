@@ -35,14 +35,17 @@ final class TrackController
 
     /**
      * A track just arrived (or grew) - dispatch entry.locate for every entry
-     * in the trip that still has no location_name, in case the track can
-     * now fill it (photo/video-derived locations already dispatch this
+     * in the trip still missing a name OR coordinates, in case the track can
+     * now fill either (photo/video-derived locations already dispatch this
      * themselves when they're the source; this covers entries with neither).
+     * Coordinates specifically matter here since they're what lets
+     * weather.fetch run - an entry can have a user-typed location_name
+     * (skipping that half) yet still have no coordinates at all.
      */
     private function dispatchLocateForOpenEntries(int $tripId): void
     {
         foreach ($this->entries->findByTrip($tripId) as $entry) {
-            if (empty($entry['location_name'])) {
+            if (empty($entry['location_name']) || $entry['lat'] === null || $entry['lng'] === null) {
                 $this->jobs->dispatch('entry.locate', ['day_entry_id' => (int) $entry['id']]);
             }
         }

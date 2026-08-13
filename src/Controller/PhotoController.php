@@ -96,6 +96,13 @@ final class PhotoController
             $this->storage->deleteAll($storageId);
         }
 
+        // confirm-remember.js's inline-delete path: the photo tile is
+        // already removed client-side, no navigation happens for a flash
+        // message or redirect target to matter.
+        if ($request->getHeaderLine('X-Inline-Delete') === '1') {
+            return $response->withStatus(204);
+        }
+
         $this->flash->add('success', t('flash.photo_deleted'));
         return $response->withHeader('Location', '/entries/' . $entry['id'] . '/edit')->withStatus(302);
     }

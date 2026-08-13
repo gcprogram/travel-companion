@@ -7,11 +7,50 @@
  *
  *   <form data-confirm-group="photo_delete" data-confirm-message="..."
  *         data-confirm-yes="..." data-confirm-no="..." data-confirm-all="...">
+ *
+ * A form additionally marked data-delete-inline submits via fetch() instead
+ * of a normal navigation, removing its closest [data-delete-item] ancestor
+ * from the page on success rather than reloading - deleting several photos
+ * or sights back to back used to reload (and jump to the top of the page)
+ * on every single one, most annoyingly once "don't ask again" was picked,
+ * since that path submitted the form natively with no interception at all.
+ * Falls back to a normal reload if the request didn't succeed (e.g. session
+ * expired), so an error is never silently swallowed.
  */
 (function () {
   var STORAGE_PREFIX = 'confirmSkip:';
   var modal = null;
   var pendingForm = null;
+
+  function submitForm(form) {
+    if (!form.hasAttribute('data-delete-inline')) {
+      form.submit();
+      return;
+    }
+
+    fetch(form.action, {
+      method: (form.method || 'POST').toUpperCase(),
+      credentials: 'same-origin',
+      // Tells the controller to skip its usual redirect+flash (see
+      // PhotoController::delete()/PoiController::delete()) - there's no
+      // navigation happening here for a flash message to show up on.
+      headers: { 'X-Inline-Delete': '1' },
+      body: new FormData(form),
+    }).then(function (response) {
+      if (!response.ok) {
+        window.location.reload();
+        return;
+      }
+      var item = form.closest('[data-delete-item]');
+      if (item) {
+        item.remove();
+      } else {
+        window.location.reload();
+      }
+    }).catch(function () {
+      window.location.reload();
+    });
+  }
 
   function closeModal() {
     if (modal) {
@@ -42,7 +81,7 @@
       var form = pendingForm;
       closeModal();
       if (form) {
-        form.submit();
+        submitForm(form);
       }
     });
     el.querySelector('[data-confirm-action="all"]').addEventListener('click', function () {
@@ -53,7 +92,7 @@
         sessionStorage.setItem(STORAGE_PREFIX + group, '1');
       }
       if (form) {
-        form.submit();
+        submitForm(form);
       }
     });
 
@@ -66,6 +105,8 @@
       return;
     }
     if (sessionStorage.getItem(STORAGE_PREFIX + form.dataset.confirmGroup) === '1') {
+      event.preventDefault();
+      submitForm(form);
       return;
     }
     event.preventDefault();
