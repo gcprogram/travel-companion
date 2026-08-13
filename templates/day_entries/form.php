@@ -60,17 +60,6 @@ $lng = $entry['lng'] ?? null;
   </div>
 
   <div class="field">
-    <label><?= e(t('entry.form.rating_label')) ?></label>
-    <div class="rating-input">
-      <?php for ($i = 5; $i >= 1; $i--): ?>
-        <input type="radio" id="rating-<?= $i ?>" name="rating" value="<?= $i ?>"
-          <?= ((int) ($entry['rating'] ?? 0) === $i) ? 'checked' : '' ?>>
-        <label for="rating-<?= $i ?>">★</label>
-      <?php endfor; ?>
-    </div>
-  </div>
-
-  <div class="field">
     <label for="location_name"><?= e(t('entry.form.location_label')) ?></label>
     <input type="text" id="location_name" name="location_name"
            value="<?= e($entry['location_name'] ?? '') ?>"

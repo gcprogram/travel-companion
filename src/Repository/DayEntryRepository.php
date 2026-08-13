@@ -42,8 +42,8 @@ final class DayEntryRepository
     {
         $now = gmdate('Y-m-d H:i:s');
         $stmt = $this->pdo->prepare(
-            'INSERT INTO day_entries (trip_id, entry_date, title, body, mood, rating, lat, lng, location_name, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO day_entries (trip_id, entry_date, title, body, mood, lat, lng, location_name, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $tripId,
@@ -51,7 +51,6 @@ final class DayEntryRepository
             $data['title'],
             $data['body'],
             $data['mood'],
-            $data['rating'],
             $data['lat'],
             $data['lng'],
             $data['location_name'],
@@ -67,7 +66,7 @@ final class DayEntryRepository
     public function update(int $id, array $data): void
     {
         $stmt = $this->pdo->prepare(
-            'UPDATE day_entries SET entry_date = ?, title = ?, body = ?, mood = ?, rating = ?, lat = ?, lng = ?, location_name = ?, updated_at = ?
+            'UPDATE day_entries SET entry_date = ?, title = ?, body = ?, mood = ?, lat = ?, lng = ?, location_name = ?, updated_at = ?
              WHERE id = ?'
         );
         $stmt->execute([
@@ -75,7 +74,6 @@ final class DayEntryRepository
             $data['title'],
             $data['body'],
             $data['mood'],
-            $data['rating'],
             $data['lat'],
             $data['lng'],
             $data['location_name'],

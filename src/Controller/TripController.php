@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Repository\DayEntryRatingRepository;
 use App\Repository\DayEntryRepository;
 use App\Repository\DayEntryWeatherHourRepository;
 use App\Repository\ShareTokenRepository;
@@ -28,6 +29,7 @@ final class TripController
         private readonly StationRepository $stations,
         private readonly DayEntryRepository $entries,
         private readonly DayEntryWeatherHourRepository $weatherHours,
+        private readonly DayEntryRatingRepository $ratings,
         private readonly ShareTokenRepository $shareTokens,
         private readonly Slugger $slugger,
         private readonly TripAccess $access,
@@ -60,6 +62,13 @@ final class TripController
                 = day_night_weather_summary($this->weatherHours->findByEntry((int) $entry['id']));
         }
 
+        // Averaged viewer ratings (day_entry_ratings) per entry, for the
+        // collapsed accordion header - only entries with at least one
+        // rating show up here (see DayEntryRatingRepository::summaryForEntries()).
+        $ratingSummaryByEntry = $this->ratings->summaryForEntries(
+            array_map(static fn (array $e): int => (int) $e['id'], $entries)
+        );
+
         // Deliberately the plain, non-token-aware check (no $request) -
         // sharing is managed by the real owner/admin only, never by someone
         // who got in via an edit share token themselves.
@@ -70,6 +79,7 @@ final class TripController
             'stations' => $this->stations->findByTrip((int) $trip['id']),
             'entries' => $entries,
             'weatherSummaryByEntry' => $weatherSummaryByEntry,
+            'ratingSummaryByEntry' => $ratingSummaryByEntry,
             'canEdit' => $this->access->canEdit($trip, $user, $request),
             'canManageSharing' => $canManageSharing,
             'shareTokens' => $canManageSharing ? $this->shareTokens->findByTrip((int) $trip['id']) : [],

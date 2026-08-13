@@ -235,6 +235,9 @@ return [
     'entry.panel_error' => 'Could not load this. Please try again.',
     'entry.weather_day' => 'Daytime weather',
     'entry.weather_night' => 'Overnight weather',
+    'entry.rating_count' => ':count rating(s)',
+    'entry.rating_none' => 'Not yet rated',
+    'entry.rating_own_hint' => 'Your rating:',
 
     'entry.form.title_new' => 'New diary entry',
     'entry.form.title_edit' => 'Edit diary entry',
@@ -242,7 +245,6 @@ return [
     'entry.form.title_label' => 'Title (optional)',
     'entry.form.body_label' => 'What happened today?',
     'entry.form.mood_label' => 'Mood',
-    'entry.form.rating_label' => 'Rating',
     'entry.form.location_label' => 'Location',
     'entry.form.location_name_placeholder' => 'e.g. Krka National Park',
     'entry.form.location_name_hint' => 'Optional. Auto-filled once a geotagged photo or a track is available, if left blank.',
