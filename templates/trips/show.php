@@ -46,6 +46,7 @@
 
 <p class="page-actions">
   <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/map"><?= e(t('trip.show.map_link')) ?></a>
+  <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/pois"><?= e(t('trip.show.pois_link')) ?></a>
 </p>
 
 <?php if ($stations !== []): ?>

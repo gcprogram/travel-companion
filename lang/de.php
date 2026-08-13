@@ -118,6 +118,7 @@ return [
     'trip.show.delete' => 'Reise löschen',
     'trip.show.delete_confirm' => 'Diese Reise wirklich löschen?',
     'trip.show.map_link' => '🗺 Karte ansehen',
+    'trip.show.pois_link' => '📍 Sehenswürdigkeiten',
 
     'trip.share.heading' => 'Teilen',
     'trip.share.hint' => 'Links ohne Login. Jeder mit dem Link kann die Reise ansehen oder (bei "Bearbeiten") auch Fotos/Tracks/Sehenswürdigkeiten hinzufügen - je nach gewählter Berechtigung. Löschen widerruft den Zugriff sofort.',
@@ -137,6 +138,8 @@ return [
 
     'trip.map.metadata_heading' => 'Reise Metadaten: :title',
     'trip.map.back_to_trip' => 'Zurück zur Reise',
+    'trip.map.back_to_map' => '🗺 Zurück zur Karte',
+    'trip.pois.heading' => 'Sehenswürdigkeiten: :title',
     'trip.map.show_route' => 'Route anzeigen',
     'trip.map.empty' => 'Noch keine Fotos oder Videos mit Standort.',
     'trip.map.lightbox_close' => 'Schließen',
