@@ -44,7 +44,7 @@ final class PhotoController
 
         $entry = $this->entries->findById((int) $photo['day_entry_id']);
         $trip = $entry !== null ? $this->trips->findById((int) $entry['trip_id']) : null;
-        if ($trip === null || !$this->tripAccess->canView($trip, $request->getAttribute('user'))) {
+        if ($trip === null || !$this->tripAccess->canView($trip, $request->getAttribute('user'), $request)) {
             // Treat photos on a private trip as "doesn't exist" for strangers, same as the trip itself.
             throw new HttpNotFoundException($request);
         }

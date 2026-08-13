@@ -234,6 +234,26 @@ form.auth-form { max-width: 420px; }
 
 .station-row__remove { justify-self: start; }
 
+/* --- Sharing --- */
+
+.share-token-list { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.share-token-list__item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-1) var(--space-2);
+}
+.share-token-list__info { display: flex; flex-direction: column; margin-right: auto; }
+.share-token-list__label { font-weight: 600; }
+.share-token-list__permission { font-size: 0.85rem; color: var(--color-muted); }
+.share-token-list__link { flex: 1 1 260px; min-width: 0; font-size: 0.85rem; font-family: monospace; }
+.share-token-form { display: flex; align-items: flex-end; gap: var(--space-2); flex-wrap: wrap; max-width: 520px; }
+.share-token-form .field { margin-bottom: 0; }
+
 /* --- Diary --- */
 
 .day-entry-list { list-style: none; margin: 0 0 var(--space-2); padding: 0; }
