@@ -1,5 +1,6 @@
 <?php
 /** @var array<string, string> $values */
+/** @var bool $placesApiKeyConfigured */
 ?>
 
 <h1><?= e(t('admin.settings_title')) ?></h1>
@@ -94,6 +95,22 @@
       <?php endforeach; ?>
     </div>
   </fieldset>
+
+  <h2><?= e(t('admin.settings_places_heading')) ?></h2>
+  <p class="field-hint"><?= e(t('admin.settings_places_hint')) ?></p>
+
+  <div class="field">
+    <label for="google_places_api_key"><?= e(t('admin.settings_places_key_label')) ?></label>
+    <input type="password" id="google_places_api_key" name="google_places_api_key" autocomplete="off"
+           placeholder="<?= $placesApiKeyConfigured ? e(t('admin.settings_places_key_configured')) : '' ?>">
+    <p class="field-hint"><?= e(t('admin.settings_places_key_hint')) ?></p>
+    <?php if ($placesApiKeyConfigured): ?>
+      <label>
+        <input type="checkbox" name="google_places_api_key_clear" value="1">
+        <?= e(t('admin.settings_places_key_clear')) ?>
+      </label>
+    <?php endif; ?>
+  </div>
 
   <button type="submit" class="btn btn-primary"><?= e(t('admin.save')) ?></button>
 </form>

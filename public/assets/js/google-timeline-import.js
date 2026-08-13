@@ -7,39 +7,51 @@
  * filters everything down before anything is sent.
  *
  * The export format has changed over the years and Google doesn't document
- * it, so field names here are pieced together from Stefan's own three prior
- * conversion-script attempts (timeline_to_gpx*.php/.py, not part of this
- * repo) rather than an official spec - still not verified against a real
- * export from inside this app, so field-name coverage is kept as wide as
- * those scripts suggest, and unrecognized entries are skipped rather than
- * thrown on:
+ * it. Field names here come from Stefan's own conversion-script attempts
+ * (timeline_to_gpx*.php/.py, not part of this repo) and, crucially, from a
+ * back-and-forth with Gemini debugging exactly this "0 results" problem
+ * against Stefan's real export - the diagnosis there is the reason this
+ * isn't a single rigid per-container parser:
  *
- * - Old Takeout "Semantic Location History" (one file per month, top-level
- *   {timelineObjects: [...]}): activitySegment (movement - points from
- *   simplifiedRawPath.points or waypointPath.waypoints, each with its own
- *   timestamp/timestampMs, coordinates as latitudeE7/longitudeE7 or
- *   latE7/lngE7 - real degrees * 1e7) and placeVisit (a stop,
- *   location.{latitudeE7,longitudeE7,name,address,placeId} - name/address
- *   are already Google-resolved plain text, no further lookup needed).
- * - New on-device export (single Timeline.json, top-level
- *   {semanticSegments: [...], rawSignals: [...]}): coordinates as degree
- *   strings like "52.520000°, 13.405000°", not E7 integers. rawSignals
- *   entries carry raw GPS/WiFi fixes (.position, or the entry itself is the
- *   position - both seen). semanticSegments carry either .timelinePath (a
- *   route's own points, field "point"), .activity (movement, start/end),
- *   or .visit.topCandidate (a stop, via .placeLocation.latLng) -
- *   topCandidate only has placeId + semanticType (Home/Work/Unknown), NOT
- *   a resolved name/address (Google doesn't embed that in this export;
- *   resolving a placeId needs the paid Places API - Stefan's third script
- *   calls Google's Place Details endpoint for this, but that needs its own
- *   deliberately-chosen API key/cost tradeoff, not wired up here), so these
- *   fall back to the same Nominatim reverse-geocoding PoiController::addStay
- *   already does for track-detected stays.
- * - Oldest raw Takeout export, top-level {locations: [...]}: flat points
- *   with timestampMs and latitudeE7/longitudeE7.
+ * - Coordinates show up as degree strings like "49.9777661°, 8.6588394°",
+ *   under DIFFERENT key names depending on where they sit: "LatLng" (capital
+ *   L) inside a raw position fix, "latLng" (lowercase) inside a place
+ *   visit's placeLocation, or as the bare string under "point" inside a
+ *   timelinePath entry.
+ * - Timestamps are equally inconsistent: "timestamp" on raw signals and
+ *   activity records, "startTime"/"endTime" on segments, "time" inside a
+ *   timelinePath entry, "deliveryTime" on a wifiScan.
+ * - Raw signal entries (position/wifiScan/activityRecord fixes) are NOT
+ *   reliably confined to one predictable top-level container - real
+ *   exports put them at varying nesting depths. A parser that only walks
+ *   one assumed path (e.g. root.rawSignals) silently finds nothing for a
+ *   file shaped differently.
  *
- * Timestamps show up as ISO-8601 strings, epoch milliseconds, or (rarely)
- * epoch seconds - parseTimestampToIso() normalizes all three.
+ * Because of that last point, raw position fixes are found via
+ * walkForRawPoints() - a full recursive walk of the entire parsed JSON
+ * that looks for the known coordinate-string patterns at ANY depth,
+ * regardless of which key contains them - rather than trusting a fixed
+ * container path. This is deliberately redundant with the structured
+ * per-segment walks below (both may find the same point - a shared "seen"
+ * set dedupes by lat/lng/timestamp). The structured walks still exist
+ * because they carry segment context the recursive walk doesn't: a
+ * semanticSegment's own startTime for a visit, or the distinction between
+ * "just a point" and "a place visit worth offering as a station".
+ *
+ * Old Takeout "Semantic Location History" (one file per month, top-level
+ * {timelineObjects: [...]}) is a structurally distinct, older generation:
+ * coordinates are latitudeE7/longitudeE7 (or short latE7/lngE7) - real
+ * degrees * 1e7, not degree strings - so it gets its own structured walk;
+ * the recursive walker only understands the string format.
+ *
+ * Place-visit names: old-format placeVisit.location already has plain-text
+ * name/address from Google, used directly. New-format visit.topCandidate
+ * only has a placeId + semanticType (Home/Work/Unknown) - Google doesn't
+ * embed a resolved name in this export generation; actually resolving a
+ * placeId needs the paid Places API (Stefan's own script calls Place
+ * Details for this) - a deliberate API-key/cost decision, not wired up
+ * here. These visits fall back to the same Nominatim reverse-geocoding
+ * PoiController::addStay already does for track-detected stays.
  *
  * The parse summary intentionally reports raw counts (points found, visits
  * found, entries skipped) so a wrong field-name assumption shows up
@@ -70,8 +82,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Both "52.5200°, 13.4050°" and plain "52.5200, 13.4050" - the ° is
-  // dropped in some exports/locales.
+  // Both "49.9777661°, 8.6588394°" and plain "49.9777661, 8.6588394" - the
+  // ° is dropped in some exports/locales.
   function parseLatLngString(value) {
     if (typeof value !== 'string') {
       return null;
@@ -108,10 +120,9 @@ document.addEventListener('DOMContentLoaded', function () {
     return { lat: lat, lng: lng };
   }
 
-  // Any of: ISO-8601 string, epoch milliseconds, epoch seconds (digit count
-  // tells the two numeric cases apart, same heuristic as Stefan's PHP
-  // scripts' parseTimestamp()). Returns a Date.parse()-compatible ISO
-  // string, or null.
+  // Any of: ISO-8601 string (with or without a numeric offset/milliseconds),
+  // epoch milliseconds, epoch seconds (digit count tells the two numeric
+  // cases apart). Returns a Date.parse()-compatible ISO string, or null.
   function parseTimestampToIso(value) {
     if (value === null || value === undefined || value === '') {
       return null;
@@ -129,19 +140,87 @@ document.addEventListener('DOMContentLoaded', function () {
     return null;
   }
 
+  // Priority mirrors the field names actually seen: raw signals and
+  // activity records use "timestamp", timelinePath entries use "time",
+  // segments use "startTime", wifiScan uses "deliveryTime".
+  function pickTimestamp(node) {
+    return parseTimestampToIso(
+      node.timestamp !== undefined ? node.timestamp
+        : node.time !== undefined ? node.time
+          : node.startTime !== undefined ? node.startTime
+            : node.deliveryTime !== undefined ? node.deliveryTime
+              : null,
+    );
+  }
+
+  // Every known shape a raw degree-string coordinate has turned up in:
+  // position.LatLng (capital L), position.latLng/placeLocation.latLng
+  // (lowercase), a bare "point" string, or LatLng/latLng directly on the
+  // node itself (position sub-object passed in on its own).
+  function pickRawCoordString(node) {
+    if (node.position && typeof node.position === 'object') {
+      return node.position.LatLng || node.position.latLng || null;
+    }
+    if (node.placeLocation && typeof node.placeLocation === 'object') {
+      return node.placeLocation.latLng || node.placeLocation.LatLng || null;
+    }
+    if (typeof node.point === 'string') {
+      return node.point;
+    }
+    if (typeof node.LatLng === 'string' || typeof node.latLng === 'string') {
+      return node.LatLng || node.latLng;
+    }
+    return null;
+  }
+
   function inRange(iso, fromMs, toMs) {
     var t = Date.parse(iso);
     return !isNaN(t) && t >= fromMs && t <= toMs;
   }
 
-  function pointTimestamp(pt) {
-    return parseTimestampToIso(
-      pt.timestampMs !== undefined ? pt.timestampMs
-        : (pt.timestamp !== undefined ? pt.timestamp : null),
-    );
+  function addPointOnce(points, seen, counts, lat, lng, iso) {
+    var key = lat + ',' + lng + ',' + iso;
+    if (seen[key]) {
+      return;
+    }
+    seen[key] = true;
+    points.push({ lat: lat, lng: lng, recordedAt: iso });
+    counts.points++;
   }
 
-  function extractOldFormat(root, fromMs, toMs, points, visits, counts) {
+  // Recursive safety net: walks the entire parsed JSON tree looking for a
+  // coordinate string at any depth, regardless of which key/container holds
+  // it - see the file header for why a fixed container path isn't reliable
+  // here. Deliberately overlaps with the structured walks below; addPointOnce
+  // dedupes.
+  function walkForRawPoints(node, fromMs, toMs, points, seen, counts) {
+    if (Array.isArray(node)) {
+      for (var i = 0; i < node.length; i++) {
+        walkForRawPoints(node[i], fromMs, toMs, points, seen, counts);
+      }
+      return;
+    }
+    if (!node || typeof node !== 'object') {
+      return;
+    }
+
+    var raw = pickRawCoordString(node);
+    if (raw) {
+      var ll = parseLatLngString(raw);
+      var iso = pickTimestamp(node);
+      if (ll && iso && inRange(iso, fromMs, toMs)) {
+        addPointOnce(points, seen, counts, ll.lat, ll.lng, iso);
+      }
+    }
+
+    for (var key in node) {
+      if (Object.prototype.hasOwnProperty.call(node, key)) {
+        walkForRawPoints(node[key], fromMs, toMs, points, seen, counts);
+      }
+    }
+  }
+
+  function extractOldFormat(root, fromMs, toMs, points, visits, seen, counts) {
     if (!Array.isArray(root.timelineObjects)) {
       return false;
     }
@@ -153,10 +232,9 @@ document.addEventListener('DOMContentLoaded', function () {
           || [];
         path.forEach(function (pt) {
           var ll = parseE7(pt);
-          var iso = pointTimestamp(pt);
+          var iso = parseTimestampToIso(pt.timestampMs !== undefined ? pt.timestampMs : pt.timestamp);
           if (ll && iso && inRange(iso, fromMs, toMs)) {
-            points.push({ lat: ll.lat, lng: ll.lng, recordedAt: iso });
-            counts.points++;
+            addPointOnce(points, seen, counts, ll.lat, ll.lng, iso);
           } else {
             counts.skipped++;
           }
@@ -167,8 +245,7 @@ document.addEventListener('DOMContentLoaded', function () {
         [[seg.startLocation, start], [seg.endLocation, end]].forEach(function (pair) {
           var ll = parseE7(pair[0]);
           if (ll && pair[1] && inRange(pair[1], fromMs, toMs)) {
-            points.push({ lat: ll.lat, lng: ll.lng, recordedAt: pair[1] });
-            counts.points++;
+            addPointOnce(points, seen, counts, ll.lat, ll.lng, pair[1]);
           }
         });
       } else if (obj.placeVisit) {
@@ -178,12 +255,12 @@ document.addEventListener('DOMContentLoaded', function () {
         var vStart = visit.duration && parseTimestampToIso(visit.duration.startTimestamp);
         var vEnd = visit.duration && parseTimestampToIso(visit.duration.endTimestamp);
         if (ll2 && vStart && inRange(vStart, fromMs, toMs)) {
-          points.push({ lat: ll2.lat, lng: ll2.lng, recordedAt: vStart });
-          counts.points++;
+          addPointOnce(points, seen, counts, ll2.lat, ll2.lng, vStart);
           visits.push({
             lat: ll2.lat, lng: ll2.lng,
             name: loc.name || null,
             address: loc.address || null,
+            placeId: loc.placeId || null,
             startedAt: vStart, endedAt: vEnd || vStart,
           });
           counts.visits++;
@@ -197,98 +274,72 @@ document.addEventListener('DOMContentLoaded', function () {
     return true;
   }
 
-  function extractNewFormat(root, fromMs, toMs, points, visits, counts) {
-    var found = false;
-
-    if (Array.isArray(root.rawSignals)) {
-      found = true;
-      root.rawSignals.forEach(function (entry) {
-        // Seen both {position: {...}} and the position fields directly on
-        // the entry itself, depending on export version.
-        var sig = entry && (entry.position || entry);
-        var ll = sig && parseLatLngString(sig.LatLng || sig.latLng);
-        var iso = sig && parseTimestampToIso(
-          sig.timestamp !== undefined ? sig.timestamp
-            : (sig.timestampMs !== undefined ? sig.timestampMs : null),
-        );
-        if (ll && iso && inRange(iso, fromMs, toMs)) {
-          points.push({ lat: ll.lat, lng: ll.lng, recordedAt: iso });
-          counts.points++;
-        } else {
-          counts.skipped++;
-        }
-      });
+  function extractSemanticSegments(root, fromMs, toMs, points, visits, seen, counts) {
+    if (!Array.isArray(root.semanticSegments)) {
+      return false;
     }
+    root.semanticSegments.forEach(function (seg) {
+      var segStart = parseTimestampToIso(seg.startTime);
+      var segEnd = parseTimestampToIso(seg.endTime);
 
-    if (Array.isArray(root.semanticSegments)) {
-      found = true;
-      root.semanticSegments.forEach(function (seg) {
-        var segStart = parseTimestampToIso(seg.startTime);
-        var segEnd = parseTimestampToIso(seg.endTime);
-
-        if (Array.isArray(seg.timelinePath)) {
-          seg.timelinePath.forEach(function (p) {
-            var ll = parseLatLngString(p.point);
-            var iso = parseTimestampToIso(p.time);
-            if (ll && iso && inRange(iso, fromMs, toMs)) {
-              points.push({ lat: ll.lat, lng: ll.lng, recordedAt: iso });
-              counts.points++;
-            } else {
-              counts.skipped++;
-            }
-          });
-        } else if (seg.activity) {
-          var act = seg.activity;
-          var s = parseLatLngString(act.start && (act.start.latLng || act.start.LatLng));
-          var e = parseLatLngString(act.end && (act.end.latLng || act.end.LatLng));
-          if (s && segStart && inRange(segStart, fromMs, toMs)) {
-            points.push({ lat: s.lat, lng: s.lng, recordedAt: segStart });
-            counts.points++;
-          }
-          if (e && segEnd && inRange(segEnd, fromMs, toMs)) {
-            points.push({ lat: e.lat, lng: e.lng, recordedAt: segEnd });
-            counts.points++;
-          }
-        } else if (seg.visit && seg.visit.topCandidate) {
-          var tc = seg.visit.topCandidate;
-          var loc = tc.placeLocation || {};
-          var ll2 = parseLatLngString(loc.latLng || loc.LatLng);
-          if (ll2 && segStart && inRange(segStart, fromMs, toMs)) {
-            points.push({ lat: ll2.lat, lng: ll2.lng, recordedAt: segStart });
-            counts.points++;
-            // No resolved name/address in this export generation - only a
-            // Home/Work/Unknown guess and an opaque placeId. Left for
-            // PoiController::addStay's existing Nominatim fallback.
-            visits.push({
-              lat: ll2.lat, lng: ll2.lng,
-              name: null, address: null,
-              startedAt: segStart, endedAt: segEnd || segStart,
-            });
-            counts.visits++;
+      if (Array.isArray(seg.timelinePath)) {
+        seg.timelinePath.forEach(function (p) {
+          var ll = parseLatLngString(p.point);
+          var iso = parseTimestampToIso(p.time);
+          if (ll && iso && inRange(iso, fromMs, toMs)) {
+            addPointOnce(points, seen, counts, ll.lat, ll.lng, iso);
           } else {
             counts.skipped++;
           }
+        });
+      }
+      if (seg.activity) {
+        var act = seg.activity;
+        var s = parseLatLngString(act.start && (act.start.latLng || act.start.LatLng));
+        var e = parseLatLngString(act.end && (act.end.latLng || act.end.LatLng));
+        if (s && segStart && inRange(segStart, fromMs, toMs)) {
+          addPointOnce(points, seen, counts, s.lat, s.lng, segStart);
+        }
+        if (e && segEnd && inRange(segEnd, fromMs, toMs)) {
+          addPointOnce(points, seen, counts, e.lat, e.lng, segEnd);
+        }
+      }
+      if (seg.visit && seg.visit.topCandidate) {
+        var tc = seg.visit.topCandidate;
+        var loc = tc.placeLocation || {};
+        var ll2 = parseLatLngString(loc.latLng || loc.LatLng);
+        if (ll2 && segStart && inRange(segStart, fromMs, toMs)) {
+          addPointOnce(points, seen, counts, ll2.lat, ll2.lng, segStart);
+          // No resolved name/address in this export generation - only a
+          // Home/Work/Unknown guess and an opaque placeId. Sent along so
+          // PoiController::addStay can try resolving it via the Places API
+          // (if an admin-configured key exists) before its Nominatim
+          // fallback.
+          visits.push({
+            lat: ll2.lat, lng: ll2.lng,
+            name: null, address: null, placeId: tc.placeId || null,
+            startedAt: segStart, endedAt: segEnd || segStart,
+          });
+          counts.visits++;
         } else {
           counts.skipped++;
         }
-      });
-    }
-
-    return found;
+      }
+    });
+    return true;
   }
 
   // Oldest raw Takeout export: no semantic segmentation at all, just a flat
   // list of location fixes.
-  function extractLocationsFormat(root, fromMs, toMs, points, counts) {
+  function extractLocationsFormat(root, fromMs, toMs, points, seen, counts) {
     if (!Array.isArray(root.locations)) {
       return false;
     }
     root.locations.forEach(function (loc) {
       var ll = parseE7(loc);
-      var iso = pointTimestamp(loc);
+      var iso = parseTimestampToIso(loc.timestampMs !== undefined ? loc.timestampMs : loc.timestamp);
       if (ll && iso && inRange(iso, fromMs, toMs)) {
-        points.push({ lat: ll.lat, lng: ll.lng, recordedAt: iso });
-        counts.points++;
+        addPointOnce(points, seen, counts, ll.lat, ll.lng, iso);
       } else {
         counts.skipped++;
       }
@@ -334,6 +385,7 @@ document.addEventListener('DOMContentLoaded', function () {
       ['lng', String(visit.lng)],
       ['name', visit.name || ''],
       ['address', visit.address || ''],
+      ['place_id', visit.placeId || ''],
       ['started_at', visit.startedAt],
       ['ended_at', visit.endedAt],
     ].forEach(function (pair) {
@@ -380,15 +432,19 @@ document.addEventListener('DOMContentLoaded', function () {
         var range = dateInputToRangeMs();
         var points = [];
         var visits = [];
+        var seen = {};
         var counts = { points: 0, visits: 0, skipped: 0 };
 
-        var recognized = extractOldFormat(root, range.fromMs, range.toMs, points, visits, counts);
-        recognized = extractNewFormat(root, range.fromMs, range.toMs, points, visits, counts) || recognized;
-        recognized = extractLocationsFormat(root, range.fromMs, range.toMs, points, counts) || recognized;
+        var recognized = extractOldFormat(root, range.fromMs, range.toMs, points, visits, seen, counts);
+        recognized = extractSemanticSegments(root, range.fromMs, range.toMs, points, visits, seen, counts) || recognized;
+        recognized = extractLocationsFormat(root, range.fromMs, range.toMs, points, seen, counts) || recognized;
+        // Always runs, format-agnostic - catches raw position/wifi fixes
+        // wherever they actually live in this particular export.
+        walkForRawPoints(root, range.fromMs, range.toMs, points, seen, counts);
 
         fileInput.disabled = false;
 
-        if (!recognized) {
+        if (!recognized && points.length === 0) {
           setStatus(fileInput.dataset.msgUnrecognized || '');
           return;
         }

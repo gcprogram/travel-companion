@@ -383,6 +383,12 @@ return [
     'admin.settings_poi_search_radius_hint' => 'Larger values find more, but put more load on the free OpenStreetMap service.',
     'admin.settings_poi_photo_match' => 'Photo matching: max distance (metres)',
     'admin.settings_poi_photo_match_hint' => 'How close a photo must be to a sight to be assigned to it. Also decides what "remove sights without photos" clears out — set too small, places you actually visited disappear.',
+    'admin.settings_places_heading' => 'Google Places API',
+    'admin.settings_places_hint' => "Used to resolve a placeId from a Google Timeline import into a name and address (the new Timeline export generation only provides the placeId, no plain text). Incurs per-request cost from Google — the key is stored encrypted.",
+    'admin.settings_places_key_label' => 'API key',
+    'admin.settings_places_key_configured' => 'Configured — enter a new key to change it',
+    'admin.settings_places_key_hint' => 'Leave blank to keep the stored key.',
+    'admin.settings_places_key_clear' => 'Remove the stored key',
     'admin.settings_poi_categories' => 'Types searched by default',
     'admin.settings_saved' => 'Settings saved.',
 

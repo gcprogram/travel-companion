@@ -383,6 +383,12 @@ return [
     'admin.settings_poi_search_radius_hint' => 'Größere Werte finden mehr, belasten aber den kostenlosen OpenStreetMap-Dienst stärker.',
     'admin.settings_poi_photo_match' => 'Foto-Zuordnung: max. Abstand (Meter)',
     'admin.settings_poi_photo_match_hint' => 'Wie nah ein Foto an einer Sehenswürdigkeit sein muss, damit es ihr zugeordnet wird. Entscheidet auch, was "Sehenswürdigkeiten ohne Fotos entfernen" wegräumt — zu klein gewählt, verschwinden tatsächlich besuchte Orte.',
+    'admin.settings_places_heading' => 'Google Places API',
+    'admin.settings_places_hint' => 'Wird verwendet, um eine PlaceId aus einem Google-Timeline-Import in Name und Adresse aufzulösen (neue Timeline-Exportgeneration liefert nur die PlaceId, keinen Klartext). Verursacht Kosten pro Abfrage bei Google — der Key wird verschlüsselt gespeichert.',
+    'admin.settings_places_key_label' => 'API-Key',
+    'admin.settings_places_key_configured' => 'Hinterlegt — zum Ändern neuen Key eingeben',
+    'admin.settings_places_key_hint' => 'Leer lassen, um den gespeicherten Key zu behalten.',
+    'admin.settings_places_key_clear' => 'Gespeicherten Key entfernen',
     'admin.settings_poi_categories' => 'Standardmäßig gesuchte Arten',
     'admin.settings_saved' => 'Einstellungen gespeichert.',
 

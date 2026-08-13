@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Repository\SettingsRepository;
+use App\Support\Env;
 
 /**
  * Admin-changeable runtime configuration, DB-backed with hardcoded
@@ -13,6 +14,15 @@ use App\Repository\SettingsRepository;
  *
  * Note: always resolve values inside services at call time, never in
  * container factories - the compiled DI container would freeze them.
+ *
+ * getSecret()/setSecret() store an API-key-shaped value encrypted at rest
+ * (sodium_crypto_secretbox) using APP_KEY (.env, never in the DB) as the
+ * encryption key - the documented decision for KI-provider keys in
+ * CLAUDE.md, first actually used here for the Google Places API key. A row
+ * in the settings table with an empty value or a value that fails to
+ * decrypt (wrong/rotated APP_KEY) is treated as "not configured" rather
+ * than throwing, since a broken key is cosmetically identical to a missing
+ * one from every caller's perspective.
  */
 final class Settings
 {
@@ -47,6 +57,8 @@ final class Settings
         // Which categories discovery looks for, comma-separated. 'other'
         // is a manual-entry-only category, never searched for.
         'poi.categories' => 'museum,zoo,attraction,viewpoint,monument,sacred_building',
+        // Encrypted (see getSecret()/setSecret()) - never a plaintext default.
+        'google.places_api_key' => '',
     ];
 
     /** @var array<string, string>|null */
@@ -93,5 +105,61 @@ final class Settings
             $out[$key] = $this->get($key);
         }
         return $out;
+    }
+
+    /**
+     * Decrypted value of an encrypted setting, or null if unset/unreadable.
+     * Never returns the raw stored ciphertext.
+     */
+    public function getSecret(string $key): ?string
+    {
+        $stored = $this->get($key);
+        if ($stored === '') {
+            return null;
+        }
+        return $this->decrypt($stored);
+    }
+
+    /**
+     * @param ?string $value null or '' clears the stored secret
+     */
+    public function setSecret(string $key, ?string $value): void
+    {
+        if ($value === null || $value === '') {
+            $this->set($key, '');
+            return;
+        }
+        $this->set($key, $this->encrypt($value));
+    }
+
+    private function encrypt(string $plaintext): string
+    {
+        $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+        $cipher = sodium_crypto_secretbox($plaintext, $nonce, $this->encryptionKey());
+        return base64_encode($nonce . $cipher);
+    }
+
+    private function decrypt(string $encoded): ?string
+    {
+        $raw = base64_decode($encoded, true);
+        if ($raw === false || strlen($raw) <= SODIUM_CRYPTO_SECRETBOX_NONCEBYTES) {
+            return null;
+        }
+        $nonce = substr($raw, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+        $cipher = substr($raw, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+        $plain = sodium_crypto_secretbox_open($cipher, $nonce, $this->encryptionKey());
+        return $plain === false ? null : $plain;
+    }
+
+    private function encryptionKey(): string
+    {
+        $encoded = Env::require('APP_KEY');
+        $key = base64_decode($encoded, true);
+        if ($key === false || strlen($key) !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
+            throw new \RuntimeException(
+                'APP_KEY must be a base64-encoded ' . SODIUM_CRYPTO_SECRETBOX_KEYBYTES . '-byte key (see .env.example).'
+            );
+        }
+        return $key;
     }
 }
