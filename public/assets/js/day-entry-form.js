@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   var key = form.dataset.draftKey;
-  var fields = ['entry_date', 'title', 'body', 'mood', 'rating'];
+  var fields = ['entry_date', 'title', 'body', 'mood'];
 
   function currentValues() {
     var data = {};

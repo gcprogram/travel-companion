@@ -235,6 +235,9 @@ return [
     'entry.panel_error' => 'Konnte nicht geladen werden. Bitte erneut versuchen.',
     'entry.weather_day' => 'Tageswetter',
     'entry.weather_night' => 'Nachtwetter',
+    'entry.rating_count' => ':count Bewertung(en)',
+    'entry.rating_none' => 'Noch keine Bewertung',
+    'entry.rating_own_hint' => 'Deine Bewertung:',
 
     'entry.form.title_new' => 'Neuer Tagebucheintrag',
     'entry.form.title_edit' => 'Tagebucheintrag bearbeiten',
@@ -242,7 +245,6 @@ return [
     'entry.form.title_label' => 'Titel (optional)',
     'entry.form.body_label' => 'Was ist heute passiert?',
     'entry.form.mood_label' => 'Stimmung',
-    'entry.form.rating_label' => 'Bewertung',
     'entry.form.location_label' => 'Standort',
     'entry.form.location_name_placeholder' => 'z. B. Nationalpark Krka',
     'entry.form.location_name_hint' => 'Optional. Wird automatisch befüllt, sobald ein Foto mit Standort oder ein Track vorliegt - falls leer gelassen.',

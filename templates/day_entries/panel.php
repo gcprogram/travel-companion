@@ -2,7 +2,9 @@
 /** @var array<string, mixed> $entry */
 /** @var list<array<string, mixed>> $photos */
 /** @var list<array<string, mixed>> $videos */
-/** @var list<array<string, mixed>> $weatherHours */
+/** @var array{average: ?float, count: int} $ratingSummary */
+/** @var ?int $ownRating */
+/** @var bool $canRate */
 /** @var bool $canEdit */
 ?>
 
@@ -15,6 +17,35 @@
     <?= e(weather_description((int) $entry['weather_code'])) ?>, <?= e(number_format((float) $entry['weather_temp_c'], 1, ',', '.')) ?> °C
   </p>
 <?php endif; ?>
+
+<div class="entry-rating" data-rating-widget
+     data-msg-count-template="<?= e(t('entry.rating_count', ['count' => ':count'])) ?>"
+     data-msg-none="<?= e(t('entry.rating_none')) ?>">
+  <p class="entry-rating__summary" data-rating-summary>
+    <?php if ($ratingSummary['average'] !== null): ?>
+      <?= str_repeat('★', (int) round($ratingSummary['average'])) . str_repeat('☆', 5 - (int) round($ratingSummary['average'])) ?>
+      <?= e(number_format($ratingSummary['average'], 1)) ?>
+      (<?= e(t('entry.rating_count', ['count' => $ratingSummary['count']])) ?>)
+    <?php else: ?>
+      <?= e(t('entry.rating_none')) ?>
+    <?php endif; ?>
+  </p>
+
+  <?php if ($canRate): ?>
+    <form data-rating-form action="/entries/<?= (int) $entry['id'] ?>/rate" method="post">
+      <?= $csrf->field() ?>
+      <p class="field-hint"><?= e(t('entry.rating_own_hint')) ?></p>
+      <div class="rating-input">
+        <?php for ($i = 5; $i >= 1; $i--): ?>
+          <input type="radio" id="own-rating-<?= (int) $entry['id'] ?>-<?= $i ?>" name="rating" value="<?= $i ?>"
+            data-rating-input
+            <?= $ownRating === $i ? 'checked' : '' ?>>
+          <label for="own-rating-<?= (int) $entry['id'] ?>-<?= $i ?>">★</label>
+        <?php endfor; ?>
+      </div>
+    </form>
+  <?php endif; ?>
+</div>
 
 <?php if ($weatherHours !== []): ?>
   <details class="weather-hours">

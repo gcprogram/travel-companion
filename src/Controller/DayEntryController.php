@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Repository\DayEntryRatingRepository;
 use App\Repository\DayEntryRepository;
 use App\Repository\DayEntryWeatherHourRepository;
 use App\Repository\JobRepository;
@@ -17,6 +18,7 @@ use App\Support\Flash;
 use App\Support\View;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Slim\Exception\HttpForbiddenException;
 use Slim\Exception\HttpNotFoundException;
 
 final class DayEntryController
@@ -29,6 +31,7 @@ final class DayEntryController
         private readonly PhotoRepository $photos,
         private readonly VideoRepository $videos,
         private readonly DayEntryWeatherHourRepository $weatherHours,
+        private readonly DayEntryRatingRepository $ratings,
         private readonly TripRepository $trips,
         private readonly JobRepository $jobs,
         private readonly DayEntryAccess $access,
@@ -194,7 +197,8 @@ final class DayEntryController
         }
 
         $trip = $this->trips->findById((int) $entry['trip_id']);
-        if ($trip === null || !$this->tripAccess->canView($trip, $request->getAttribute('user'), $request)) {
+        $user = $request->getAttribute('user');
+        if ($trip === null || !$this->tripAccess->canView($trip, $user, $request)) {
             throw new HttpNotFoundException($request);
         }
 
@@ -203,8 +207,55 @@ final class DayEntryController
             'photos' => $this->photos->findByEntry((int) $entry['id']),
             'videos' => $this->videos->findByEntry((int) $entry['id']),
             'weatherHours' => $this->weatherHours->findByEntry((int) $entry['id']),
-            'canEdit' => $this->tripAccess->canEdit($trip, $request->getAttribute('user'), $request),
+            'ratingSummary' => $this->ratings->summaryForEntry((int) $entry['id']),
+            // Ratings are a "member" thing (see rate() below) - a genuine
+            // login, not a share-token grant, so this stays null for
+            // anonymous share-link visitors even though they can view the panel.
+            'ownRating' => $user !== null ? $this->ratings->findForUser((int) $entry['id'], (int) $user['id']) : null,
+            'canRate' => $user !== null,
+            'canEdit' => $this->tripAccess->canEdit($trip, $user, $request),
         ], layout: null);
+    }
+
+    /**
+     * A logged-in viewer's own star rating on an entry (1-5, or absent to
+     * clear it) - deliberately requires a genuine login (checked directly
+     * against the 'user' request attribute, not RequireLogin/canEdit),
+     * since a share-token grant alone doesn't make someone a "member" for
+     * rating purposes. Always JSON: only ever called from panel.php's own
+     * fetch(), no plain-form fallback needed.
+     */
+    public function rate(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $user = $request->getAttribute('user');
+        if ($user === null) {
+            throw new HttpForbiddenException($request);
+        }
+
+        $entry = $this->entries->findById((int) $args['id']);
+        if ($entry === null) {
+            throw new HttpNotFoundException($request);
+        }
+        $trip = $this->trips->findById((int) $entry['trip_id']);
+        if ($trip === null || !$this->tripAccess->canView($trip, $user, $request)) {
+            throw new HttpNotFoundException($request);
+        }
+
+        $body = (array) $request->getParsedBody();
+        $rating = $this->validRatingOrNull($body['rating'] ?? null);
+        if ($rating === null) {
+            $this->ratings->delete((int) $entry['id'], (int) $user['id']);
+        } else {
+            $this->ratings->upsert((int) $entry['id'], (int) $user['id'], $rating);
+        }
+
+        $summary = $this->ratings->summaryForEntry((int) $entry['id']);
+        $response->getBody()->write((string) json_encode([
+            'average' => $summary['average'],
+            'count' => $summary['count'],
+            'ownRating' => $rating,
+        ], JSON_THROW_ON_ERROR));
+        return $response->withHeader('Content-Type', 'application/json');
     }
 
     public function delete(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -239,7 +290,6 @@ final class DayEntryController
             'title' => $this->nullable($body['title'] ?? null),
             'body' => $this->nullable($body['body'] ?? null),
             'mood' => $this->validMoodOrNull($body['mood'] ?? null),
-            'rating' => $this->validRatingOrNull($body['rating'] ?? null),
             'lat' => null,
             'lng' => null,
             'location_name' => $this->nullable($body['location_name'] ?? null),

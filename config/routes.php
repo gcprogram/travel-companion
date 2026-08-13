@@ -117,6 +117,12 @@ return static function (App $app): void {
     // body/photos/videos on first expand instead of shipping them all upfront.
     $app->get('/entries/{id:[0-9]+}/panel', [DayEntryController::class, 'panel']);
 
+    // Deliberately outside the RequireLogin group below: that group also
+    // lets a share-token grant through, but a star rating needs a genuine
+    // login (checked inside the controller against the real 'user'
+    // attribute) - a share-link visitor isn't a "member" for this purpose.
+    $app->post('/entries/{id:[0-9]+}/rate', [DayEntryController::class, 'rate']);
+
     // Same visibility rule as the trip page itself, checked inside the controller.
     $app->get('/trip/{slug}/map', [TripMapController::class, 'show']);
     $app->get('/trip/{slug}/map/data', [TripMapController::class, 'data']);

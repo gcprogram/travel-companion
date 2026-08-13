@@ -3,6 +3,7 @@
 /** @var list<array<string, mixed>> $stations */
 /** @var list<array<string, mixed>> $entries */
 /** @var array<int, array{day: ?array{tempC: float, code: ?int}, night: ?array{tempC: float, code: ?int}}> $weatherSummaryByEntry */
+/** @var array<int, array{average: float, count: int}> $ratingSummaryByEntry */
 /** @var bool $canEdit */
 /** @var bool $canManageSharing */
 /** @var list<array<string, mixed>> $shareTokens */
@@ -83,8 +84,12 @@
             <?php if ($entry['mood'] !== null): ?>
               <span class="day-entry-card__mood" title="<?= e(mood_label($entry['mood'])) ?>"><?= mood_emoji($entry['mood']) ?></span>
             <?php endif; ?>
-            <?php if ($entry['rating'] !== null): ?>
-              <span class="day-entry-card__rating"><?= str_repeat('★', (int) $entry['rating']) . str_repeat('☆', 5 - (int) $entry['rating']) ?></span>
+            <?php $ratingSummary = $ratingSummaryByEntry[(int) $entry['id']] ?? null; ?>
+            <?php if ($ratingSummary !== null): ?>
+              <?php $ratingRounded = (int) round($ratingSummary['average']); ?>
+              <span class="day-entry-card__rating" title="<?= e(t('entry.rating_count', ['count' => $ratingSummary['count']])) ?>">
+                <?= str_repeat('★', $ratingRounded) . str_repeat('☆', 5 - $ratingRounded) ?>
+              </span>
             <?php endif; ?>
             <span class="day-entry-card__chevron" aria-hidden="true">▾</span>
           </span>
@@ -180,3 +185,4 @@
 <script src="/assets/js/vendor/leaflet.js"></script>
 <script src="/assets/js/trip-map.js"></script>
 <script src="/assets/js/day-entry-accordion.js"></script>
+<script src="/assets/js/day-entry-rating.js"></script>
