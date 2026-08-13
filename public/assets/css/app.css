@@ -267,10 +267,7 @@ form.auth-form { max-width: 420px; }
 }
 
 .day-entry-card__header {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  display: block;
   width: 100%;
   background: none;
   border: none;
@@ -282,11 +279,26 @@ form.auth-form { max-width: 420px; }
   cursor: pointer;
 }
 
+.day-entry-card__header-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .day-entry-card__date { font-weight: 600; }
 .day-entry-card__title { font-family: var(--font-display); }
 .day-entry-card__mood { font-size: 1.1rem; }
 .day-entry-card__rating { color: var(--color-accent); letter-spacing: 0.1rem; }
 .day-entry-card__weather { color: var(--color-muted); font-size: 0.9rem; }
+
+.day-entry-card__weather-summary {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
 
 .day-entry-card__chevron {
   margin-left: auto;

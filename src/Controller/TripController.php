@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Repository\DayEntryRepository;
+use App\Repository\DayEntryWeatherHourRepository;
 use App\Repository\ShareTokenRepository;
 use App\Repository\StationRepository;
 use App\Repository\TripRepository;
@@ -26,6 +27,7 @@ final class TripController
         private readonly TripRepository $trips,
         private readonly StationRepository $stations,
         private readonly DayEntryRepository $entries,
+        private readonly DayEntryWeatherHourRepository $weatherHours,
         private readonly ShareTokenRepository $shareTokens,
         private readonly Slugger $slugger,
         private readonly TripAccess $access,
@@ -49,6 +51,15 @@ final class TripController
 
         $entries = $this->entries->findByTrip((int) $trip['id']);
 
+        // Compact day/night reading per entry for the collapsed accordion
+        // header (see day_night_weather_summary()) - cheap (24 small rows
+        // per entry, no media), unlike the photos/videos that stay lazy.
+        $weatherSummaryByEntry = [];
+        foreach ($entries as $entry) {
+            $weatherSummaryByEntry[(int) $entry['id']]
+                = day_night_weather_summary($this->weatherHours->findByEntry((int) $entry['id']));
+        }
+
         // Deliberately the plain, non-token-aware check (no $request) -
         // sharing is managed by the real owner/admin only, never by someone
         // who got in via an edit share token themselves.
@@ -58,6 +69,7 @@ final class TripController
             'trip' => $trip,
             'stations' => $this->stations->findByTrip((int) $trip['id']),
             'entries' => $entries,
+            'weatherSummaryByEntry' => $weatherSummaryByEntry,
             'canEdit' => $this->access->canEdit($trip, $user, $request),
             'canManageSharing' => $canManageSharing,
             'shareTokens' => $canManageSharing ? $this->shareTokens->findByTrip((int) $trip['id']) : [],

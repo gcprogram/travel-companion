@@ -2,6 +2,7 @@
 /** @var array<string, mixed> $trip */
 /** @var list<array<string, mixed>> $stations */
 /** @var list<array<string, mixed>> $entries */
+/** @var array<int, array{day: ?array{tempC: float, code: ?int}, night: ?array{tempC: float, code: ?int}}> $weatherSummaryByEntry */
 /** @var bool $canEdit */
 /** @var bool $canManageSharing */
 /** @var list<array<string, mixed>> $shareTokens */
@@ -72,17 +73,34 @@
           data-msg-loading="<?= e(t('entry.panel_loading')) ?>"
           data-msg-error="<?= e(t('entry.panel_error')) ?>">
         <button type="button" class="day-entry-card__header" data-day-entry-toggle aria-expanded="false">
-          <span class="day-entry-card__date"><?= e(format_date($entry['entry_date'])) ?></span>
-          <?php if (!empty($entry['title'])): ?>
-            <span class="day-entry-card__title"><?= e($entry['title']) ?></span>
+          <span class="day-entry-card__header-row">
+            <span class="day-entry-card__date"><?= e(format_date($entry['entry_date'])) ?></span>
+            <?php if (!empty($entry['title'])): ?>
+              <span class="day-entry-card__title"><?= e($entry['title']) ?></span>
+            <?php endif; ?>
+            <?php if ($entry['mood'] !== null): ?>
+              <span class="day-entry-card__mood" title="<?= e(mood_label($entry['mood'])) ?>"><?= mood_emoji($entry['mood']) ?></span>
+            <?php endif; ?>
+            <?php if ($entry['rating'] !== null): ?>
+              <span class="day-entry-card__rating"><?= str_repeat('★', (int) $entry['rating']) . str_repeat('☆', 5 - (int) $entry['rating']) ?></span>
+            <?php endif; ?>
+            <span class="day-entry-card__chevron" aria-hidden="true">▾</span>
+          </span>
+          <?php $weatherSummary = $weatherSummaryByEntry[(int) $entry['id']] ?? ['day' => null, 'night' => null]; ?>
+          <?php if ($weatherSummary['day'] !== null || $weatherSummary['night'] !== null): ?>
+            <span class="day-entry-card__weather-summary">
+              <?php if ($weatherSummary['day'] !== null): ?>
+                <span title="<?= e(t('entry.weather_day')) ?>">
+                  <?= weather_emoji($weatherSummary['day']['code']) ?> <?= e(number_format($weatherSummary['day']['tempC'], 0)) ?>°C
+                </span>
+              <?php endif; ?>
+              <?php if ($weatherSummary['night'] !== null): ?>
+                <span title="<?= e(t('entry.weather_night')) ?>">
+                  🌙 <?= e(number_format($weatherSummary['night']['tempC'], 0)) ?>°C
+                </span>
+              <?php endif; ?>
+            </span>
           <?php endif; ?>
-          <?php if ($entry['mood'] !== null): ?>
-            <span class="day-entry-card__mood" title="<?= e(mood_label($entry['mood'])) ?>"><?= mood_emoji($entry['mood']) ?></span>
-          <?php endif; ?>
-          <?php if ($entry['rating'] !== null): ?>
-            <span class="day-entry-card__rating"><?= str_repeat('★', (int) $entry['rating']) . str_repeat('☆', 5 - (int) $entry['rating']) ?></span>
-          <?php endif; ?>
-          <span class="day-entry-card__chevron" aria-hidden="true">▾</span>
         </button>
         <div class="day-entry-card__body" data-day-entry-body hidden></div>
       </li>
