@@ -229,6 +229,12 @@ return [
 
     'entry.edit' => 'Edit',
     'entry.delete' => 'Delete',
+    'entry.weather_hourly_toggle' => 'Show hourly weather',
+    'entry.weather_hour' => 'Time',
+    'entry.weather_temp' => 'Temp',
+    'entry.weather_feels_like' => 'Feels like',
+    'entry.weather_rain' => 'Rain',
+    'entry.weather_wind' => 'Wind',
     'entry.delete_confirm' => 'Really delete this diary entry?',
 
     'entry.form.title_new' => 'New diary entry',

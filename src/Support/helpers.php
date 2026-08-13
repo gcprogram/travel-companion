@@ -103,6 +103,32 @@ if (!function_exists('weather_description')) {
     }
 }
 
+if (!function_exists('weather_emoji')) {
+    /**
+     * WMO weather code (Open-Meteo) -> emoji, same code groupings as
+     * weather_description() so the two always agree on what a code means.
+     * Emoji are language-neutral, so this doesn't go through the translator.
+     */
+    function weather_emoji(?int $code): string
+    {
+        if ($code === null) {
+            return '';
+        }
+        return match (true) {
+            $code === 0 => '☀️',
+            $code <= 3 => '⛅',
+            $code === 45 || $code === 48 => '🌫️',
+            $code >= 51 && $code <= 57 => '🌦️',
+            $code >= 61 && $code <= 67 => '🌧️',
+            $code >= 71 && $code <= 77 => '🌨️',
+            $code >= 80 && $code <= 82 => '🌧️',
+            $code >= 85 && $code <= 86 => '🌨️',
+            $code >= 95 => '⛈️',
+            default => '🌡️',
+        };
+    }
+}
+
 if (!function_exists('format_datetime')) {
     /**
      * 'YYYY-MM-DD HH:MM:SS' (DB, UTC) -> 'DD.MM.YYYY HH:MM' (display).

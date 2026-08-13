@@ -280,6 +280,14 @@ form.auth-form { max-width: 420px; }
 .day-entry-card__rating { color: var(--color-accent); letter-spacing: 0.1rem; }
 .day-entry-card__weather { color: var(--color-muted); font-size: 0.9rem; }
 
+.weather-hours { margin: 0.4rem 0; font-size: 0.9rem; }
+.weather-hours summary { cursor: pointer; color: var(--color-brand); }
+.weather-hours__scroll { overflow-x: auto; margin-top: 0.4rem; }
+.weather-hours__table { border-collapse: collapse; white-space: nowrap; }
+.weather-hours__table th, .weather-hours__table td { padding: 0.25rem 0.6rem; text-align: center; }
+.weather-hours__table thead th { color: var(--color-muted); font-weight: 600; font-size: 0.8rem; border-bottom: 1px solid var(--color-line); }
+.weather-hours__table tbody tr:nth-child(even) { background: var(--color-paper); }
+
 .photo-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));

@@ -4,6 +4,7 @@
 /** @var list<array<string, mixed>> $entries */
 /** @var array<int, list<array<string, mixed>>> $photosByEntry */
 /** @var array<int, list<array<string, mixed>>> $videosByEntry */
+/** @var array<int, list<array<string, mixed>>> $weatherHoursByEntry */
 /** @var bool $canEdit */
 /** @var bool $canManageSharing */
 /** @var list<array<string, mixed>> $shareTokens */
@@ -90,6 +91,39 @@
           <p class="day-entry-card__weather">
             <?= e(weather_description((int) $entry['weather_code'])) ?>, <?= e(number_format((float) $entry['weather_temp_c'], 1, ',', '.')) ?> °C
           </p>
+        <?php endif; ?>
+
+        <?php $entryWeatherHours = $weatherHoursByEntry[(int) $entry['id']] ?? []; ?>
+        <?php if ($entryWeatherHours !== []): ?>
+          <details class="weather-hours">
+            <summary><?= e(t('entry.weather_hourly_toggle')) ?></summary>
+            <div class="weather-hours__scroll">
+              <table class="weather-hours__table">
+                <thead>
+                  <tr>
+                    <th><?= e(t('entry.weather_hour')) ?></th>
+                    <th></th>
+                    <th><?= e(t('entry.weather_temp')) ?></th>
+                    <th><?= e(t('entry.weather_feels_like')) ?></th>
+                    <th><?= e(t('entry.weather_rain')) ?></th>
+                    <th><?= e(t('entry.weather_wind')) ?></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($entryWeatherHours as $wh): ?>
+                    <tr>
+                      <td><?= sprintf('%02d:00', (int) $wh['hour']) ?></td>
+                      <td><?= $wh['weather_code'] !== null ? weather_emoji((int) $wh['weather_code']) : '' ?></td>
+                      <td><?= $wh['temp_c'] !== null ? e(number_format((float) $wh['temp_c'], 0)) . '°C' : '–' ?></td>
+                      <td><?= $wh['feels_like_c'] !== null ? e(number_format((float) $wh['feels_like_c'], 0)) . '°C' : '–' ?></td>
+                      <td><?= $wh['precipitation_probability'] !== null ? (int) $wh['precipitation_probability'] . '%' : '–' ?></td>
+                      <td><?= $wh['wind_speed_kmh'] !== null ? e(number_format((float) $wh['wind_speed_kmh'], 0)) . ' km/h' : '–' ?></td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          </details>
         <?php endif; ?>
 
         <?php $entryPhotos = array_filter($photosByEntry[(int) $entry['id']] ?? [], static fn (array $p): bool => $p['status'] === 'ready'); ?>

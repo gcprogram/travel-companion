@@ -229,6 +229,12 @@ return [
 
     'entry.edit' => 'Bearbeiten',
     'entry.delete' => 'Löschen',
+    'entry.weather_hourly_toggle' => 'Stündliches Wetter anzeigen',
+    'entry.weather_hour' => 'Zeit',
+    'entry.weather_temp' => 'Temp.',
+    'entry.weather_feels_like' => 'Gefühlt',
+    'entry.weather_rain' => 'Regen',
+    'entry.weather_wind' => 'Wind',
     'entry.delete_confirm' => 'Diesen Tagebucheintrag wirklich löschen?',
 
     'entry.form.title_new' => 'Neuer Tagebucheintrag',
