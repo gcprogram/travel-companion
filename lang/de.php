@@ -13,7 +13,8 @@ return [
     'date_range.until' => 'bis',
 
     'flash.please_login' => 'Bitte melde dich an.',
-    'errors.csrf_invalid' => 'Ungültiges oder abgelaufenes Formular. Bitte zurückgehen, die Seite neu laden und erneut absenden.',
+    'errors.csrf_invalid' => 'Deine Sitzung ist abgelaufen oder das Formular war zu lange offen. Du wirst gleich zur Startseite weitergeleitet.',
+    'errors.bounce_continue' => 'Weiter zur Startseite',
     'flash.registration_closed' => 'Die Registrierung ist derzeit geschlossen.',
     'flash.welcome' => 'Willkommen! Dein Konto wurde erstellt.',
     'flash.registration_check_email' => 'Fast geschafft — schau in dein Postfach für den Bestätigungslink. Er ist nur ein paar Minuten gültig, also bitte zeitnah bestätigen.',
@@ -30,6 +31,7 @@ return [
     'flash.video_added' => 'Video hinzugefügt.',
     'flash.video_deleted' => 'Video gelöscht.',
 
+    'auth.logged_out' => 'Du wurdest abgemeldet. Du wirst gleich zur Startseite weitergeleitet.',
     'auth.login.title' => 'Anmelden',
     'auth.login.email' => 'E-Mail-Adresse',
     'auth.login.password' => 'Passwort',
@@ -85,6 +87,8 @@ return [
 
     'home.title' => 'Unsere Reisen',
     'home.empty' => 'Noch keine Reisen hier.',
+    'home.my_trips_title' => 'Meine Reisen',
+    'home.my_trips_empty' => 'Du hast noch keine Reisen angelegt.',
     'home.create_first' => 'Erste Reise anlegen',
     'trip.badge_private' => 'privat',
     'media.geotagged_hint' => 'Standort gespeichert',

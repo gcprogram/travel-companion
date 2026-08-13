@@ -14,6 +14,8 @@ use Psr\Http\Message\ServerRequestInterface;
 
 final class AuthController
 {
+    private const LOGOUT_BOUNCE_DELAY_SECONDS = 3;
+
     public function __construct(
         private readonly View $view,
         private readonly AuthService $auth,
@@ -115,7 +117,12 @@ final class AuthController
     public function logout(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $this->auth->logout();
-        return $this->redirect($response, '/');
+
+        return $this->view->render($response, 'errors/bounce', [
+            'message' => t('auth.logged_out'),
+            'redirectTo' => '/',
+            'headExtra' => '<meta http-equiv="refresh" content="' . self::LOGOUT_BOUNCE_DELAY_SECONDS . ';url=/">',
+        ]);
     }
 
     public function showForgot(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface

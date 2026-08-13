@@ -25,7 +25,7 @@
           <?php if ($currentUser['role'] === 'admin'): ?>
             <a href="/admin/users"><?= e(t('nav.admin')) ?></a>
           <?php endif; ?>
-          <span><?= e($currentUser['name']) ?></span>
+          <a href="/my-trips"><?= e($currentUser['name']) ?></a>
           <form method="post" action="/logout">
             <?= $csrf->field() ?>
             <button type="submit" class="btn btn-ghost"><?= e(t('nav.logout')) ?></button>

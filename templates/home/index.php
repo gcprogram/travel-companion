@@ -1,10 +1,14 @@
-<?php /** @var list<array<string, mixed>> $trips */ ?>
+<?php
+/** @var list<array<string, mixed>> $trips */
+/** @var string|null $title */
+/** @var string|null $emptyMessage */
+?>
 
-<h1><?= e(t('home.title')) ?></h1>
+<h1><?= e($title ?? t('home.title')) ?></h1>
 
 <?php if ($trips === []): ?>
   <div class="empty-state">
-    <p><?= e(t('home.empty')) ?></p>
+    <p><?= e($emptyMessage ?? t('home.empty')) ?></p>
     <?php if (!empty($currentUser)): ?>
       <a class="btn btn-primary" href="/trips/new"><?= e(t('home.create_first')) ?></a>
     <?php endif; ?>

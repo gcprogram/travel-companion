@@ -25,6 +25,7 @@ use Slim\Routing\RouteCollectorProxy;
 
 return static function (App $app): void {
     $app->get('/', [HomeController::class, 'index']);
+    $app->get('/my-trips', [HomeController::class, 'myTrips'])->add(RequireLogin::class);
 
     $app->get('/lang/{locale}', [LocaleController::class, 'set']);
 
