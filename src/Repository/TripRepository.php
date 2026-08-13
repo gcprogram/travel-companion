@@ -34,7 +34,7 @@ final class TripRepository
         }
 
         $stmt = $this->pdo->prepare(
-            $this->baseSelect() . " WHERE t.visibility = 'public' OR t.user_id = ?
+            $this->baseSelect() . " WHERE t.visibility IN ('public', 'member_only') OR t.user_id = ?
              ORDER BY t.date_start DESC, t.id DESC"
         );
         $stmt->execute([$viewerId]);
@@ -133,6 +133,26 @@ final class TripRepository
     public function delete(int $id): void
     {
         $this->pdo->prepare('DELETE FROM trips WHERE id = ?')->execute([$id]);
+    }
+
+    /**
+     * TripMetadataAutoFillHandler's write path: fills country/date_start/
+     * date_end from track/photo data, but COALESCE means it never
+     * overwrites a value that's already there - manually typed or from an
+     * earlier run of this same job, same "never resets anything manual"
+     * rule as EntryLocateHandler.
+     */
+    public function updateAutoMetadata(int $id, ?string $country, ?string $dateStart, ?string $dateEnd): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE trips SET
+                country = COALESCE(country, ?),
+                date_start = COALESCE(date_start, ?),
+                date_end = COALESCE(date_end, ?),
+                updated_at = ?
+             WHERE id = ?'
+        );
+        $stmt->execute([$country, $dateStart, $dateEnd, gmdate('Y-m-d H:i:s'), $id]);
     }
 
     /**

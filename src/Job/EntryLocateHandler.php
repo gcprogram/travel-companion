@@ -75,7 +75,7 @@ final class EntryLocateHandler implements JobHandlerInterface
 
         if ($needsName) {
             try {
-                $name = $this->geocoding->reverseGeocode($coords['lat'], $coords['lng']);
+                $name = $this->geocoding->reverseGeocode($coords['lat'], $coords['lng'])['name'];
                 if ($name !== null) {
                     $this->entries->updateLocationNameIfEmpty($entryId, $name);
                 }

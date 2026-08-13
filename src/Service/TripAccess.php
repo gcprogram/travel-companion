@@ -36,6 +36,9 @@ final class TripAccess
         if ($trip['visibility'] === 'public') {
             return true;
         }
+        if ($trip['visibility'] === 'member_only' && $user !== null) {
+            return true;
+        }
         if ($this->canEdit($trip, $user, $request)) {
             return true;
         }

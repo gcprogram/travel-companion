@@ -82,26 +82,31 @@ final class TripController
     {
         return $this->view->render($response, 'trips/form', [
             'trip' => null,
-            'stations' => [],
         ]);
     }
 
     public function store(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $user = $request->getAttribute('user');
-        [$data, $stations, $errors] = $this->validate((array) $request->getParsedBody());
+        [$data, $errors] = $this->validate((array) $request->getParsedBody());
 
         if ($errors !== []) {
             return $this->view->render($response, 'trips/form', [
                 'trip' => $data,
-                'stations' => $stations,
                 'errors' => $errors,
             ], status: 422);
         }
 
+        // country/operator/date_start/date_end aren't asked for anymore -
+        // country and the date range get auto-filled once photos/a track
+        // exist (see TripMetadataAutoFillHandler), operator stays unused
+        // for new trips entirely.
+        $data['country'] = null;
+        $data['operator'] = null;
+        $data['date_start'] = null;
+        $data['date_end'] = null;
         $data['slug'] = $this->slugger->uniqueTripSlug($data['title']);
         $tripId = $this->trips->create((int) $user['id'], $data);
-        $this->stations->replaceForTrip($tripId, $stations);
 
         $this->flash->add('success', t('flash.trip_created'));
         return $response->withHeader('Location', '/trip/' . $data['slug'])->withStatus(302);
@@ -113,23 +118,29 @@ final class TripController
 
         return $this->view->render($response, 'trips/form', [
             'trip' => $trip,
-            'stations' => $this->stations->findByTrip((int) $trip['id']),
         ]);
     }
 
     public function update(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         $trip = $this->requireEditable($request, (int) $args['id']);
-        [$data, $stations, $errors] = $this->validate((array) $request->getParsedBody());
+        [$data, $errors] = $this->validate((array) $request->getParsedBody());
 
         if ($errors !== []) {
             $data['id'] = $trip['id'];
             return $this->view->render($response, 'trips/form', [
                 'trip' => $data,
-                'stations' => $stations,
                 'errors' => $errors,
             ], status: 422);
         }
+
+        // This form no longer edits country/operator/date_start/date_end -
+        // keep whatever the trip already has (manually set earlier, or
+        // auto-filled by TripMetadataAutoFillHandler) untouched.
+        $data['country'] = $trip['country'];
+        $data['operator'] = $trip['operator'];
+        $data['date_start'] = $trip['date_start'];
+        $data['date_end'] = $trip['date_end'];
 
         // Keep the slug stable as long as the title doesn't change (links stay valid).
         $data['slug'] = $data['title'] === $trip['title']
@@ -137,7 +148,6 @@ final class TripController
             : $this->slugger->uniqueTripSlug($data['title'], (int) $trip['id']);
 
         $this->trips->update((int) $trip['id'], $data);
-        $this->stations->replaceForTrip((int) $trip['id'], $stations);
 
         $this->flash->add('success', t('flash.trip_updated'));
         return $response->withHeader('Location', '/trip/' . $data['slug'])->withStatus(302);
@@ -171,10 +181,13 @@ final class TripController
     }
 
     /**
-     * Normalizes and validates the form data.
+     * Normalizes and validates the form data. Only title/description/
+     * visibility are asked for anymore - country/operator/date range/route
+     * stations are gone from the form (see store()/update() for how those
+     * columns get filled instead).
      *
      * @param array<string, mixed> $body
-     * @return array{0: array<string, mixed>, 1: list<array{name: string, arrival_date: ?string, notes: ?string}>, 2: list<string>}
+     * @return array{0: array<string, mixed>, 1: list<string>}
      */
     private function validate(array $body): array
     {
@@ -182,54 +195,22 @@ final class TripController
 
         $data = [
             'title' => trim((string) ($body['title'] ?? '')),
-            'country' => $this->nullable($body['country'] ?? null),
-            'operator' => $this->nullable($body['operator'] ?? null),
             'description' => $this->nullable($body['description'] ?? null),
-            'date_start' => $this->validDateOrNull($body['date_start'] ?? null),
-            'date_end' => $this->validDateOrNull($body['date_end'] ?? null),
-            'visibility' => ($body['visibility'] ?? 'private') === 'public' ? 'public' : 'private',
+            'visibility' => in_array($body['visibility'] ?? null, ['public', 'member_only'], true)
+                ? $body['visibility']
+                : 'private',
         ];
 
         if (mb_strlen($data['title']) < 3) {
             $errors[] = t('validation.trip_title_min_length');
         }
-        if ($data['date_start'] !== null && $data['date_end'] !== null && $data['date_end'] < $data['date_start']) {
-            $errors[] = t('validation.trip_end_before_start');
-        }
 
-        // Stations: parallel arrays from the form (station_name[], station_date[], station_notes[])
-        $stations = [];
-        $names = (array) ($body['station_name'] ?? []);
-        $dates = (array) ($body['station_date'] ?? []);
-        $notes = (array) ($body['station_notes'] ?? []);
-        foreach ($names as $i => $name) {
-            $name = trim((string) $name);
-            if ($name === '') {
-                continue; // Skip empty rows (e.g. the template row)
-            }
-            $stations[] = [
-                'name' => mb_substr($name, 0, 190),
-                'arrival_date' => $this->validDateOrNull($dates[$i] ?? null),
-                'notes' => $this->nullable($notes[$i] ?? null),
-            ];
-        }
-
-        return [$data, $stations, $errors];
+        return [$data, $errors];
     }
 
     private function nullable(mixed $value): ?string
     {
         $value = trim((string) ($value ?? ''));
         return $value === '' ? null : $value;
-    }
-
-    private function validDateOrNull(mixed $value): ?string
-    {
-        $value = trim((string) ($value ?? ''));
-        if ($value === '') {
-            return null;
-        }
-        $dt = \DateTimeImmutable::createFromFormat('Y-m-d', $value);
-        return ($dt !== false && $dt->format('Y-m-d') === $value) ? $value : null;
     }
 }
