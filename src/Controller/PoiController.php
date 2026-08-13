@@ -6,13 +6,17 @@ namespace App\Controller;
 
 use App\Repository\JobRepository;
 use App\Repository\PlaceDetailsCacheRepository;
+use App\Repository\PoiMediaRepository;
 use App\Repository\PoiRepository;
 use App\Repository\TripRepository;
 use App\Service\GooglePlacesService;
+use App\Service\PoiApproachService;
 use App\Service\PoiDiscoveryService;
 use App\Service\ReverseGeocodingService;
+use App\Service\Settings;
 use App\Service\TripAccess;
 use App\Support\Flash;
+use App\Support\View;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Exception\HttpForbiddenException;
@@ -26,8 +30,12 @@ final class PoiController
     private const MAX_SEARCH_RADIUS_METERS = 5000;
 
     public function __construct(
+        private readonly View $view,
         private readonly TripRepository $trips,
         private readonly PoiRepository $pois,
+        private readonly PoiMediaRepository $poiMedia,
+        private readonly PoiApproachService $poiApproach,
+        private readonly Settings $settings,
         private readonly JobRepository $jobs,
         private readonly TripAccess $access,
         private readonly ReverseGeocodingService $geocoding,
@@ -35,6 +43,40 @@ final class PoiController
         private readonly PlaceDetailsCacheRepository $placeCache,
         private readonly Flash $flash,
     ) {
+    }
+
+    /**
+     * Sights as their own page (moved off the map page - it was getting
+     * overloaded, see HANDOVER.md step 5). Still needs the map itself for
+     * the "pick on map" manual-add flow and to show POI pins in context.
+     */
+    public function index(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireViewable($request, (string) $args['slug']);
+
+        $pois = $this->pois->findByTrip((int) $trip['id']);
+        $poiMedia = [];
+        foreach ($pois as $poi) {
+            $poiId = (int) $poi['id'];
+            $poiMedia[$poiId] = [
+                'photos' => $this->poiMedia->findPhotosForPoi($poiId),
+                'videos' => $this->poiMedia->findVideosForPoi($poiId),
+            ];
+        }
+
+        return $this->view->render($response, 'trips/pois', [
+            'trip' => $trip,
+            'canEdit' => $this->access->canEdit($trip, $request->getAttribute('user'), $request),
+            'pois' => $pois,
+            'poiMedia' => $poiMedia,
+            // Admin defaults pre-filling the discovery form; the form can
+            // override them for a single search (see discover() below).
+            'poiSearchRadius' => $this->settings->getInt('poi.search_radius_meters'),
+            'poiSearchCategories' => $this->settings->getList('poi.categories'),
+            'searchableCategories' => PoiDiscoveryService::searchableCategories(),
+            'poiApproach' => $this->poiApproach->computeForTrip((int) $trip['id'], $pois),
+            'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
+        ]);
     }
 
     public function discover(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -65,7 +107,7 @@ final class PoiController
         $this->jobs->dispatch('poi.discover', $payload);
 
         $this->flash->add('success', t('trip.map.poi_discover_started'));
-        return $this->redirectToMap($response, $trip);
+        return $this->redirectToPois($response, $trip);
     }
 
     /**
@@ -79,7 +121,7 @@ final class PoiController
         $removed = $this->pois->deleteUnphotographed((int) $trip['id']);
 
         $this->flash->add('success', t('trip.map.poi_unphotographed_removed', ['count' => (string) $removed]));
-        return $this->redirectToMap($response, $trip);
+        return $this->redirectToPois($response, $trip);
     }
 
     public function store(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -98,7 +140,7 @@ final class PoiController
             || (float) $lat < -90.0 || (float) $lat > 90.0 || (float) $lng < -180.0 || (float) $lng > 180.0
         ) {
             $this->flash->add('error', t('trip.map.poi_add_error'));
-            return $this->redirectToMap($response, $trip);
+            return $this->redirectToPois($response, $trip);
         }
 
         $this->pois->createManual(
@@ -112,7 +154,7 @@ final class PoiController
         );
 
         $this->flash->add('success', t('trip.map.poi_added'));
-        return $this->redirectToMap($response, $trip);
+        return $this->redirectToPois($response, $trip);
     }
 
     /**
@@ -219,7 +261,7 @@ final class PoiController
         $this->pois->setVisited((int) $poi['id'], !((bool) $poi['visited']));
 
         $trip = $this->trips->findById((int) $poi['trip_id']);
-        return $this->redirectToMap($response, $trip);
+        return $this->redirectToPois($response, $trip);
     }
 
     public function delete(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -236,10 +278,24 @@ final class PoiController
 
         $trip = $this->trips->findById((int) $poi['trip_id']);
         $this->flash->add('success', t('trip.map.poi_deleted'));
-        return $this->redirectToMap($response, $trip);
+        return $this->redirectToPois($response, $trip);
     }
 
     /**
+     * @param array<string, mixed>|null $trip
+     */
+    private function redirectToPois(ResponseInterface $response, ?array $trip): ResponseInterface
+    {
+        $location = $trip !== null ? '/trip/' . $trip['slug'] . '/pois' : '/';
+        return $response->withHeader('Location', $location)->withStatus(302);
+    }
+
+    /**
+     * addStay() alone still redirects here: turning a detected stay into a
+     * sight is a track-analysis workflow that starts on the map page (see
+     * TripMapController::detectStays()), so that's where the user should
+     * land again to see the stay disappear from the suggestion list.
+     *
      * @param array<string, mixed>|null $trip
      */
     private function redirectToMap(ResponseInterface $response, ?array $trip): ResponseInterface
@@ -266,6 +322,22 @@ final class PoiController
         }
         $dt = \DateTimeImmutable::createFromFormat('Y-m-d', $value);
         return ($dt !== false && $dt->format('Y-m-d') === $value) ? $value : null;
+    }
+
+    /**
+     * Same visibility rule as the trip page itself - the sights page is
+     * public/view-gated like the trip and map pages, not edit-gated.
+     */
+    private function requireViewable(ServerRequestInterface $request, string $slug): array
+    {
+        $trip = $this->trips->findBySlug($slug);
+        if ($trip === null) {
+            throw new HttpNotFoundException($request);
+        }
+        if (!$this->access->canView($trip, $request->getAttribute('user'), $request)) {
+            throw new HttpNotFoundException($request);
+        }
+        return $trip;
     }
 
     /**

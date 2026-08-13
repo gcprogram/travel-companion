@@ -126,6 +126,7 @@ return static function (App $app): void {
     // Same visibility rule as the trip page itself, checked inside the controller.
     $app->get('/trip/{slug}/map', [TripMapController::class, 'show']);
     $app->get('/trip/{slug}/map/data', [TripMapController::class, 'data']);
+    $app->get('/trip/{slug}/pois', [PoiController::class, 'index']);
 
     // Serving depends on the trip's visibility, not login.
     $app->get('/photos/{id:[0-9]+}/{variant}', [PhotoController::class, 'show']);

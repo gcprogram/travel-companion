@@ -118,6 +118,7 @@ return [
     'trip.show.delete' => 'Delete trip',
     'trip.show.delete_confirm' => 'Really delete this trip?',
     'trip.show.map_link' => '🗺 View map',
+    'trip.show.pois_link' => '📍 Sights',
 
     'trip.share.heading' => 'Sharing',
     'trip.share.hint' => "Login-free links. Anyone with the link can view the trip, or - with \"Edit\" - also add photos/tracks/sightseeing spots, depending on the permission chosen. Deleting a link revokes access immediately.",
@@ -137,6 +138,8 @@ return [
 
     'trip.map.metadata_heading' => 'Trip metadata: :title',
     'trip.map.back_to_trip' => 'Back to trip',
+    'trip.map.back_to_map' => '🗺 Back to map',
+    'trip.pois.heading' => 'Sights: :title',
     'trip.map.show_route' => 'Show route',
     'trip.map.empty' => 'No geotagged photos or videos yet.',
     'trip.map.lightbox_close' => 'Close',

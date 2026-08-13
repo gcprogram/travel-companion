@@ -8,14 +8,10 @@ use App\Repository\DayEntryRepository;
 use App\Repository\GeocodeCacheRepository;
 use App\Repository\JobRepository;
 use App\Repository\PhotoRepository;
-use App\Repository\PoiMediaRepository;
 use App\Repository\PoiRepository;
 use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
-use App\Service\PoiApproachService;
-use App\Service\PoiDiscoveryService;
-use App\Service\Settings;
 use App\Service\StayDetectionService;
 use App\Service\TrackSmoothingService;
 use App\Service\TripAccess;
@@ -38,43 +34,29 @@ final class TripMapController
         private readonly TrackRepository $tracks,
         private readonly TrackSmoothingService $smoothing,
         private readonly PoiRepository $pois,
-        private readonly PoiMediaRepository $poiMedia,
         private readonly TripAccess $access,
-        private readonly Settings $settings,
         private readonly StayDetectionService $stayDetection,
-        private readonly PoiApproachService $poiApproach,
         private readonly GeocodeCacheRepository $geocodeCache,
         private readonly JobRepository $jobs,
     ) {
     }
 
+    /**
+     * Sights (PoiController::index()) moved to their own page - this one is
+     * just the map + track tools + detected stays now. Still needs the POI
+     * list internally (not passed to the template) since detectStays()
+     * filters out stays that already have a nearby POI.
+     */
     public function show(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         $trip = $this->requireViewable($request, (string) $args['slug']);
-
         $pois = $this->pois->findByTrip((int) $trip['id']);
-        $poiMedia = [];
-        foreach ($pois as $poi) {
-            $poiId = (int) $poi['id'];
-            $poiMedia[$poiId] = [
-                'photos' => $this->poiMedia->findPhotosForPoi($poiId),
-                'videos' => $this->poiMedia->findVideosForPoi($poiId),
-            ];
-        }
 
         return $this->view->render($response, 'trips/map', [
             'trip' => $trip,
             'canEdit' => $this->access->canEdit($trip, $request->getAttribute('user'), $request),
             'track' => $this->trackSummary((int) $trip['id']),
-            'pois' => $pois,
-            'poiMedia' => $poiMedia,
-            // Admin defaults pre-filling the discovery form; the form can
-            // override them for a single search (see PoiController::discover).
-            'poiSearchRadius' => $this->settings->getInt('poi.search_radius_meters'),
-            'poiSearchCategories' => $this->settings->getList('poi.categories'),
-            'searchableCategories' => PoiDiscoveryService::searchableCategories(),
             'stays' => $this->detectStays((int) $trip['id'], $pois),
-            'poiApproach' => $this->poiApproach->computeForTrip((int) $trip['id'], $pois),
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);
     }
