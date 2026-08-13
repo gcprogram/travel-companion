@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Repository\DayEntryRepository;
+use App\Repository\DayEntryWeatherHourRepository;
 use App\Repository\PhotoRepository;
 use App\Repository\ShareTokenRepository;
 use App\Repository\StationRepository;
@@ -31,6 +32,7 @@ final class TripController
         private readonly PhotoRepository $photos,
         private readonly VideoRepository $videos,
         private readonly ShareTokenRepository $shareTokens,
+        private readonly DayEntryWeatherHourRepository $weatherHours,
         private readonly Slugger $slugger,
         private readonly TripAccess $access,
         private readonly MediaCleanupService $mediaCleanup,
@@ -54,9 +56,12 @@ final class TripController
         $entries = $this->entries->findByTrip((int) $trip['id']);
         $photosByEntry = [];
         $videosByEntry = [];
+        $weatherHoursByEntry = [];
         foreach ($entries as $entry) {
-            $photosByEntry[(int) $entry['id']] = $this->photos->findByEntry((int) $entry['id']);
-            $videosByEntry[(int) $entry['id']] = $this->videos->findByEntry((int) $entry['id']);
+            $entryId = (int) $entry['id'];
+            $photosByEntry[$entryId] = $this->photos->findByEntry($entryId);
+            $videosByEntry[$entryId] = $this->videos->findByEntry($entryId);
+            $weatherHoursByEntry[$entryId] = $this->weatherHours->findByEntry($entryId);
         }
 
         // Deliberately the plain, non-token-aware check (no $request) -
@@ -70,6 +75,7 @@ final class TripController
             'entries' => $entries,
             'photosByEntry' => $photosByEntry,
             'videosByEntry' => $videosByEntry,
+            'weatherHoursByEntry' => $weatherHoursByEntry,
             'canEdit' => $this->access->canEdit($trip, $user, $request),
             'canManageSharing' => $canManageSharing,
             'shareTokens' => $canManageSharing ? $this->shareTokens->findByTrip((int) $trip['id']) : [],

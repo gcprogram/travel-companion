@@ -36,9 +36,17 @@ use Psr\Log\LoggerInterface;
 final class PhotoProcessHandler implements JobHandlerInterface
 {
     private const THUMB_MAX_EDGE = 400;
-    private const WEB_MAX_EDGE = 1600;
+    // 1600/85 measured close to ~1 MB per photo on real uploads (Stefan,
+    // 2026-08-13) - well above the roadmap's ~1/10-of-original target.
+    // 1280/78 + chroma subsampling below cut a synthetic detailed test
+    // image (4000x3000, noise-heavy - no real camera photo was on hand
+    // locally) from 496 KB to 169 KB at these same two settings, ~66%
+    // smaller, still fully viewable on any screen. Real phone photos will
+    // land somewhere else since they compress differently than synthetic
+    // noise - worth re-checking actual sizes on a real upload once deployed.
+    private const WEB_MAX_EDGE = 1280;
     private const THUMB_QUALITY = 82;
-    private const WEB_QUALITY = 85;
+    private const WEB_QUALITY = 78;
 
     public function __construct(
         private readonly PhotoRepository $photos,
@@ -144,6 +152,14 @@ final class PhotoProcessHandler implements JobHandlerInterface
 
         $image->setImageFormat($format);
         $image->setImageCompressionQuality($quality);
+        if ($format === 'jpeg') {
+            // 4:2:0 chroma subsampling - halves the stored color resolution
+            // (luminance stays full-res), the standard web-JPEG tradeoff:
+            // a further meaningful size cut with no visible effect on
+            // photographic content. WebP (thumb) subsamples internally
+            // already, no equivalent Imagick setting needed there.
+            $image->setSamplingFactors(['2x2', '1x1', '1x1']);
+        }
 
         if ($meta !== null) {
             $this->embedMetadata($image, $meta);
