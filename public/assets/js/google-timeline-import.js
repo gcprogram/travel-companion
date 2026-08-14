@@ -225,12 +225,20 @@ document.addEventListener('DOMContentLoaded', function () {
       return false;
     }
     root.timelineObjects.forEach(function (obj) {
+      if (!obj || typeof obj !== 'object') {
+        counts.skipped++;
+        return;
+      }
       if (obj.activitySegment) {
         var seg = obj.activitySegment;
         var path = (seg.simplifiedRawPath && seg.simplifiedRawPath.points)
           || (seg.waypointPath && seg.waypointPath.waypoints)
           || [];
         path.forEach(function (pt) {
+          if (!pt || typeof pt !== 'object') {
+            counts.skipped++;
+            return;
+          }
           var ll = parseE7(pt);
           var iso = parseTimestampToIso(pt.timestampMs !== undefined ? pt.timestampMs : pt.timestamp);
           if (ll && iso && inRange(iso, fromMs, toMs)) {
@@ -279,11 +287,19 @@ document.addEventListener('DOMContentLoaded', function () {
       return false;
     }
     root.semanticSegments.forEach(function (seg) {
+      if (!seg || typeof seg !== 'object') {
+        counts.skipped++;
+        return;
+      }
       var segStart = parseTimestampToIso(seg.startTime);
       var segEnd = parseTimestampToIso(seg.endTime);
 
       if (Array.isArray(seg.timelinePath)) {
         seg.timelinePath.forEach(function (p) {
+          if (!p || typeof p !== 'object') {
+            counts.skipped++;
+            return;
+          }
           var ll = parseLatLngString(p.point);
           var iso = parseTimestampToIso(p.time);
           if (ll && iso && inRange(iso, fromMs, toMs)) {
@@ -336,6 +352,10 @@ document.addEventListener('DOMContentLoaded', function () {
       return false;
     }
     root.locations.forEach(function (loc) {
+      if (!loc || typeof loc !== 'object') {
+        counts.skipped++;
+        return;
+      }
       var ll = parseE7(loc);
       var iso = parseTimestampToIso(loc.timestampMs !== undefined ? loc.timestampMs : loc.timestamp);
       if (ll && iso && inRange(iso, fromMs, toMs)) {
@@ -467,8 +487,16 @@ document.addEventListener('DOMContentLoaded', function () {
           });
         }
       })
-      .catch(function () {
+      .catch(function (err) {
         fileInput.disabled = false;
+        // The generic error message alone gives no clue what actually broke
+        // (JSON.parse failure vs. an export quirk crashing one of the
+        // extract* walks) - logging it means a report of "something went
+        // wrong" can be diagnosed from the reporter's own browser console
+        // instead of needing their raw export file.
+        if (window.console && console.error) {
+          console.error('Timeline import failed:', err);
+        }
         setStatus(fileInput.dataset.msgError || '');
       });
   });
