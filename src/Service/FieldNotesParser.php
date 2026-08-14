@@ -27,6 +27,8 @@ final class FieldNotesParser
      */
     public function parse(string $text): array
     {
+        $text = $this->toUtf8($text);
+
         $result = [];
         foreach (preg_split('/\r\n|\r|\n/', trim($text)) as $line) {
             $line = trim($line);
@@ -68,5 +70,31 @@ final class FieldNotesParser
             $result[$gcCode] = ['type' => $type, 'date' => date('Y-m-d', $date)];
         }
         return $result;
+    }
+
+    /**
+     * geocaching.com's own field-notes.txt export is UTF-16LE - usually
+     * without a BOM in practice, discovered against Stefan's real download
+     * (str_getcsv()/preg_split() on raw UTF-16 bytes silently produced
+     * nothing usable: every ASCII byte is followed by a NUL byte, so line
+     * boundaries and the GC-code regex never matched). Detects a BOM when
+     * present and falls back to a byte-pattern heuristic (every other byte
+     * NUL) for the common BOM-less case.
+     */
+    private function toUtf8(string $raw): string
+    {
+        if (str_starts_with($raw, "\xFF\xFE")) {
+            return mb_convert_encoding(substr($raw, 2), 'UTF-8', 'UTF-16LE');
+        }
+        if (str_starts_with($raw, "\xFE\xFF")) {
+            return mb_convert_encoding(substr($raw, 2), 'UTF-8', 'UTF-16BE');
+        }
+        if (str_starts_with($raw, "\xEF\xBB\xBF")) {
+            return substr($raw, 3);
+        }
+        if (strlen($raw) > 4 && $raw[1] === "\0" && $raw[3] === "\0") {
+            return mb_convert_encoding($raw, 'UTF-8', 'UTF-16LE');
+        }
+        return $raw;
     }
 }

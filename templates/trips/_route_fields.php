@@ -67,6 +67,7 @@
                data-msg-unrecognized="<?= e(t('trip.map.timeline_unrecognized')) ?>"
                data-msg-uploading="<?= e(t('trip.map.timeline_uploading')) ?>"
                data-msg-error="<?= e(t('trip.map.timeline_error')) ?>"
+               data-msg-invalid-json="<?= e(t('trip.map.timeline_invalid_json')) ?>"
                data-msg-visit-unnamed="<?= e(t('trip.map.timeline_visit_unnamed')) ?>"
                data-msg-visit-add="<?= e(t('trip.map.stay_add')) ?>"
                class="visually-hidden">
