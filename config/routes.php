@@ -16,6 +16,7 @@ use App\Controller\ShareController;
 use App\Controller\TrackController;
 use App\Controller\TripController;
 use App\Controller\TripMapController;
+use App\Controller\TripPhotoController;
 use App\Controller\VideoController;
 use App\Controller\VideoUploadController;
 use App\Middleware\RequireAdmin;
@@ -76,6 +77,10 @@ return static function (App $app): void {
         // Day entries: creating hangs off the trip, editing/deleting off the entry itself.
         $group->get('/trips/{tripId:[0-9]+}/entries/new', [DayEntryController::class, 'create']);
         $group->post('/trips/{tripId:[0-9]+}/entries', [DayEntryController::class, 'store']);
+        // Find-or-create by date - what the trip-level photo/video upload
+        // page (trip-photo-upload.js) uses to resolve a day_entry_id before
+        // it can call the existing per-entry chunked-upload endpoint.
+        $group->post('/trips/{tripId:[0-9]+}/entries/for-date', [DayEntryController::class, 'resolveForDate']);
         $group->get('/entries/{id:[0-9]+}/edit', [DayEntryController::class, 'edit']);
         $group->get('/entries/{id:[0-9]+}/media-status', [DayEntryController::class, 'mediaStatus']);
         $group->post('/entries/{id:[0-9]+}', [DayEntryController::class, 'update']);
@@ -128,6 +133,7 @@ return static function (App $app): void {
     $app->get('/trip/{slug}/map', [TripMapController::class, 'show']);
     $app->get('/trip/{slug}/map/data', [TripMapController::class, 'data']);
     $app->get('/trip/{slug}/pois', [PoiController::class, 'index']);
+    $app->get('/trip/{slug}/photos', [TripPhotoController::class, 'show']);
 
     // Serving depends on the trip's visibility, not login.
     $app->get('/photos/{id:[0-9]+}/{variant}', [PhotoController::class, 'show']);
