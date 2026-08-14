@@ -457,10 +457,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
       var poiLatlngs = [];
       pois.forEach(function (poi) {
-        var icon = L.divIcon({
-          className: 'map-view__poi-pin' + (poi.visited ? ' map-view__poi-pin--visited' : ''),
-          iconSize: [16, 16],
-        });
+        // Geocaches (see PoiController::importGpx()) get their real
+        // cache_type SVG icon instead of the generic coloured dot.
+        var icon = poi.cacheIconUrl
+          ? L.divIcon({
+              className: 'map-view__poi-pin map-view__poi-pin--cache' + (poi.visited ? ' map-view__poi-pin--visited' : ''),
+              html: '<img src="' + poi.cacheIconUrl + '" alt="" width="22" height="22">',
+              iconSize: [22, 22],
+            })
+          : L.divIcon({
+              className: 'map-view__poi-pin' + (poi.visited ? ' map-view__poi-pin--visited' : ''),
+              iconSize: [16, 16],
+            });
         var marker = L.marker([poi.lat, poi.lng], { icon: icon })
           .bindTooltip(poi.name, { sticky: true })
           .addTo(map);

@@ -66,6 +66,7 @@ return static function (App $app): void {
 
         // POIs: discovery dispatches a job, everything else is direct CRUD.
         $group->post('/trips/{id:[0-9]+}/pois/discover', [PoiController::class, 'discover']);
+        $group->post('/trips/{id:[0-9]+}/pois/geocaching-gpx', [PoiController::class, 'importGpx']);
         $group->post('/trips/{id:[0-9]+}/pois/prune', [PoiController::class, 'deleteUnphotographed']);
         $group->post('/trips/{id:[0-9]+}/pois/stay', [PoiController::class, 'addStay']);
         $group->post('/trips/{id:[0-9]+}/pois', [PoiController::class, 'store']);
