@@ -2,6 +2,8 @@
 /** @var array<string, mixed> $trip */
 /** @var bool $canEdit */
 /** @var array{totalPoints: int, trimStart: int, trimEnd: int}|null $track */
+/** @var bool $wizard */
+$wizardQs = $wizard ? '?wizard=1' : '';
 ?>
 
 <div class="map-view__header">
@@ -40,7 +42,7 @@
 
     <div class="map-view__track-method">
       <strong><?= e(t('trip.map.track_method_gpx')) ?></strong>
-      <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/gpx" enctype="multipart/form-data" class="map-view__gpx-form">
+      <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/gpx<?= e($wizardQs) ?>" enctype="multipart/form-data" class="map-view__gpx-form">
         <?= $csrf->field() ?>
         <label for="gpx-file"><?= e(t('trip.map.gpx_label')) ?></label>
         <input type="file" id="gpx-file" name="gpx" accept=".gpx,application/gpx+xml">
@@ -60,7 +62,7 @@
         <label class="btn btn-ghost" for="track-folder-input"><?= e(t('trip.map.folder_pick')) ?></label>
         <input type="file" id="track-folder-input" webkitdirectory multiple
                data-track-folder-input
-               data-submit-url="/trips/<?= (int) $trip['id'] ?>/track/points"
+               data-submit-url="/trips/<?= (int) $trip['id'] ?>/track/points<?= e($wizardQs) ?>"
                data-csrf-token="<?= e($csrf->token()) ?>"
                data-msg-no-media="<?= e(t('trip.map.folder_no_media')) ?>"
                data-msg-scanning="<?= e(t('trip.map.folder_scanning')) ?>"
@@ -79,8 +81,8 @@
         <label for="timeline-file"><?= e(t('trip.map.timeline_file_label')) ?></label>
         <input type="file" id="timeline-file" accept=".json,application/json"
                data-timeline-file-input
-               data-track-submit-url="/trips/<?= (int) $trip['id'] ?>/track/points"
-               data-stay-url="/trips/<?= (int) $trip['id'] ?>/pois/stay"
+               data-track-submit-url="/trips/<?= (int) $trip['id'] ?>/track/points<?= e($wizardQs) ?>"
+               data-stay-url="/trips/<?= (int) $trip['id'] ?>/pois/stay<?= e($wizardQs) ?>"
                data-csrf-token="<?= e($csrf->token()) ?>"
                data-msg-reading="<?= e(t('trip.map.timeline_reading')) ?>"
                data-msg-parsing="<?= e(t('trip.map.timeline_parsing')) ?>"
@@ -108,7 +110,7 @@
 
     <?php if ($track !== null): ?>
       <?php if ($track['totalPoints'] > 2): ?>
-        <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/trim" class="map-view__trim-form" data-trim-slider-form>
+        <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/trim<?= e($wizardQs) ?>" class="map-view__trim-form" data-trim-slider-form>
           <?= $csrf->field() ?>
           <span class="map-view__trim-group">
             <label>
@@ -131,7 +133,7 @@
         <p class="field-hint"><?= e(t('trip.map.trim_slider_hint')) ?></p>
       <?php endif; ?>
 
-      <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/delete"
+      <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/delete<?= e($wizardQs) ?>"
             data-confirm="<?= e(t('trip.map.track_delete_confirm')) ?>">
         <?= $csrf->field() ?>
         <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.track_delete')) ?></button>
@@ -163,7 +165,7 @@
             <?= e(t('trip.map.stay_duration', ['minutes' => (string) (int) round($stay['durationSeconds'] / 60)])) ?>
           </span>
         </div>
-        <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/stay" class="stay-list__actions">
+        <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/stay<?= e($wizardQs) ?>" class="stay-list__actions">
           <?= $csrf->field() ?>
           <input type="hidden" name="lat" value="<?= e((string) $stay['lat']) ?>">
           <input type="hidden" name="lng" value="<?= e((string) $stay['lng']) ?>">
@@ -174,6 +176,14 @@
       </li>
     <?php endforeach; ?>
   </ul>
+<?php endif; ?>
+
+<?php if ($wizard && $canEdit): ?>
+  <p class="field-hint"><?= e(t('wizard.route_skip_hint')) ?></p>
+  <p class="page-actions">
+    <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/photos?wizard=1"><?= e(t('wizard.skip')) ?></a>
+    <a class="btn btn-primary" href="/trip/<?= e($trip['slug']) ?>/photos?wizard=1"><?= e(t('wizard.continue')) ?></a>
+  </p>
 <?php endif; ?>
 
 <div class="map-lightbox" data-map-lightbox hidden>

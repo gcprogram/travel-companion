@@ -18,6 +18,7 @@ use App\Service\Settings;
 use App\Service\TripAccess;
 use App\Support\Flash;
 use App\Support\View;
+use App\Support\WizardNav;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Exception\HttpForbiddenException;
@@ -77,6 +78,7 @@ final class PoiController
             'poiSearchCategories' => $this->settings->getList('poi.categories'),
             'searchableCategories' => PoiDiscoveryService::searchableCategories(),
             'poiApproach' => $this->poiApproach->computeForTrip((int) $trip['id'], $pois),
+            'wizard' => WizardNav::isActive($request),
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);
     }
@@ -109,7 +111,7 @@ final class PoiController
         $this->jobs->dispatch('poi.discover', $payload);
 
         $this->flash->add('success', t('trip.map.poi_discover_started'));
-        return $this->redirectToPois($response, $trip);
+        return $this->redirectToPois($request, $response, $trip);
     }
 
     /**
@@ -130,7 +132,7 @@ final class PoiController
         $file = $files['geocaching_gpx'] ?? null;
         if ($file === null || $file->getError() !== UPLOAD_ERR_OK) {
             $this->flash->add('error', t('trip.map.geocaching_gpx_upload_error'));
-            return $this->redirectToPois($response, $trip);
+            return $this->redirectToPois($request, $response, $trip);
         }
 
         $body = (array) $request->getParsedBody();
@@ -159,7 +161,7 @@ final class PoiController
         } else {
             $this->flash->add('success', t('trip.map.geocaching_gpx_imported', ['count' => (string) count($relevant)]));
         }
-        return $this->redirectToPois($response, $trip);
+        return $this->redirectToPois($request, $response, $trip);
     }
 
     /**
@@ -173,7 +175,7 @@ final class PoiController
         $removed = $this->pois->deleteUnphotographed((int) $trip['id']);
 
         $this->flash->add('success', t('trip.map.poi_unphotographed_removed', ['count' => (string) $removed]));
-        return $this->redirectToPois($response, $trip);
+        return $this->redirectToPois($request, $response, $trip);
     }
 
     public function store(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -192,7 +194,7 @@ final class PoiController
             || (float) $lat < -90.0 || (float) $lat > 90.0 || (float) $lng < -180.0 || (float) $lng > 180.0
         ) {
             $this->flash->add('error', t('trip.map.poi_add_error'));
-            return $this->redirectToPois($response, $trip);
+            return $this->redirectToPois($request, $response, $trip);
         }
 
         $this->pois->createManual(
@@ -206,7 +208,7 @@ final class PoiController
         );
 
         $this->flash->add('success', t('trip.map.poi_added'));
-        return $this->redirectToPois($response, $trip);
+        return $this->redirectToPois($request, $response, $trip);
     }
 
     /**
@@ -233,7 +235,7 @@ final class PoiController
             || (float) $lat < -90.0 || (float) $lat > 90.0 || (float) $lng < -180.0 || (float) $lng > 180.0
         ) {
             $this->flash->add('error', t('trip.map.poi_add_error'));
-            return $this->redirectToMap($response, $trip);
+            return $this->redirectToMap($request, $response, $trip);
         }
 
         $lat = round((float) $lat, 6);
@@ -304,7 +306,7 @@ final class PoiController
         $this->pois->setVisited($poiId, true);
 
         $this->flash->add('success', t('trip.map.stay_added', ['name' => $name]));
-        return $this->redirectToMap($response, $trip);
+        return $this->redirectToMap($request, $response, $trip);
     }
 
     public function toggleVisited(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -313,7 +315,7 @@ final class PoiController
         $this->pois->setVisited((int) $poi['id'], !((bool) $poi['visited']));
 
         $trip = $this->trips->findById((int) $poi['trip_id']);
-        return $this->redirectToPois($response, $trip);
+        return $this->redirectToPois($request, $response, $trip);
     }
 
     public function delete(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -330,15 +332,15 @@ final class PoiController
 
         $trip = $this->trips->findById((int) $poi['trip_id']);
         $this->flash->add('success', t('trip.map.poi_deleted'));
-        return $this->redirectToPois($response, $trip);
+        return $this->redirectToPois($request, $response, $trip);
     }
 
     /**
      * @param array<string, mixed>|null $trip
      */
-    private function redirectToPois(ResponseInterface $response, ?array $trip): ResponseInterface
+    private function redirectToPois(ServerRequestInterface $request, ResponseInterface $response, ?array $trip): ResponseInterface
     {
-        $location = $trip !== null ? '/trip/' . $trip['slug'] . '/pois' : '/';
+        $location = $trip !== null ? WizardNav::preserve('/trip/' . $trip['slug'] . '/pois', $request) : '/';
         return $response->withHeader('Location', $location)->withStatus(302);
     }
 
@@ -350,9 +352,9 @@ final class PoiController
      *
      * @param array<string, mixed>|null $trip
      */
-    private function redirectToMap(ResponseInterface $response, ?array $trip): ResponseInterface
+    private function redirectToMap(ServerRequestInterface $request, ResponseInterface $response, ?array $trip): ResponseInterface
     {
-        $location = $trip !== null ? '/trip/' . $trip['slug'] . '/map' : '/';
+        $location = $trip !== null ? WizardNav::preserve('/trip/' . $trip['slug'] . '/map', $request) : '/';
         return $response->withHeader('Location', $location)->withStatus(302);
     }
 

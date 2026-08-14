@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Repository\TripRepository;
 use App\Service\TripAccess;
 use App\Support\View;
+use App\Support\WizardNav;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Exception\HttpNotFoundException;
@@ -38,6 +39,7 @@ final class TripPhotoController
         return $this->view->render($response, 'trips/photos', [
             'trip' => $trip,
             'canEdit' => $this->access->canEdit($trip, $request->getAttribute('user'), $request),
+            'wizard' => WizardNav::isActive($request),
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);
     }

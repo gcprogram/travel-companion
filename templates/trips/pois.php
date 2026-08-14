@@ -7,7 +7,9 @@
 /** @var int $poiSearchRadius */
 /** @var list<string> $poiSearchCategories */
 /** @var list<string> $searchableCategories */
+/** @var bool $wizard */
 $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_building', 'other'];
+$wizardQs = $wizard ? '?wizard=1' : '';
 ?>
 
 <div class="map-view__header">
@@ -37,7 +39,7 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
 
 <?php if ($canEdit): ?>
   <h2><?= e(t('trip.map.geocaching_gpx_heading')) ?></h2>
-  <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/geocaching-gpx"
+  <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/geocaching-gpx<?= e($wizardQs) ?>"
         enctype="multipart/form-data" class="poi-search-form" data-geocaching-gpx-form>
     <?= $csrf->field() ?>
     <div class="field">
@@ -57,7 +59,7 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
 <h2><?= e(t('trip.map.poi_heading')) ?></h2>
 
 <?php if ($canEdit): ?>
-  <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/discover" class="poi-search-form">
+  <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/discover<?= e($wizardQs) ?>" class="poi-search-form">
     <?= $csrf->field() ?>
     <div class="field">
       <label for="poi-radius"><?= e(t('trip.map.poi_radius_label')) ?></label>
@@ -82,7 +84,7 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
   </form>
 
   <?php if ($pois !== []): ?>
-    <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/prune" class="page-actions"
+    <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/prune<?= e($wizardQs) ?>" class="page-actions"
           data-confirm="<?= e(t('trip.map.poi_prune_confirm')) ?>">
       <?= $csrf->field() ?>
       <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.poi_prune')) ?></button>
@@ -150,14 +152,14 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
         <?php endif; ?>
         <?php if ($canEdit): ?>
           <span class="poi-list__actions">
-            <form method="post" action="/pois/<?= (int) $poi['id'] ?>/visited" class="poi-list__action-form">
+            <form method="post" action="/pois/<?= (int) $poi['id'] ?>/visited<?= e($wizardQs) ?>" class="poi-list__action-form">
               <?= $csrf->field() ?>
               <button type="submit"
                       class="poi-list__icon-btn poi-list__icon-btn--visited<?= $poi['visited'] ? ' is-active' : '' ?>"
                       title="<?= $poi['visited'] ? e(t('trip.map.poi_mark_unvisited')) : e(t('trip.map.poi_mark_visited')) ?>"
                       aria-label="<?= $poi['visited'] ? e(t('trip.map.poi_mark_unvisited')) : e(t('trip.map.poi_mark_visited')) ?>">&#10003;</button>
             </form>
-            <form method="post" action="/pois/<?= (int) $poi['id'] ?>/delete" class="poi-list__action-form"
+            <form method="post" action="/pois/<?= (int) $poi['id'] ?>/delete<?= e($wizardQs) ?>" class="poi-list__action-form"
                   data-confirm-group="poi_delete" data-delete-inline
                   data-confirm-message="<?= e(t('trip.map.poi_delete_confirm')) ?>"
                   data-confirm-yes="<?= e(t('entry.form.confirm_yes')) ?>"
@@ -177,7 +179,7 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
 <?php endif; ?>
 
 <?php if ($canEdit): ?>
-  <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois" class="map-view__poi-form" data-poi-add-form>
+  <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois<?= e($wizardQs) ?>" class="map-view__poi-form" data-poi-add-form>
     <?= $csrf->field() ?>
     <div class="field">
       <label for="poi-name"><?= e(t('trip.map.poi_name_label')) ?></label>
@@ -207,6 +209,12 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
     </div>
     <button type="submit" class="btn btn-primary"><?= e(t('trip.map.poi_add')) ?></button>
   </form>
+<?php endif; ?>
+
+<?php if ($wizard && $canEdit): ?>
+  <p class="page-actions">
+    <a class="btn btn-primary" href="/trip/<?= e($trip['slug']) ?>"><?= e(t('wizard.finish')) ?></a>
+  </p>
 <?php endif; ?>
 
 <div class="map-lightbox" data-map-lightbox hidden>
