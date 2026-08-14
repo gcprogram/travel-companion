@@ -13,6 +13,7 @@ use App\Service\PhotoTrackGapFillService;
 use App\Service\TrackSimplifier;
 use App\Service\TripAccess;
 use App\Support\Flash;
+use App\Support\WizardNav;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Exception\HttpForbiddenException;
@@ -59,13 +60,13 @@ final class TrackController
         $file = $files['gpx'] ?? null;
         if ($file === null || $file->getError() !== UPLOAD_ERR_OK) {
             $this->flash->add('error', t('trip.map.gpx_upload_error'));
-            return $this->redirectToMap($response, $trip);
+            return $this->redirectToMap($request, $response, $trip);
         }
 
         $points = $this->gpxParser->parse($file->getStream()->getContents());
         if ($points === []) {
             $this->flash->add('error', t('trip.map.gpx_empty'));
-            return $this->redirectToMap($response, $trip);
+            return $this->redirectToMap($request, $response, $trip);
         }
 
         $points = $this->simplifier->simplify($points);
@@ -75,7 +76,7 @@ final class TrackController
         $this->jobs->dispatch('trip.metadata_refresh', ['trip_id' => (int) $trip['id']]);
 
         $this->flash->add('success', t('trip.map.gpx_uploaded'));
-        return $this->redirectToMap($response, $trip);
+        return $this->redirectToMap($request, $response, $trip);
     }
 
     /**
@@ -150,7 +151,7 @@ final class TrackController
         }
 
         $this->tracks->updateTrim((int) $track['id'], $start, $end);
-        return $this->redirectToMap($response, $trip);
+        return $this->redirectToMap($request, $response, $trip);
     }
 
     public function delete(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
@@ -159,12 +160,13 @@ final class TrackController
         $this->tracks->deleteForTrip((int) $trip['id']);
 
         $this->flash->add('success', t('trip.map.track_deleted'));
-        return $this->redirectToMap($response, $trip);
+        return $this->redirectToMap($request, $response, $trip);
     }
 
-    private function redirectToMap(ResponseInterface $response, array $trip): ResponseInterface
+    private function redirectToMap(ServerRequestInterface $request, ResponseInterface $response, array $trip): ResponseInterface
     {
-        return $response->withHeader('Location', '/trip/' . $trip['slug'] . '/map')->withStatus(302);
+        $location = WizardNav::preserve('/trip/' . $trip['slug'] . '/map', $request);
+        return $response->withHeader('Location', $location)->withStatus(302);
     }
 
     private function intOrNull(mixed $value): ?int

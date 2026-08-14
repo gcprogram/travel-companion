@@ -16,6 +16,7 @@ use App\Service\StayDetectionService;
 use App\Service\TrackSmoothingService;
 use App\Service\TripAccess;
 use App\Support\View;
+use App\Support\WizardNav;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Exception\HttpNotFoundException;
@@ -57,6 +58,7 @@ final class TripMapController
             'canEdit' => $this->access->canEdit($trip, $request->getAttribute('user'), $request),
             'track' => $this->trackSummary((int) $trip['id']),
             'stays' => $this->detectStays((int) $trip['id'], $pois),
+            'wizard' => WizardNav::isActive($request),
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);
     }

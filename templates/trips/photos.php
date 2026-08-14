@@ -1,6 +1,7 @@
 <?php
 /** @var array<string, mixed> $trip */
 /** @var bool $canEdit */
+/** @var bool $wizard */
 ?>
 
 <div class="map-view__header">
@@ -54,6 +55,13 @@
      data-msg-video-unsupported="<?= e(t('entry.form.video_unsupported')) ?>"
      data-msg-login-required="<?= e(t('entry.form.login_required')) ?>"
      data-msg-error="<?= e(t('entry.form.photo_upload_error')) ?>"></p>
+<?php endif; ?>
+
+<?php if ($wizard && $canEdit): ?>
+  <p class="page-actions">
+    <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/pois?wizard=1"><?= e(t('wizard.skip')) ?></a>
+    <a class="btn btn-primary" href="/trip/<?= e($trip['slug']) ?>/pois?wizard=1"><?= e(t('wizard.continue')) ?></a>
+  </p>
 <?php endif; ?>
 
 <script src="/assets/js/vendor/leaflet.js"></script>
