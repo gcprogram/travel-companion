@@ -310,6 +310,41 @@ form.auth-form { max-width: 420px; }
 .day-entry-card__body[hidden] { display: none; }
 .day-entry-card__loading { color: var(--color-muted); font-size: 0.9rem; }
 
+/* --- Unified trip-edit page (manage.php): exclusive accordion --- */
+
+.accordion-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.accordion-section__toggle {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.accordion-section__chevron {
+  margin-left: auto;
+  color: var(--color-muted);
+  transition: transform 0.15s ease;
+}
+.accordion-section.is-open .accordion-section__chevron { transform: rotate(-180deg); }
+
+.accordion-section__body { margin-top: var(--space-2); }
+.accordion-section__body[hidden] { display: none; }
+
 .weather-hours { margin: 0.4rem 0; font-size: 0.9rem; }
 .weather-hours summary { cursor: pointer; color: var(--color-brand); }
 .weather-hours__scroll { overflow-x: auto; margin-top: 0.4rem; }

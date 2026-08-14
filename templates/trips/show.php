@@ -126,7 +126,7 @@
 
 <?php if ($canEdit): ?>
   <div class="page-actions">
-    <a class="btn btn-ghost" href="/trips/<?= (int) $trip['id'] ?>/edit"><?= e(t('trip.show.edit')) ?></a>
+    <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/manage"><?= e(t('trip.show.edit')) ?></a>
     <form method="post" action="/trips/<?= (int) $trip['id'] ?>/delete"
           data-confirm="<?= e(t('trip.show.delete_confirm')) ?>">
       <?= $csrf->field() ?>
