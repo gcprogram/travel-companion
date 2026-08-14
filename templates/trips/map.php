@@ -46,6 +46,10 @@
         <input type="file" id="gpx-file" name="gpx" accept=".gpx,application/gpx+xml">
         <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.gpx_upload')) ?></button>
       </form>
+      <p class="field-hint">
+        <?= e(t('trip.map.geocaching_gpx_pointer')) ?>
+        <a href="/trip/<?= e($trip['slug']) ?>/pois"><?= e(t('trip.show.pois_link')) ?></a>
+      </p>
     </div>
 
     <div class="map-view__track-method">

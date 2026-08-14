@@ -20,18 +20,23 @@ namespace App\Service;
  * date in there, not literally "true"), OR the caller's own GC username
  * matching a "Found it"/"Attended"/"Webcam photo taken" log in the file's
  * <groundspeak:logs> (present in any normal PQ/c:geo export, no GSAK
- * needed). Unlike GpxImporter.kt this deliberately does NOT parse
+ * needed). A DNF (Did Not Find) is detected the same way - <gsak:DNF> or a
+ * "Didn't find it" own-log - and reported separately (never both at once:
+ * an actual find always wins over a stray older DNF log on the same
+ * cache). Unlike GpxImporter.kt this deliberately does NOT parse
  * additional/stage waypoints, personal notes, or a "My Finds" PQ override -
- * out of scope for "import found caches as sights on a trip".
+ * out of scope for "import found/DNF caches as sights on a trip".
  */
 final class GeocachingGpxParser
 {
     private const GC_CODE_PATTERN = '/^GC[0-9A-Z]{1,5}$/';
     private const FOUND_LOG_TYPES = ['found it', 'attended', 'webcam photo taken'];
+    private const DNF_LOG_TYPES = ["didn't find it", 'did not find it'];
 
     /**
      * @return list<array{gcCode: string, name: string, lat: float, lng: float,
-     *     cacheType: string, difficulty: ?float, terrain: ?float, found: bool, foundDate: ?string}>
+     *     cacheType: string, difficulty: ?float, terrain: ?float,
+     *     found: bool, foundDate: ?string, dnf: bool, dnfDate: ?string}>
      */
     public function parse(string $xml, string $username = ''): array
     {
@@ -61,7 +66,8 @@ final class GeocachingGpxParser
 
     /**
      * @return array{gcCode: string, name: string, lat: float, lng: float,
-     *     cacheType: string, difficulty: ?float, terrain: ?float, found: bool, foundDate: ?string}|null
+     *     cacheType: string, difficulty: ?float, terrain: ?float,
+     *     found: bool, foundDate: ?string, dnf: bool, dnfDate: ?string}|null
      */
     private function parseWaypoint(\DOMElement $wpt, string $username): ?array
     {
@@ -86,14 +92,27 @@ final class GeocachingGpxParser
         $terrain = $gs !== null ? $this->floatOrNull($this->childText($gs, 'terrain')) : null;
 
         $gsakExt = $this->firstChild($wpt, 'wptExtension');
-        $userFoundRaw = $gsakExt !== null ? $this->childText($gsakExt, 'UserFound') : null;
-        $gsakFound = $userFoundRaw !== null
-            && trim($userFoundRaw) !== ''
-            && !in_array(strtolower(trim($userFoundRaw)), ['false', '0'], true);
+        $gsakFound = $this->gsakFlagSet($gsakExt, 'UserFound');
+        $gsakDnf = $this->gsakFlagSet($gsakExt, 'DNF');
 
         [$ownFound, $ownFoundDate] = $gs !== null
-            ? $this->ownFoundLog($gs, $username)
+            ? $this->ownLogOfType($gs, $username, self::FOUND_LOG_TYPES)
             : [false, null];
+        $found = $gsakFound || $ownFound;
+
+        // A DNF only matters when there's no actual find - an older DNF log
+        // sitting alongside a later "Found it" (second attempt) shouldn't
+        // demote a real find.
+        $dnf = false;
+        $dnfDate = null;
+        if (!$found) {
+            $gsakDnfFlag = $gsakDnf;
+            [$ownDnf, $ownDnfDateResult] = $gs !== null
+                ? $this->ownLogOfType($gs, $username, self::DNF_LOG_TYPES)
+                : [false, null];
+            $dnf = $gsakDnfFlag || $ownDnf;
+            $dnfDate = $ownDnfDateResult;
+        }
 
         return [
             'gcCode' => $gcCode,
@@ -103,20 +122,38 @@ final class GeocachingGpxParser
             'cacheType' => $cacheType,
             'difficulty' => $difficulty,
             'terrain' => $terrain,
-            'found' => $gsakFound || $ownFound,
+            'found' => $found,
             'foundDate' => $ownFoundDate,
+            'dnf' => $dnf,
+            'dnfDate' => $dnfDate,
         ];
     }
 
     /**
-     * The date of the caller's own found log ("YYYY-MM-DD"), or null. A
+     * A GSAK boolean-ish extension flag ("UserFound"/"DNF"): true for any
+     * non-empty, non-"false" value - real GSAK exports often put a date in
+     * UserFound rather than literally "true".
+     */
+    private function gsakFlagSet(?\DOMElement $gsakExt, string $tag): bool
+    {
+        if ($gsakExt === null) {
+            return false;
+        }
+        $raw = $this->childText($gsakExt, $tag);
+        return $raw !== null && trim($raw) !== '' && !in_array(strtolower(trim($raw)), ['false', '0'], true);
+    }
+
+    /**
+     * The date of the caller's own matching log ("YYYY-MM-DD"), or null. A
      * standard PQ/c:geo export carries the cache's recent logs, so a
-     * traveller's own "Found it" is normally in there - no GSAK needed,
-     * just their GC username to match against <groundspeak:finder>.
+     * traveller's own "Found it"/"Didn't find it" is normally in there - no
+     * GSAK needed, just their GC username to match against
+     * <groundspeak:finder>.
      *
+     * @param list<string> $logTypes
      * @return array{0: bool, 1: ?string}
      */
-    private function ownFoundLog(\DOMElement $gs, string $username): array
+    private function ownLogOfType(\DOMElement $gs, string $username, array $logTypes): array
     {
         if ($username === '') {
             return [false, null];
@@ -127,7 +164,7 @@ final class GeocachingGpxParser
         }
         foreach ($this->children($logs, 'log') as $log) {
             $type = strtolower(trim((string) $this->childText($log, 'type')));
-            if (!in_array($type, self::FOUND_LOG_TYPES, true)) {
+            if (!in_array($type, $logTypes, true)) {
                 continue;
             }
             $finder = trim((string) $this->childText($log, 'finder'));

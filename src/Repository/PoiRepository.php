@@ -59,13 +59,14 @@ final class PoiRepository
     }
 
     /**
-     * A found cache from a Geocaching GPX import (GeocachingGpxParser),
+     * A found or DNF cache from a Geocaching GPX import (GeocachingGpxParser),
      * external_ref = the GC code so re-importing the same file/PQ updates
      * rather than duplicates. Mirrors upsertFromOverpass's "don't clobber
      * what the user already did" rule for visited/notes - visited only ever
-     * escalates to 1 (GREATEST), never back to 0, since a re-import missing
-     * a previously-seen found log shouldn't un-mark a real visit; notes are
-     * left untouched entirely.
+     * escalates to 1 (GREATEST), never back to 0; geocache_status only ever
+     * escalates dnf -> found, never the reverse (a later find on a second
+     * attempt shouldn't get overwritten by an older DNF log on a
+     * re-import); notes are left untouched entirely.
      */
     public function upsertFromGpxImport(
         int $tripId,
@@ -76,16 +77,18 @@ final class PoiRepository
         string $cacheType,
         ?float $difficulty,
         ?float $terrain,
-        ?string $foundDate,
+        ?string $visitDate,
+        string $geocacheStatus,
     ): void {
         $now = gmdate('Y-m-d H:i:s');
         $stmt = $this->pdo->prepare(
             "INSERT INTO trip_pois
                 (trip_id, source, external_ref, gc_code, category, cache_type, difficulty, terrain,
-                 name, lat, lng, visit_date, visited, created_at, updated_at)
-             VALUES (?, 'geocaching_gpx', ?, ?, 'geocache', ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+                 geocache_status, name, lat, lng, visit_date, visited, created_at, updated_at)
+             VALUES (?, 'geocaching_gpx', ?, ?, 'geocache', ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
              ON DUPLICATE KEY UPDATE
                 cache_type = VALUES(cache_type), difficulty = VALUES(difficulty), terrain = VALUES(terrain),
+                geocache_status = IF(VALUES(geocache_status) = 'found' OR geocache_status = 'found', 'found', VALUES(geocache_status)),
                 name = VALUES(name), lat = VALUES(lat), lng = VALUES(lng),
                 visit_date = COALESCE(visit_date, VALUES(visit_date)),
                 visited = GREATEST(visited, VALUES(visited)),
@@ -93,7 +96,7 @@ final class PoiRepository
         );
         $stmt->execute([
             $tripId, $gcCode, $gcCode, $cacheType, $difficulty, $terrain,
-            $name, $lat, $lng, $foundDate, $now, $now,
+            $geocacheStatus, $name, $lat, $lng, $visitDate, $now, $now,
         ]);
     }
 

@@ -563,6 +563,7 @@ form.auth-form { max-width: 420px; }
 .poi-list__name { font-weight: 600; }
 .poi-list__approach { font-size: 0.8rem; color: var(--color-muted); white-space: nowrap; }
 .poi-list__distance { font-weight: 400; color: var(--color-muted); font-size: 0.85em; }
+.poi-list__dnf-badge { color: var(--color-danger); }
 .poi-list__actions { margin-left: auto; display: flex; gap: 0.4rem; }
 .poi-list__action-form { display: contents; }
 .poi-list__icon-btn {
