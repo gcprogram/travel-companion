@@ -14,16 +14,19 @@ namespace App\Service;
  * because real-world exports are inconsistent about declaring the
  * groundspeak/gsak namespace prefixes they use.
  *
- * "Found" combines two independent signals (chosen deliberately over just
- * one, see HANDOVER.md step 6): a GSAK export's <gsak:UserFound> (treated as
- * found for any non-empty, non-"false" value - real GSAK exports often put a
- * date in there, not literally "true"), OR the caller's own GC username
- * matching a "Found it"/"Attended"/"Webcam photo taken" log in the file's
- * <groundspeak:logs> (present in any normal PQ/c:geo export, no GSAK
- * needed). A DNF (Did Not Find) is detected the same way - <gsak:DNF> or a
- * "Didn't find it" own-log - and reported separately (never both at once:
- * an actual find always wins over a stray older DNF log on the same
- * cache). Unlike GpxImporter.kt this deliberately does NOT parse
+ * "Found" combines up to three independent signals (chosen deliberately
+ * over just one, see HANDOVER.md step 6): a GSAK export's <gsak:UserFound>
+ * (treated as found for any non-empty, non-"false" value - real GSAK
+ * exports often put a date in there, not literally "true"), the caller's
+ * own GC username matching a "Found it"/"Attended"/"Webcam photo taken" log
+ * in the file's <groundspeak:logs> (present in any normal PQ/c:geo export,
+ * no GSAK needed), OR an optional externally-supplied field-notes map (see
+ * FieldNotesParser) keyed by GC code - a fallback for c:geo exports that
+ * simply don't carry enough of a cache's log history for the own-log match
+ * to find the traveller's own log. A DNF (Did Not Find) is detected the
+ * same way across all three sources - and reported separately (never both
+ * at once: an actual find always wins over a stray older DNF signal on the
+ * same cache). Unlike GpxImporter.kt this deliberately does NOT parse
  * additional/stage waypoints, personal notes, or a "My Finds" PQ override -
  * out of scope for "import found/DNF caches as sights on a trip".
  */
@@ -34,11 +37,12 @@ final class GeocachingGpxParser
     private const DNF_LOG_TYPES = ["didn't find it", 'did not find it'];
 
     /**
+     * @param array<string, array{type: 'found'|'dnf', date: string}> $fieldNotes
      * @return list<array{gcCode: string, name: string, lat: float, lng: float,
      *     cacheType: string, difficulty: ?float, terrain: ?float,
      *     found: bool, foundDate: ?string, dnf: bool, dnfDate: ?string}>
      */
-    public function parse(string $xml, string $username = ''): array
+    public function parse(string $xml, string $username = '', array $fieldNotes = []): array
     {
         $dom = new \DOMDocument();
         libxml_use_internal_errors(true);
@@ -53,7 +57,7 @@ final class GeocachingGpxParser
             if (!$wpt instanceof \DOMElement) {
                 continue;
             }
-            $cache = $this->parseWaypoint($wpt, trim($username));
+            $cache = $this->parseWaypoint($wpt, trim($username), $fieldNotes);
             if ($cache !== null) {
                 // A cache can legitimately appear twice (main PQ + a -wpts
                 // file, or a duplicate waypoint) - last one wins, matching
@@ -65,11 +69,12 @@ final class GeocachingGpxParser
     }
 
     /**
+     * @param array<string, array{type: 'found'|'dnf', date: string}> $fieldNotes
      * @return array{gcCode: string, name: string, lat: float, lng: float,
      *     cacheType: string, difficulty: ?float, terrain: ?float,
      *     found: bool, foundDate: ?string, dnf: bool, dnfDate: ?string}|null
      */
-    private function parseWaypoint(\DOMElement $wpt, string $username): ?array
+    private function parseWaypoint(\DOMElement $wpt, string $username, array $fieldNotes): ?array
     {
         $gcCode = $this->childText($wpt, 'name');
         if ($gcCode === null || !preg_match(self::GC_CODE_PATTERN, $gcCode)) {
@@ -98,7 +103,12 @@ final class GeocachingGpxParser
         [$ownFound, $ownFoundDate] = $gs !== null
             ? $this->ownLogOfType($gs, $username, self::FOUND_LOG_TYPES)
             : [false, null];
-        $found = $gsakFound || $ownFound;
+        $note = $fieldNotes[$gcCode] ?? null;
+        $noteFound = $note !== null && $note['type'] === 'found';
+        $found = $gsakFound || $ownFound || $noteFound;
+        if ($found && $ownFoundDate === null && $noteFound) {
+            $ownFoundDate = $note['date'];
+        }
 
         // A DNF only matters when there's no actual find - an older DNF log
         // sitting alongside a later "Found it" (second attempt) shouldn't
@@ -110,8 +120,9 @@ final class GeocachingGpxParser
             [$ownDnf, $ownDnfDateResult] = $gs !== null
                 ? $this->ownLogOfType($gs, $username, self::DNF_LOG_TYPES)
                 : [false, null];
-            $dnf = $gsakDnfFlag || $ownDnf;
-            $dnfDate = $ownDnfDateResult;
+            $noteDnf = $note !== null && $note['type'] === 'dnf';
+            $dnf = $gsakDnfFlag || $ownDnf || $noteDnf;
+            $dnfDate = $ownDnfDateResult ?? ($noteDnf ? $note['date'] : null);
         }
 
         return [

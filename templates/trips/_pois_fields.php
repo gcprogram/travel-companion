@@ -32,6 +32,11 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
       <input type="text" id="geocaching-gpx-username" name="gc_username" data-geocaching-gpx-username>
       <p class="field-hint"><?= e(t('trip.map.geocaching_gpx_username_hint')) ?></p>
     </div>
+    <div class="field">
+      <label for="geocaching-field-notes"><?= e(t('trip.map.geocaching_field_notes_label')) ?></label>
+      <input type="file" id="geocaching-field-notes" name="field_notes" accept=".txt,text/plain">
+      <p class="field-hint"><?= e(t('trip.map.geocaching_field_notes_hint')) ?></p>
+    </div>
     <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.geocaching_gpx_import')) ?></button>
     <p class="field-hint"><?= e(t('trip.map.geocaching_gpx_hint')) ?></p>
   </form>

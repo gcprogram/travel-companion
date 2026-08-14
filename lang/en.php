@@ -200,6 +200,8 @@ return [
     'trip.map.geocaching_gpx_file_label' => 'GPX file (c:geo, GSAK, or pocket query)',
     'trip.map.geocaching_gpx_username_label' => 'Your Geocaching username (optional)',
     'trip.map.geocaching_gpx_username_hint' => 'Only used for this import, to recognize your own "Found it" logs in the file - not stored (only remembered locally in this browser).',
+    'trip.map.geocaching_field_notes_label' => 'Field notes (optional)',
+    'trip.map.geocaching_field_notes_hint' => 'If the GPX file is missing "Found it"/"Didn\'t find it" logs (common with c:geo exports), a field-notes.txt (format: GC code,timestamp,log type,"comment" - one line per log) matches finds/DNFs by GC code instead. Only entries within the trip\'s own date range (with some slack) are used.',
     'trip.map.geocaching_gpx_import' => 'Import',
     'trip.map.geocaching_gpx_hint' => 'Found caches (detected via a GSAK found flag or your own "Found it" log) and DNFs ("Did Not Find", also detected via GSAK or your own log - still counts as a visited place) are added as visited places with their real cache_type icon. Re-importing the same file updates existing entries instead of duplicating them.',
     'trip.map.geocaching_gpx_upload_error' => 'Please choose a GPX file.',

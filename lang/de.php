@@ -200,6 +200,8 @@ return [
     'trip.map.geocaching_gpx_file_label' => 'GPX-Datei (c:geo, GSAK oder Pocket Query)',
     'trip.map.geocaching_gpx_username_label' => 'Dein Geocaching-Benutzername (optional)',
     'trip.map.geocaching_gpx_username_hint' => 'Wird nur für diesen Import verwendet, um eigene "Gefunden"-Logs in der Datei zu erkennen - nicht gespeichert (nur lokal in diesem Browser gemerkt).',
+    'trip.map.geocaching_field_notes_label' => 'Field Notes (optional)',
+    'trip.map.geocaching_field_notes_hint' => 'Fehlen "Gefunden"/"Nicht gefunden"-Logs in der GPX-Datei (bei c:geo-Exports üblich), gleicht eine field-notes.txt (Format: GC-Code,Zeitstempel,Log-Typ,"Kommentar" - eine Zeile pro Log) die Funde/DNFs per GC-Code ab. Nur Einträge im Zeitraum der Reise (mit etwas Spielraum) werden berücksichtigt.',
     'trip.map.geocaching_gpx_import' => 'Importieren',
     'trip.map.geocaching_gpx_hint' => 'Gefundene Caches (erkannt über GSAK-Markierung oder eigenen "Gefunden"-Log) und DNFs ("Nicht gefunden", ebenfalls über GSAK oder eigenen Log erkannt - zählen als besuchter Ort) werden als besuchte Orte mit ihrem cache_type-Icon übernommen. Erneuter Import derselben Datei aktualisiert bestehende Einträge statt sie zu verdoppeln.',
     'trip.map.geocaching_gpx_upload_error' => 'Bitte eine GPX-Datei auswählen.',
