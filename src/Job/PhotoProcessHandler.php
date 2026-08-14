@@ -355,7 +355,7 @@ final class PhotoProcessHandler implements JobHandlerInterface
 
         $dateTimeOriginal = $exif['EXIF']['DateTimeOriginal'] ?? $exif['DateTimeOriginal'] ?? null;
         if (is_string($dateTimeOriginal)) {
-            $result['takenAt'] = $this->parseExifDateTime($dateTimeOriginal);
+            $result['takenAt'] = $this->parseExifDateTime($dateTimeOriginal, $this->readUtcOffset($path));
         }
 
         if (isset($exif['GPSAltitude'])) {
@@ -371,11 +371,59 @@ final class PhotoProcessHandler implements JobHandlerInterface
         return $result;
     }
 
-    private function parseExifDateTime(string $value): ?string
+    /**
+     * EXIF DateTimeOriginal ("YYYY:MM:DD HH:MM:SS") is always local time
+     * with no timezone info of its own - unlike GPX <time>, which is always
+     * UTC per the GPX spec. Storing it as-is used to mean a photo's
+     * taken_at was actually local time masquerading as UTC: on a trip that
+     * crosses a timezone (or just isn't in UTC+0), that put photos hours
+     * off from where they really belonged in a track's chronological order,
+     * which PhotoTrackGapFillService then wove in at the wrong spot -
+     * visible on the map as straight lines jumping between unrelated
+     * parts of the route (reported by Stefan, 2026-08-14). $offset (from
+     * readUtcOffset(), "+02:00" style) corrects for that when available;
+     * without one this falls back to the previous best-effort behaviour.
+     */
+    private function parseExifDateTime(string $value, ?string $offset = null): ?string
     {
-        // EXIF datetime format: "YYYY:MM:DD HH:MM:SS".
+        $value = trim($value);
+        if ($offset !== null) {
+            $normalizedOffset = preg_replace('/^([+-]\d{2})(\d{2})$/', '$1:$2', trim($offset));
+            if (is_string($normalizedOffset) && preg_match('/^[+-]\d{2}:\d{2}$/', $normalizedOffset)) {
+                $dt = \DateTimeImmutable::createFromFormat('Y:m:d H:i:sP', $value . $normalizedOffset);
+                if ($dt !== false) {
+                    return $dt->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+                }
+            }
+        }
+
         $dt = \DateTimeImmutable::createFromFormat('Y:m:d H:i:s', $value);
         return $dt !== false ? $dt->format('Y-m-d H:i:s') : null;
+    }
+
+    /**
+     * PHP's exif_read_data() doesn't expose OffsetTime/OffsetTimeOriginal
+     * (the EXIF 2.31+ tags that say what UTC offset DateTimeOriginal's
+     * local time is in) at all - confirmed by direct testing against a
+     * tagged file, its hardcoded tag table predates them. Imagick's own
+     * EXIF reader does support them, so this opens the file a second time
+     * just for that. Best-effort: a read failure here just means the
+     * offset stays unknown, same as always - never worth failing photo
+     * processing over.
+     */
+    private function readUtcOffset(string $path): ?string
+    {
+        try {
+            $img = new \Imagick($path);
+            $offset = $img->getImageProperty('exif:OffsetTimeOriginal');
+            if ($offset === false || $offset === '') {
+                $offset = $img->getImageProperty('exif:OffsetTime');
+            }
+            $img->clear();
+            return ($offset !== false && $offset !== '') ? $offset : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**
