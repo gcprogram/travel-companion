@@ -5,16 +5,14 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Repository\DayEntryRepository;
-use App\Repository\GeocodeCacheRepository;
-use App\Repository\JobRepository;
 use App\Repository\PhotoRepository;
 use App\Repository\PoiRepository;
 use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
-use App\Service\StayDetectionService;
 use App\Service\TrackSmoothingService;
 use App\Service\TripAccess;
+use App\Service\TripRouteSummaryService;
 use App\Support\View;
 use App\Support\WizardNav;
 use Psr\Http\Message\ResponseInterface;
@@ -23,9 +21,6 @@ use Slim\Exception\HttpNotFoundException;
 
 final class TripMapController
 {
-    /** A stay this close to an existing POI is treated as already recorded. */
-    private const STAY_POI_MATCH_METERS = 150.0;
-
     public function __construct(
         private readonly View $view,
         private readonly TripRepository $trips,
@@ -36,9 +31,7 @@ final class TripMapController
         private readonly TrackSmoothingService $smoothing,
         private readonly PoiRepository $pois,
         private readonly TripAccess $access,
-        private readonly StayDetectionService $stayDetection,
-        private readonly GeocodeCacheRepository $geocodeCache,
-        private readonly JobRepository $jobs,
+        private readonly TripRouteSummaryService $routeSummary,
     ) {
     }
 
@@ -56,98 +49,11 @@ final class TripMapController
         return $this->view->render($response, 'trips/map', [
             'trip' => $trip,
             'canEdit' => $this->access->canEdit($trip, $request->getAttribute('user'), $request),
-            'track' => $this->trackSummary((int) $trip['id']),
-            'stays' => $this->detectStays((int) $trip['id'], $pois),
+            'track' => $this->routeSummary->trackSummary((int) $trip['id']),
+            'stays' => $this->routeSummary->detectStays((int) $trip['id'], $pois),
             'wizard' => WizardNav::isActive($request),
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);
-    }
-
-    /**
-     * Places the traveller stopped at long enough to count as a visit,
-     * derived from the raw track (see StayDetectionService). Stays that
-     * already have a POI nearby are dropped, so a stay disappears from the
-     * suggestion list once it's been added - and discovered sights the user
-     * genuinely stopped at don't get offered a second time.
-     *
-     * Each remaining stay gets a best-effort 'locationName' straight from
-     * the geocode_cache grid - never a live Nominatim call from within this
-     * request (see GeocodeCacheRepository/GeocodeResolveHandler): a cache
-     * miss just dispatches a job and the name shows up on the next page
-     * load. Recomputed on every request since stays themselves aren't
-     * persisted, so this must never turn into a per-stay external call.
-     *
-     * @param list<array<string, mixed>> $pois
-     * @return list<array<string, mixed>>
-     */
-    private function detectStays(int $tripId, array $pois): array
-    {
-        $track = $this->tracks->findByTrip($tripId);
-        if ($track === null) {
-            return [];
-        }
-
-        $points = array_map(static fn (array $p): array => [
-            'seq' => (int) $p['seq'],
-            'lat' => (float) $p['lat'],
-            'lng' => (float) $p['lng'],
-            'recordedAt' => $p['recorded_at'],
-        ], $this->tracks->findPoints((int) $track['id']));
-
-        $stays = $this->stayDetection->detect($points);
-
-        $unmatched = array_values(array_filter(
-            $stays,
-            fn (array $stay): bool => !$this->hasPoiNear($pois, $stay['lat'], $stay['lng']),
-        ));
-
-        return array_map(function (array $stay): array {
-            $cached = $this->geocodeCache->find($stay['lat'], $stay['lng']);
-            $stay['locationName'] = $cached['name'];
-            $stay['locationResolved'] = $cached['found'];
-            if (!$cached['found']) {
-                $this->jobs->dispatch('geocode.resolve', ['lat' => $stay['lat'], 'lng' => $stay['lng']]);
-            }
-            return $stay;
-        }, $unmatched);
-    }
-
-    /**
-     * @param list<array<string, mixed>> $pois
-     */
-    private function hasPoiNear(array $pois, float $lat, float $lng): bool
-    {
-        foreach ($pois as $poi) {
-            $dLat = deg2rad((float) $poi['lat'] - $lat);
-            $dLng = deg2rad((float) $poi['lng'] - $lng);
-            $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat)) * cos(deg2rad((float) $poi['lat'])) * sin($dLng / 2) ** 2;
-            if (6371000.0 * 2 * atan2(sqrt($a), sqrt(1 - $a)) <= self::STAY_POI_MATCH_METERS) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Just enough for the upload-tools/trim-slider form to render with the
-     * right bounds — the full point list is only needed by the map JS,
-     * fetched separately via /map/data.
-     *
-     * @return array{totalPoints: int, trimStart: int, trimEnd: int}|null
-     */
-    private function trackSummary(int $tripId): ?array
-    {
-        $track = $this->tracks->findByTrip($tripId);
-        if ($track === null) {
-            return null;
-        }
-
-        $totalPoints = $this->tracks->countPoints((int) $track['id']);
-        return [
-            'totalPoints' => $totalPoints,
-            'trimStart' => $track['trim_start_seq'] !== null ? (int) $track['trim_start_seq'] : 0,
-            'trimEnd' => $track['trim_end_seq'] !== null ? (int) $track['trim_end_seq'] : max(0, $totalPoints - 1),
-        ];
     }
 
     /**

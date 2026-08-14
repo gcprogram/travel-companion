@@ -15,6 +15,7 @@ use App\Controller\ServiceWorkerController;
 use App\Controller\ShareController;
 use App\Controller\TrackController;
 use App\Controller\TripController;
+use App\Controller\TripManageController;
 use App\Controller\TripMapController;
 use App\Controller\TripPhotoController;
 use App\Controller\VideoController;
@@ -134,6 +135,12 @@ return static function (App $app): void {
     $app->get('/trip/{slug}/map/data', [TripMapController::class, 'data']);
     $app->get('/trip/{slug}/pois', [PoiController::class, 'index']);
     $app->get('/trip/{slug}/photos', [TripPhotoController::class, 'show']);
+
+    // Unified edit page (Stage 3) - edit-gated inside the controller (accepts
+    // an edit share token too, same as the map/photos/pois pages it merges;
+    // the metadata section's own submit endpoint (TripController::update)
+    // separately still requires the real owner/admin regardless).
+    $app->get('/trip/{slug}/manage', [TripManageController::class, 'show']);
 
     // Serving depends on the trip's visibility, not login.
     $app->get('/photos/{id:[0-9]+}/{variant}', [PhotoController::class, 'show']);
