@@ -9,6 +9,7 @@ use App\Repository\PlaceDetailsCacheRepository;
 use App\Repository\PoiMediaRepository;
 use App\Repository\PoiRepository;
 use App\Repository\TripRepository;
+use App\Service\FieldNotesParser;
 use App\Service\GeocachingGpxParser;
 use App\Service\GooglePlacesService;
 use App\Service\PoiApproachService;
@@ -39,6 +40,7 @@ final class PoiController
         private readonly PoiApproachService $poiApproach,
         private readonly Settings $settings,
         private readonly GeocachingGpxParser $geocachingGpx,
+        private readonly FieldNotesParser $fieldNotes,
         private readonly JobRepository $jobs,
         private readonly TripAccess $access,
         private readonly ReverseGeocodingService $geocoding,
@@ -123,6 +125,16 @@ final class PoiController
      * never stored server-side; geocaching-gpx-import.js's client-only
      * convenience (localStorage) prefills the field so it doesn't have to
      * be retyped.
+     *
+     * An optional field-notes file (see FieldNotesParser) backs up the
+     * username match: some c:geo exports don't carry enough of a cache's
+     * own log history for the own-log match to find the traveller's log at
+     * all, especially for older finds. Field notes have no coordinates of
+     * their own - matched against this same GPX's waypoints by GC code -
+     * and are further restricted to the trip's own date range (with a
+     * generous buffer for late logging) so a field-notes file covering the
+     * user's entire caching history doesn't pull in finds from unrelated
+     * trips that happen to share a GC code list.
      */
     public function importGpx(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
@@ -138,7 +150,14 @@ final class PoiController
         $body = (array) $request->getParsedBody();
         $username = trim((string) ($body['gc_username'] ?? ''));
 
-        $caches = $this->geocachingGpx->parse($file->getStream()->getContents(), $username);
+        $fieldNotes = [];
+        $notesFile = $files['field_notes'] ?? null;
+        if ($notesFile !== null && $notesFile->getError() === UPLOAD_ERR_OK) {
+            $parsed = $this->fieldNotes->parse($notesFile->getStream()->getContents());
+            $fieldNotes = $this->filterFieldNotesToTripRange($parsed, $trip);
+        }
+
+        $caches = $this->geocachingGpx->parse($file->getStream()->getContents(), $username, $fieldNotes);
         $relevant = array_values(array_filter($caches, static fn (array $c): bool => $c['found'] || $c['dnf']));
 
         foreach ($relevant as $cache) {
@@ -376,6 +395,31 @@ final class PoiController
         }
         $dt = \DateTimeImmutable::createFromFormat('Y-m-d', $value);
         return ($dt !== false && $dt->format('Y-m-d') === $value) ? $value : null;
+    }
+
+    /**
+     * @param array<string, array{type: 'found'|'dnf', date: string}> $notes
+     * @param array<string, mixed> $trip
+     * @return array<string, array{type: 'found'|'dnf', date: string}>
+     */
+    private function filterFieldNotesToTripRange(array $notes, array $trip): array
+    {
+        $start = $this->validDateOrNull($trip['date_start'] ?? null);
+        $end = $this->validDateOrNull($trip['date_end'] ?? null);
+        if ($start === null && $end === null) {
+            return $notes; // Trip has no dates set yet - nothing to filter against.
+        }
+
+        // A few days' slack in both directions: logging can lag the actual
+        // find by up to a day or two, and the trip's own dates are
+        // themselves auto-filled/approximate.
+        $rangeStart = ($start !== null ? new \DateTimeImmutable($start) : new \DateTimeImmutable($end))->modify('-3 days');
+        $rangeEnd = ($end !== null ? new \DateTimeImmutable($end) : new \DateTimeImmutable($start))->modify('+3 days');
+
+        return array_filter($notes, static function (array $note) use ($rangeStart, $rangeEnd): bool {
+            $date = new \DateTimeImmutable($note['date']);
+            return $date >= $rangeStart && $date <= $rangeEnd;
+        });
     }
 
     /**
