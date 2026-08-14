@@ -14,11 +14,20 @@ use Slim\App;
 
 return static function (App $app): void {
     // Order: the last middleware added runs first.
-    $app->addBodyParsingMiddleware();
     $app->addRoutingMiddleware();
 
-    // Inside out: Locale -> Session -> Auth (load user) -> CSRF
+    // Inside out: Locale -> Session -> Auth (load user) -> Body-Parsing -> CSRF.
+    // Body-parsing must run before CSRF: PHP only auto-populates $_POST (and
+    // therefore getParsedBody()) for form-urlencoded/multipart requests at
+    // request-creation time, before any middleware runs at all. A
+    // fetch()-with-JSON-body request (google-timeline-import.js,
+    // track-folder-scan.js) has no $_POST equivalent - its body only becomes
+    // visible via getParsedBody() once Slim's JSON body-parsing middleware
+    // has actually run. With body-parsing added (and therefore executing)
+    // after CSRF, every JSON POST used to see a null parsed body and fail
+    // CSRF unconditionally, regardless of payload size or point count.
     $app->add(CsrfMiddleware::class);
+    $app->addBodyParsingMiddleware();
     $app->add(AuthMiddleware::class);
     $app->add(SessionMiddleware::class);
     $app->add(LocaleMiddleware::class);
