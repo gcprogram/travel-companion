@@ -25,7 +25,7 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
     <?= $csrf->field() ?>
     <div class="field">
       <label for="geocaching-gpx-file"><?= e(t('trip.map.geocaching_gpx_file_label')) ?></label>
-      <input type="file" id="geocaching-gpx-file" name="geocaching_gpx" accept=".gpx,application/gpx+xml">
+      <input type="file" id="geocaching-gpx-file" name="geocaching_gpx" accept=".gpx,.zip,application/gpx+xml,application/zip">
     </div>
     <div class="field">
       <label for="geocaching-gpx-username"><?= e(t('trip.map.geocaching_gpx_username_label')) ?></label>

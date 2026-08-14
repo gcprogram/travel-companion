@@ -22,6 +22,7 @@ use App\Support\View;
 use App\Support\WizardNav;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\UploadedFileInterface;
 use Slim\Exception\HttpForbiddenException;
 use Slim\Exception\HttpNotFoundException;
 
@@ -157,7 +158,28 @@ final class PoiController
             $fieldNotes = $this->filterFieldNotesToTripRange($parsed, $trip);
         }
 
-        $caches = $this->geocachingGpx->parse($file->getStream()->getContents(), $username, $fieldNotes);
+        $documents = $this->extractGpxDocuments($file);
+        if ($documents === []) {
+            $this->flash->add('error', t('trip.map.geocaching_gpx_zip_empty'));
+            return $this->redirectToPois($request, $response, $trip);
+        }
+
+        // A Pocket Query ZIP's companion -wpts.gpx (extractGpxDocuments()
+        // sorts it after the main file) only ever fills in a cache the
+        // main file didn't already resolve, or backs up a found/DNF
+        // signal the main file's own log matching missed - it never
+        // downgrades one the main file already confirmed.
+        $combined = [];
+        foreach ($documents as $xml) {
+            foreach ($this->geocachingGpx->parse($xml, $username, $fieldNotes) as $cache) {
+                $existing = $combined[$cache['gcCode']] ?? null;
+                if ($existing !== null && ($existing['found'] || $existing['dnf']) && !($cache['found'] || $cache['dnf'])) {
+                    continue;
+                }
+                $combined[$cache['gcCode']] = $cache;
+            }
+        }
+        $caches = array_values($combined);
         $relevant = array_values(array_filter($caches, static fn (array $c): bool => $c['found'] || $c['dnf']));
 
         foreach ($relevant as $cache) {
@@ -181,6 +203,59 @@ final class PoiController
             $this->flash->add('success', t('trip.map.geocaching_gpx_imported', ['count' => (string) count($relevant)]));
         }
         return $this->redirectToPois($request, $response, $trip);
+    }
+
+    /**
+     * A geocaching.com Pocket Query downloads as a ZIP with two GPX members
+     * (the main <id>.gpx with full cache descriptions/logs, and a companion
+     * <id>-wpts.gpx of additional waypoints - stages, parking, almost never
+     * actual cache codes) - c:geo/GSAK exports are a single plain .gpx file.
+     * Detects a ZIP by magic bytes rather than trusting the filename
+     * extension, extracts every *.gpx member (main file first,
+     * -wpt(s).gpx sorted after per importGpx()'s merge precedence), and
+     * returns their raw XML for GeocachingGpxParser. A plain, non-ZIP
+     * upload passes through unchanged as a single-element list.
+     *
+     * @return list<string>
+     */
+    private function extractGpxDocuments(UploadedFileInterface $file): array
+    {
+        $contents = $file->getStream()->getContents();
+        if (!str_starts_with($contents, "PK\x03\x04")) {
+            return [$contents];
+        }
+
+        // ZipArchive only opens real files, not in-memory streams.
+        $tmpPath = tempnam(sys_get_temp_dir(), 'tcgpx');
+        file_put_contents($tmpPath, $contents);
+
+        $documents = [];
+        $zip = new \ZipArchive();
+        if ($zip->open($tmpPath) === true) {
+            $names = [];
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $name = $zip->getNameIndex($i);
+                if ($name !== false && str_ends_with(strtolower($name), '.gpx')) {
+                    $names[] = $name;
+                }
+            }
+            usort(
+                $names,
+                static fn (string $a, string $b): int => (int) (bool) preg_match('/-wpts?\.gpx$/i', $a)
+                    <=> (int) (bool) preg_match('/-wpts?\.gpx$/i', $b),
+            );
+
+            foreach ($names as $name) {
+                $xml = $zip->getFromName($name);
+                if ($xml !== false) {
+                    $documents[] = $xml;
+                }
+            }
+            $zip->close();
+        }
+        unlink($tmpPath);
+
+        return $documents;
     }
 
     /**

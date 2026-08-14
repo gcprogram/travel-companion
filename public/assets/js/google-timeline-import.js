@@ -497,7 +497,14 @@ document.addEventListener('DOMContentLoaded', function () {
         if (window.console && console.error) {
           console.error('Timeline import failed:', err);
         }
-        setStatus(fileInput.dataset.msgError || '');
+        // A SyntaxError here only ever comes from the JSON.parse() step -
+        // worth its own message since it means the file itself is broken
+        // (seen in practice: a manually trimmed-down export missing its
+        // enclosing brackets), not an unrecognized-but-valid export shape.
+        var msg = (err instanceof SyntaxError)
+          ? (fileInput.dataset.msgInvalidJson || fileInput.dataset.msgError)
+          : fileInput.dataset.msgError;
+        setStatus(msg || '');
       });
   });
 

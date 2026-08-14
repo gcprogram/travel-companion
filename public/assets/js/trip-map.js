@@ -424,7 +424,7 @@ document.addEventListener('DOMContentLoaded', function () {
               ? (container.dataset.msgPause + ' ' + formatTime(p.recordedAt) + '–' + formatTime(p.recordedUntil))
               : formatTime(p.recordedAt);
             var vertex = L.circleMarker([p.lat, p.lng], {
-              radius: p.isPause ? 6 : 4,
+              radius: p.isPause ? 6 : 2,
               color: p.isPause ? '#c56a3c' : '#2f6f5e',
               fillColor: p.isPause ? '#c56a3c' : '#2f6f5e',
               fillOpacity: 0.9,
@@ -462,8 +462,8 @@ document.addEventListener('DOMContentLoaded', function () {
         var icon = poi.cacheIconUrl
           ? L.divIcon({
               className: 'map-view__poi-pin map-view__poi-pin--cache' + (poi.visited ? ' map-view__poi-pin--visited' : ''),
-              html: '<img src="' + poi.cacheIconUrl + '" alt="" width="22" height="22">',
-              iconSize: [22, 22],
+              html: '<img src="' + poi.cacheIconUrl + '" alt="" width="44" height="44">',
+              iconSize: [44, 44],
             })
           : L.divIcon({
               className: 'map-view__poi-pin' + (poi.visited ? ' map-view__poi-pin--visited' : ''),
