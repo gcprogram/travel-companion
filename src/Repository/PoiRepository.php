@@ -58,6 +58,45 @@ final class PoiRepository
         $stmt->execute([$tripId, $externalRef, $category, $name, $lat, $lng, $now, $now]);
     }
 
+    /**
+     * A found cache from a Geocaching GPX import (GeocachingGpxParser),
+     * external_ref = the GC code so re-importing the same file/PQ updates
+     * rather than duplicates. Mirrors upsertFromOverpass's "don't clobber
+     * what the user already did" rule for visited/notes - visited only ever
+     * escalates to 1 (GREATEST), never back to 0, since a re-import missing
+     * a previously-seen found log shouldn't un-mark a real visit; notes are
+     * left untouched entirely.
+     */
+    public function upsertFromGpxImport(
+        int $tripId,
+        string $gcCode,
+        string $name,
+        float $lat,
+        float $lng,
+        string $cacheType,
+        ?float $difficulty,
+        ?float $terrain,
+        ?string $foundDate,
+    ): void {
+        $now = gmdate('Y-m-d H:i:s');
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO trip_pois
+                (trip_id, source, external_ref, gc_code, category, cache_type, difficulty, terrain,
+                 name, lat, lng, visit_date, visited, created_at, updated_at)
+             VALUES (?, 'geocaching_gpx', ?, ?, 'geocache', ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+             ON DUPLICATE KEY UPDATE
+                cache_type = VALUES(cache_type), difficulty = VALUES(difficulty), terrain = VALUES(terrain),
+                name = VALUES(name), lat = VALUES(lat), lng = VALUES(lng),
+                visit_date = COALESCE(visit_date, VALUES(visit_date)),
+                visited = GREATEST(visited, VALUES(visited)),
+                updated_at = VALUES(updated_at)"
+        );
+        $stmt->execute([
+            $tripId, $gcCode, $gcCode, $cacheType, $difficulty, $terrain,
+            $name, $lat, $lng, $foundDate, $now, $now,
+        ]);
+    }
+
     public function createManual(
         int $tripId,
         string $category,

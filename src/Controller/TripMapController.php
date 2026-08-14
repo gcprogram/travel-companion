@@ -204,6 +204,9 @@ final class TripMapController
             'lat' => (float) $p['lat'],
             'lng' => (float) $p['lng'],
             'visited' => (bool) $p['visited'],
+            // Only set for category='geocache' (see PoiController::importGpx()) -
+            // trip-map.js swaps in the real cache_type SVG icon when present.
+            'cacheIconUrl' => $p['category'] === 'geocache' ? cache_type_icon_url($p['cache_type']) : null,
         ], $this->pois->findByTrip((int) $trip['id']));
 
         $canEdit = $this->access->canEdit($trip, $request->getAttribute('user'), $request);

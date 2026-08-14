@@ -35,6 +35,25 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
      data-msg-poi-delete="<?= e(t('trip.map.poi_delete')) ?>"
      data-msg-poi-delete-confirm="<?= e(t('trip.map.poi_delete_confirm')) ?>"></div>
 
+<?php if ($canEdit): ?>
+  <h2><?= e(t('trip.map.geocaching_gpx_heading')) ?></h2>
+  <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/geocaching-gpx"
+        enctype="multipart/form-data" class="poi-search-form" data-geocaching-gpx-form>
+    <?= $csrf->field() ?>
+    <div class="field">
+      <label for="geocaching-gpx-file"><?= e(t('trip.map.geocaching_gpx_file_label')) ?></label>
+      <input type="file" id="geocaching-gpx-file" name="geocaching_gpx" accept=".gpx,application/gpx+xml">
+    </div>
+    <div class="field">
+      <label for="geocaching-gpx-username"><?= e(t('trip.map.geocaching_gpx_username_label')) ?></label>
+      <input type="text" id="geocaching-gpx-username" name="gc_username" data-geocaching-gpx-username>
+      <p class="field-hint"><?= e(t('trip.map.geocaching_gpx_username_hint')) ?></p>
+    </div>
+    <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.geocaching_gpx_import')) ?></button>
+    <p class="field-hint"><?= e(t('trip.map.geocaching_gpx_hint')) ?></p>
+  </form>
+<?php endif; ?>
+
 <h2><?= e(t('trip.map.poi_heading')) ?></h2>
 
 <?php if ($canEdit): ?>
@@ -82,9 +101,23 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
         <?php if ($approach !== null && $approach['closestAt'] !== null): ?>
           <span class="poi-list__approach"><?= e(format_short_datetime($approach['closestAt'])) ?></span>
         <?php endif; ?>
-        <span class="poi-list__category"><?= e(t('trip.map.category.' . $poi['category'])) ?></span>
+        <?php if ($poi['category'] === 'geocache'): ?>
+          <span class="poi-list__category">
+            <img class="poi-list__cache-icon" src="<?= e(cache_type_icon_url($poi['cache_type'])) ?>"
+                 alt="<?= e((string) $poi['cache_type']) ?>" width="20" height="20">
+            <?= e((string) $poi['cache_type']) ?>
+          </span>
+        <?php else: ?>
+          <span class="poi-list__category"><?= e(t('trip.map.category.' . $poi['category'])) ?></span>
+        <?php endif; ?>
         <span class="poi-list__name">
+          <?php if ($poi['category'] === 'geocache' && !empty($poi['gc_code'])): ?>
+            <a href="https://coord.info/<?= e((string) $poi['gc_code']) ?>" target="_blank" rel="noopener"><?= e((string) $poi['gc_code']) ?></a> -
+          <?php endif; ?>
           <?= e($poi['name']) ?>
+          <?php if ($poi['category'] === 'geocache' && ($poi['difficulty'] !== null || $poi['terrain'] !== null)): ?>
+            <span class="poi-list__distance">(D<?= e(number_format((float) ($poi['difficulty'] ?? 0), 1)) ?>/T<?= e(number_format((float) ($poi['terrain'] ?? 0), 1)) ?>)</span>
+          <?php endif; ?>
           <?php if ($approach !== null): ?>
             <span class="poi-list__distance">(<?= (int) round($approach['distanceMeters']) ?> m)</span>
           <?php endif; ?>
@@ -183,3 +216,6 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
 
 <script src="/assets/js/vendor/leaflet.js"></script>
 <script src="/assets/js/trip-map.js"></script>
+<?php if ($canEdit): ?>
+  <script src="/assets/js/geocaching-gpx-import.js"></script>
+<?php endif; ?>

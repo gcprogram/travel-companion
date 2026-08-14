@@ -163,6 +163,17 @@ if (!function_exists('day_night_weather_summary')) {
     }
 }
 
+if (!function_exists('cache_type_icon_url')) {
+    /**
+     * Geocaching cache-type short code (see CacheTypes) -> SVG icon URL,
+     * for templates/map JSON to display without a `use` import.
+     */
+    function cache_type_icon_url(?string $cacheType): string
+    {
+        return \App\Service\CacheTypes::iconUrl($cacheType);
+    }
+}
+
 if (!function_exists('format_datetime')) {
     /**
      * 'YYYY-MM-DD HH:MM:SS' (DB, UTC) -> 'DD.MM.YYYY HH:MM' (display).

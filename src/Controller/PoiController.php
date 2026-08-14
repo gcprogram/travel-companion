@@ -9,6 +9,7 @@ use App\Repository\PlaceDetailsCacheRepository;
 use App\Repository\PoiMediaRepository;
 use App\Repository\PoiRepository;
 use App\Repository\TripRepository;
+use App\Service\GeocachingGpxParser;
 use App\Service\GooglePlacesService;
 use App\Service\PoiApproachService;
 use App\Service\PoiDiscoveryService;
@@ -36,6 +37,7 @@ final class PoiController
         private readonly PoiMediaRepository $poiMedia,
         private readonly PoiApproachService $poiApproach,
         private readonly Settings $settings,
+        private readonly GeocachingGpxParser $geocachingGpx,
         private readonly JobRepository $jobs,
         private readonly TripAccess $access,
         private readonly ReverseGeocodingService $geocoding,
@@ -107,6 +109,53 @@ final class PoiController
         $this->jobs->dispatch('poi.discover', $payload);
 
         $this->flash->add('success', t('trip.map.poi_discover_started'));
+        return $this->redirectToPois($response, $trip);
+    }
+
+    /**
+     * Imports found caches from a Geocaching GPX (c:geo / GSAK / pocket
+     * query export, see GeocachingGpxParser) as sights with their real
+     * cache_type icon. The GC username is only ever used for this one
+     * request (matching it against each cache's own found logs) - never
+     * stored server-side; day-entry-rating.js-style client-only convenience
+     * (localStorage) prefills the field so it doesn't have to be retyped.
+     */
+    public function importGpx(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireEditable($request, (int) $args['id']);
+
+        $files = $request->getUploadedFiles();
+        $file = $files['geocaching_gpx'] ?? null;
+        if ($file === null || $file->getError() !== UPLOAD_ERR_OK) {
+            $this->flash->add('error', t('trip.map.geocaching_gpx_upload_error'));
+            return $this->redirectToPois($response, $trip);
+        }
+
+        $body = (array) $request->getParsedBody();
+        $username = trim((string) ($body['gc_username'] ?? ''));
+
+        $caches = $this->geocachingGpx->parse($file->getStream()->getContents(), $username);
+        $found = array_values(array_filter($caches, static fn (array $c): bool => $c['found']));
+
+        foreach ($found as $cache) {
+            $this->pois->upsertFromGpxImport(
+                (int) $trip['id'],
+                $cache['gcCode'],
+                $cache['name'],
+                $cache['lat'],
+                $cache['lng'],
+                $cache['cacheType'],
+                $cache['difficulty'],
+                $cache['terrain'],
+                $cache['foundDate'],
+            );
+        }
+
+        if ($found === []) {
+            $this->flash->add('error', t('trip.map.geocaching_gpx_none_found'));
+        } else {
+            $this->flash->add('success', t('trip.map.geocaching_gpx_imported', ['count' => (string) count($found)]));
+        }
         return $this->redirectToPois($response, $trip);
     }
 
