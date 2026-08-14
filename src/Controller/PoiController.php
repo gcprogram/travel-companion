@@ -113,12 +113,14 @@ final class PoiController
     }
 
     /**
-     * Imports found caches from a Geocaching GPX (c:geo / GSAK / pocket
-     * query export, see GeocachingGpxParser) as sights with their real
-     * cache_type icon. The GC username is only ever used for this one
-     * request (matching it against each cache's own found logs) - never
-     * stored server-side; day-entry-rating.js-style client-only convenience
-     * (localStorage) prefills the field so it doesn't have to be retyped.
+     * Imports found and DNF caches from a Geocaching GPX (c:geo / GSAK /
+     * pocket query export, see GeocachingGpxParser) as sights with their
+     * real cache_type icon - a DNF still counts as a visited sight (the
+     * traveller was there and searched). The GC username is only ever used
+     * for this one request (matching it against each cache's own logs) -
+     * never stored server-side; geocaching-gpx-import.js's client-only
+     * convenience (localStorage) prefills the field so it doesn't have to
+     * be retyped.
      */
     public function importGpx(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
@@ -135,9 +137,9 @@ final class PoiController
         $username = trim((string) ($body['gc_username'] ?? ''));
 
         $caches = $this->geocachingGpx->parse($file->getStream()->getContents(), $username);
-        $found = array_values(array_filter($caches, static fn (array $c): bool => $c['found']));
+        $relevant = array_values(array_filter($caches, static fn (array $c): bool => $c['found'] || $c['dnf']));
 
-        foreach ($found as $cache) {
+        foreach ($relevant as $cache) {
             $this->pois->upsertFromGpxImport(
                 (int) $trip['id'],
                 $cache['gcCode'],
@@ -147,14 +149,15 @@ final class PoiController
                 $cache['cacheType'],
                 $cache['difficulty'],
                 $cache['terrain'],
-                $cache['foundDate'],
+                $cache['found'] ? $cache['foundDate'] : $cache['dnfDate'],
+                $cache['found'] ? 'found' : 'dnf',
             );
         }
 
-        if ($found === []) {
+        if ($relevant === []) {
             $this->flash->add('error', t('trip.map.geocaching_gpx_none_found'));
         } else {
-            $this->flash->add('success', t('trip.map.geocaching_gpx_imported', ['count' => (string) count($found)]));
+            $this->flash->add('success', t('trip.map.geocaching_gpx_imported', ['count' => (string) count($relevant)]));
         }
         return $this->redirectToPois($response, $trip);
     }

@@ -118,6 +118,9 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
           <?php if ($poi['category'] === 'geocache' && ($poi['difficulty'] !== null || $poi['terrain'] !== null)): ?>
             <span class="poi-list__distance">(D<?= e(number_format((float) ($poi['difficulty'] ?? 0), 1)) ?>/T<?= e(number_format((float) ($poi['terrain'] ?? 0), 1)) ?>)</span>
           <?php endif; ?>
+          <?php if ($poi['category'] === 'geocache' && $poi['geocache_status'] === 'dnf'): ?>
+            <span class="poi-list__distance poi-list__dnf-badge"><?= e(t('trip.map.geocaching_gpx_dnf_badge')) ?></span>
+          <?php endif; ?>
           <?php if ($approach !== null): ?>
             <span class="poi-list__distance">(<?= (int) round($approach['distanceMeters']) ?> m)</span>
           <?php endif; ?>
