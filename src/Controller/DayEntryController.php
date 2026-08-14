@@ -114,6 +114,49 @@ final class DayEntryController
         return $response->withHeader('Location', '/entries/' . $id . '/edit')->withStatus(302);
     }
 
+    /**
+     * Finds or creates the entry for a given calendar date - the resolution
+     * step a trip-level photo/video upload (trip-photo-upload.js) needs
+     * before it can call the existing per-entry chunked-upload endpoint,
+     * since every photo/video row is always attached to a day_entry_id.
+     * An auto-created entry has only entry_date set; the traveller fills in
+     * title/body/mood themselves later, same as any other entry.
+     */
+    public function resolveForDate(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->access->requireEditableTrip($request, (int) $args['tripId']);
+
+        $body = (array) $request->getParsedBody();
+        $date = $this->validDateOrNull($body['date'] ?? null);
+        if ($date === null) {
+            return $this->json($response, ['error' => t('validation.entry_date_invalid')], 422);
+        }
+
+        $entry = $this->entries->findByTripAndDate((int) $trip['id'], $date);
+        $id = $entry !== null
+            ? (int) $entry['id']
+            : $this->entries->create((int) $trip['id'], [
+                'entry_date' => $date,
+                'title' => null,
+                'body' => null,
+                'mood' => null,
+                'lat' => null,
+                'lng' => null,
+                'location_name' => null,
+            ]);
+
+        return $this->json($response, ['id' => $id], 200);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function json(ResponseInterface $response, array $data, int $status): ResponseInterface
+    {
+        $response->getBody()->write((string) json_encode($data, JSON_THROW_ON_ERROR));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
+    }
+
     public function edit(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         [$trip, $entry] = $this->access->requireEditableEntry($request, (int) $args['id']);

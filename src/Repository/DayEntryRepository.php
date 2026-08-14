@@ -36,6 +36,17 @@ final class DayEntryRepository
     }
 
     /**
+     * @return array<string, mixed>|null
+     */
+    public function findByTripAndDate(int $tripId, string $date): ?array
+    {
+        $stmt = $this->pdo->prepare('SELECT * FROM day_entries WHERE trip_id = ? AND entry_date = ?');
+        $stmt->execute([$tripId, $date]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
+
+    /**
      * @param array<string, mixed> $data
      */
     public function create(int $tripId, array $data): int

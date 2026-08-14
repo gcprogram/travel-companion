@@ -147,9 +147,12 @@
   }
 
   // EXIF DateTimeOriginal/DateTime format: "YYYY:MM:DD HH:MM:SS", no
-  // timezone. Treated as UTC for lack of better info — what matters for
-  // track-building is the points' relative order, not absolute accuracy.
-  function parseExifDate(str) {
+  // timezone of its own. When an OffsetTimeOriginal/OffsetTime tag
+  // ("+02:00" style, EXIF 2.31+) is present, it's used to convert to true
+  // UTC — same fix as the server-side extraction (PhotoProcessHandler::
+  // parseExifDateTime(), see the 2026-08-14 track-mixing bugfix). Without
+  // one, treated as UTC for lack of better info, same as before.
+  function parseExifDate(str, offset) {
     if (!str) {
       return null;
     }
@@ -157,7 +160,14 @@
     if (!m) {
       return null;
     }
-    const date = new Date(m[1] + '-' + m[2] + '-' + m[3] + 'T' + m[4] + ':' + m[5] + ':' + m[6] + 'Z');
+    let suffix = 'Z';
+    if (offset) {
+      const om = String(offset).trim().match(/^([+-])(\d{2}):?(\d{2})$/);
+      if (om) {
+        suffix = om[1] + om[2] + ':' + om[3];
+      }
+    }
+    const date = new Date(m[1] + '-' + m[2] + '-' + m[3] + 'T' + m[4] + ':' + m[5] + ':' + m[6] + suffix);
     return isNaN(date.getTime()) ? null : date.toISOString();
   }
 
@@ -187,7 +197,9 @@
       if (exifIfdPointer) {
         const exifIfdOffset = segment.start + view.getUint32(exifIfdPointer.valueOffset, tiff.little);
         const exifIfd = readIfd(view, exifIfdOffset, tiff.little);
-        recordedAt = parseExifDate(readAsciiString(view, segment.start, exifIfd[0x9003], tiff.little));
+        const offset = readAsciiString(view, segment.start, exifIfd[0x9011], tiff.little)
+          || readAsciiString(view, segment.start, exifIfd[0x9010], tiff.little);
+        recordedAt = parseExifDate(readAsciiString(view, segment.start, exifIfd[0x9003], tiff.little), offset);
       }
       if (!recordedAt) {
         recordedAt = parseExifDate(readAsciiString(view, segment.start, ifd0[0x0132], tiff.little));
