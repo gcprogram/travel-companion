@@ -43,6 +43,57 @@ final class TrackRepository
     }
 
     /**
+     * A coarse, trim-respecting point list for the small non-interactive
+     * map preview on the trip list (home/my-trips) - deliberately NOT the
+     * full (already-decimated-for-the-real-map) point list findPoints()
+     * returns, since that's still hundreds of points and this renders once
+     * per trip card on a page that can list many trips at once. Evenly
+     * strided down to $maxPoints, always keeping the last point so the
+     * preview doesn't visually stop short of the track's real end.
+     *
+     * @return list<array{lat: float, lng: float}>
+     */
+    public function previewPoints(int $tripId, int $maxPoints = 40): array
+    {
+        $track = $this->findByTrip($tripId);
+        if ($track === null) {
+            return [];
+        }
+
+        $points = $this->findPoints((int) $track['id']);
+        if ($points === []) {
+            return [];
+        }
+
+        $trimStart = $track['trim_start_seq'] !== null ? (int) $track['trim_start_seq'] : 0;
+        $trimEnd = $track['trim_end_seq'] !== null ? (int) $track['trim_end_seq'] : max(0, count($points) - 1);
+
+        $visible = array_values(array_filter(
+            $points,
+            static fn (array $p): bool => (int) $p['seq'] >= $trimStart && (int) $p['seq'] <= $trimEnd,
+        ));
+        if ($visible === []) {
+            return [];
+        }
+
+        $stride = max(1, (int) ceil(count($visible) / $maxPoints));
+        $sampled = [];
+        foreach ($visible as $i => $p) {
+            if ($i % $stride === 0) {
+                $sampled[] = ['lat' => (float) $p['lat'], 'lng' => (float) $p['lng']];
+            }
+        }
+
+        $last = end($visible);
+        $lastPoint = ['lat' => (float) $last['lat'], 'lng' => (float) $last['lng']];
+        if ($sampled[count($sampled) - 1] !== $lastPoint) {
+            $sampled[] = $lastPoint;
+        }
+
+        return $sampled;
+    }
+
+    /**
      * Atomically replaces the trip's track (if any) with a freshly parsed
      * one. One track per trip, so a re-upload is a full swap rather than a
      * merge — mirrors StationRepository::replaceForTrip.
