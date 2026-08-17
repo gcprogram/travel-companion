@@ -57,6 +57,18 @@ final class ReverseGeocodingService
     }
 
     /**
+     * A result whose own "name" is just a sub-city administrative boundary -
+     * Nominatim resolves a point inside e.g. Frankfurt-Nordend directly to
+     * that suburb polygon at zoom=14, and its "name" is bare ("Nordend
+     * West") with no city attached. Meaningless on its own (discovered
+     * against Stefan's real report - see pickName()), so these fall
+     * through to composeAddress() the same as if there'd been no name.
+     *
+     * @var list<string>
+     */
+    private const SUBDIVISION_ADDRESS_TYPES = ['suburb', 'city_district', 'borough', 'quarter', 'neighbourhood'];
+
+    /**
      * @param mixed $data decoded Nominatim jsonv2 response
      */
     private function pickName(mixed $data): ?string
@@ -65,21 +77,29 @@ final class ReverseGeocodingService
             return null;
         }
 
+        $addressType = $data['addresstype'] ?? null;
+        $isSubdivision = is_string($addressType) && in_array($addressType, self::SUBDIVISION_ADDRESS_TYPES, true);
+
         // The nearest named feature (a village, a national park, a named
-        // attraction, ...) if Nominatim found one at this zoom level.
+        // attraction, ...) if Nominatim found one at this zoom level - but
+        // not a bare subdivision name, see SUBDIVISION_ADDRESS_TYPES.
         $name = $data['name'] ?? null;
-        if (is_string($name) && $name !== '') {
+        if (is_string($name) && $name !== '' && !$isSubdivision) {
             return mb_substr($name, 0, 190);
         }
 
         $address = $data['address'] ?? null;
         if (is_array($address)) {
-            foreach (['city', 'town', 'village', 'suburb', 'municipality', 'county'] as $key) {
-                $value = $address[$key] ?? null;
-                if (is_string($value) && $value !== '') {
-                    return mb_substr($value, 0, 190);
-                }
+            $composed = $this->composeAddress($address);
+            if ($composed !== null) {
+                return mb_substr($composed, 0, 190);
             }
+        }
+
+        // No usable address components to compose with - the bare
+        // subdivision name is still better than nothing at this point.
+        if (is_string($name) && $name !== '') {
+            return mb_substr($name, 0, 190);
         }
 
         $displayName = $data['display_name'] ?? null;
@@ -87,6 +107,62 @@ final class ReverseGeocodingService
             return mb_substr($displayName, 0, 190);
         }
 
+        return null;
+    }
+
+    /**
+     * Combines Nominatim's address parts into something actually useful for
+     * an auto-detected stay that isn't already a known sight/geocache
+     * (those already carry their own real name) - a bare district/suburb
+     * name like "Nordend" without its city was worse than useless on its
+     * own. Prefers street(+house number) or the finest sub-locality
+     * (suburb/district/quarter), each combined with the settlement name
+     * ("Musterstraße 12, Frankfurt am Main" / "Nordend, Frankfurt am
+     * Main") - falls back to just the settlement (or null) if neither a
+     * street nor a locality is present at all.
+     *
+     * @param array<string, mixed> $address
+     */
+    private function composeAddress(array $address): ?string
+    {
+        // county last: for a kreisfreie Stadt (Frankfurt, Munich, ...) the
+        // address object can have a suburb but no city/town/village key at
+        // all - county is that settlement's own name in that case, not an
+        // actual rural county, so it's still worth combining with.
+        $settlement = $this->firstStringOf($address, ['city', 'town', 'village', 'municipality', 'county']);
+        $locality = $this->firstStringOf($address, ['suburb', 'city_district', 'borough', 'quarter']);
+
+        $street = null;
+        $road = $address['road'] ?? null;
+        if (is_string($road) && $road !== '') {
+            $houseNumber = $address['house_number'] ?? null;
+            $street = (is_string($houseNumber) && $houseNumber !== '') ? "$road $houseNumber" : $road;
+        }
+
+        $lead = $street ?? $locality;
+        $parts = [];
+        if ($lead !== null) {
+            $parts[] = $lead;
+        }
+        if ($settlement !== null && $settlement !== $lead) {
+            $parts[] = $settlement;
+        }
+
+        return $parts !== [] ? implode(', ', $parts) : null;
+    }
+
+    /**
+     * @param array<string, mixed> $address
+     * @param list<string> $keys
+     */
+    private function firstStringOf(array $address, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            $value = $address[$key] ?? null;
+            if (is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
         return null;
     }
 
