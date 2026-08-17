@@ -185,6 +185,26 @@ form.auth-form { max-width: 420px; }
 
 .trip-card { display: block; text-decoration: none; color: inherit; }
 .trip-card__title { font-family: var(--font-display); font-size: 1.2rem; margin: 0 0 0.25rem; color: var(--color-ink); }
+.trip-card__map {
+  height: 140px;
+  border-radius: var(--radius);
+  margin-bottom: var(--space-1);
+  overflow: hidden;
+  background: var(--color-surface);
+  /* Decorative only - the whole card is already the trip link, and the map
+     itself is never meant to zoom/pan/scroll (see trip-list-map.js). This
+     also means clicks over the map area fall through to the card link
+     instead of Leaflet swallowing them. */
+  pointer-events: none;
+}
+.trip-card__map--empty {
+  border: 1px dashed var(--color-line);
+  background: var(--color-surface);
+}
+.trip-card__map .leaflet-control-attribution {
+  pointer-events: auto;
+  font-size: 0.65rem;
+}
 .trip-card__meta { color: var(--color-muted); font-size: 0.9rem; }
 .trip-card__badge {
   display: inline-block;
