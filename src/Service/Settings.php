@@ -59,6 +59,15 @@ final class Settings
         'poi.categories' => 'museum,zoo,attraction,viewpoint,monument,sacred_building',
         // Encrypted (see getSecret()/setSecret()) - never a plaintext default.
         'google.places_api_key' => '',
+        // AI provider profile for day-entry summaries (Phase 7, first
+        // feature) - OpenAI-compatible chat completions endpoint, so the
+        // same profile works for OpenAI itself, DeepSeek, OpenRouter,
+        // Ollama, etc. (see CLAUDE.md "Getroffene Entscheidungen"). No
+        // default base_url/model: an empty key means the feature is off,
+        // same convention as google.places_api_key.
+        'ai.base_url' => 'https://api.openai.com/v1',
+        'ai.model' => 'gpt-4o-mini',
+        'ai.api_key' => '',
     ];
 
     /** @var array<string, string>|null */

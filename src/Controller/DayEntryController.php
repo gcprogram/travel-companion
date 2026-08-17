@@ -193,6 +193,23 @@ final class DayEntryController
     }
 
     /**
+     * Dispatches the day_entry.summarize job (see DayEntrySummarizeHandler) -
+     * a text-completion call, so it goes through the queue like every other
+     * "slow" job rather than blocking this request. Redirects straight back
+     * to the edit form, same "runs in the background, reload in a bit"
+     * pattern as PoiController::discover().
+     */
+    public function summarize(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        [, $entry] = $this->access->requireEditableEntry($request, (int) $args['id']);
+
+        $this->jobs->dispatch('day_entry.summarize', ['day_entry_id' => (int) $entry['id']]);
+
+        $this->flash->add('success', t('entry.form.ai_summary_started'));
+        return $response->withHeader('Location', '/entries/' . (int) $entry['id'] . '/edit')->withStatus(302);
+    }
+
+    /**
      * Tiny poke for day-entry-form.js's "processing" placeholders: used to
      * be a blind location.reload() every few seconds while anything was
      * still pending, which on a gallery with two dozen photos meant

@@ -46,6 +46,22 @@ $lng = $entry['lng'] ?? null;
     <textarea id="body" name="body" required><?= e($entry['body'] ?? '') ?></textarea>
   </div>
 
+  <?php if ($isEdit): ?>
+    <div class="ai-summary">
+      <?php if (!empty($entry['ai_summary'])): ?>
+        <p class="ai-summary__label"><?= e(t('entry.form.ai_summary_label')) ?></p>
+        <p class="ai-summary__text" data-ai-summary-text><?= nl2br(e($entry['ai_summary'])) ?></p>
+        <button type="button" class="btn btn-ghost btn-small" data-ai-summary-apply
+                data-target="body"><?= e(t('entry.form.ai_summary_apply')) ?></button>
+      <?php endif; ?>
+      <form method="post" action="/entries/<?= (int) $entry['id'] ?>/summarize">
+        <?= $csrf->field() ?>
+        <button type="submit" class="btn btn-ghost btn-small"><?= e(t('entry.form.ai_summary_generate')) ?></button>
+        <p class="field-hint"><?= e(t('entry.form.ai_summary_hint')) ?></p>
+      </form>
+    </div>
+  <?php endif; ?>
+
   <div class="field">
     <label><?= e(t('entry.form.mood_label')) ?></label>
     <div class="field-radio-group field-radio-group--mood">

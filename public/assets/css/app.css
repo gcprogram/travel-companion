@@ -515,6 +515,15 @@ form.auth-form { max-width: 420px; }
 .sync-status p { margin: 0 0 0.4rem; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .sync-status__wifi-toggle { display: flex; align-items: center; gap: 0.4rem; font-weight: 400; margin: 0; }
 
+.ai-summary {
+  background: #eef1ef;
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  margin: var(--space-1) 0 var(--space-2);
+}
+.ai-summary__label { font-weight: 600; margin: 0 0 0.3rem; }
+.ai-summary__text { margin: 0 0 0.5rem; }
+
 .empty-state { text-align: center; padding: var(--space-4) var(--space-2); color: var(--color-muted); }
 .bounce-page { text-align: center; padding: var(--space-4) var(--space-2); }
 
