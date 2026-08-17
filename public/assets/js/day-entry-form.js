@@ -189,3 +189,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
   setTimeout(poll, delay);
 });
+
+/**
+ * "Übernehmen" on the AI-generated summary just copies its text into the
+ * body textarea client-side - never a server-side overwrite, so a real
+ * entry the user already wrote is never silently replaced without them
+ * seeing and confirming it first (they still have to click Speichern).
+ */
+document.addEventListener('DOMContentLoaded', function () {
+  var button = document.querySelector('[data-ai-summary-apply]');
+  var text = document.querySelector('[data-ai-summary-text]');
+  if (!button || !text) {
+    return;
+  }
+
+  button.addEventListener('click', function () {
+    var targetId = button.dataset.target;
+    var target = targetId && document.getElementById(targetId);
+    if (!target) {
+      return;
+    }
+    target.value = text.textContent.trim();
+  });
+});

@@ -131,6 +131,12 @@ final class DayEntryRepository
         $stmt->execute([$tempC, $code, gmdate('Y-m-d H:i:s'), $id]);
     }
 
+    public function updateAiSummary(int $id, string $summary): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE day_entries SET ai_summary = ?, updated_at = ? WHERE id = ?');
+        $stmt->execute([$summary, gmdate('Y-m-d H:i:s'), $id]);
+    }
+
     public function delete(int $id): void
     {
         $this->pdo->prepare('DELETE FROM day_entries WHERE id = ?')->execute([$id]);

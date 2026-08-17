@@ -33,6 +33,7 @@ final class AdminSettingsController
             // so the field can render as blank-but-configured rather than
             // ever putting the secret back into the page/browser.
             'placesApiKeyConfigured' => $this->settings->getSecret('google.places_api_key') !== null,
+            'aiApiKeyConfigured' => $this->settings->getSecret('ai.api_key') !== null,
         ]);
     }
 
@@ -77,6 +78,21 @@ final class AdminSettingsController
             $this->settings->setSecret('google.places_api_key', null);
         } elseif ($placesApiKey !== '') {
             $this->settings->setSecret('google.places_api_key', $placesApiKey);
+        }
+
+        $aiBaseUrl = trim((string) ($body['ai_base_url'] ?? ''));
+        if ($aiBaseUrl !== '') {
+            $this->settings->set('ai.base_url', $aiBaseUrl);
+        }
+        $aiModel = trim((string) ($body['ai_model'] ?? ''));
+        if ($aiModel !== '') {
+            $this->settings->set('ai.model', $aiModel);
+        }
+        $aiApiKey = trim((string) ($body['ai_api_key'] ?? ''));
+        if (!empty($body['ai_api_key_clear'])) {
+            $this->settings->setSecret('ai.api_key', null);
+        } elseif ($aiApiKey !== '') {
+            $this->settings->setSecret('ai.api_key', $aiApiKey);
         }
 
         $this->flash->add('success', t('admin.settings_saved'));

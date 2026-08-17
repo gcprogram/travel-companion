@@ -1,6 +1,7 @@
 <?php
 /** @var array<string, string> $values */
 /** @var bool $placesApiKeyConfigured */
+/** @var bool $aiApiKeyConfigured */
 ?>
 
 <h1><?= e(t('admin.settings_title')) ?></h1>
@@ -108,6 +109,33 @@
       <label>
         <input type="checkbox" name="google_places_api_key_clear" value="1">
         <?= e(t('admin.settings_places_key_clear')) ?>
+      </label>
+    <?php endif; ?>
+  </div>
+
+  <h2><?= e(t('admin.settings_ai_heading')) ?></h2>
+  <p class="field-hint"><?= e(t('admin.settings_ai_hint')) ?></p>
+
+  <div class="field">
+    <label for="ai_base_url"><?= e(t('admin.settings_ai_base_url_label')) ?></label>
+    <input type="url" id="ai_base_url" name="ai_base_url" value="<?= e($values['ai.base_url']) ?>">
+    <p class="field-hint"><?= e(t('admin.settings_ai_base_url_hint')) ?></p>
+  </div>
+
+  <div class="field">
+    <label for="ai_model"><?= e(t('admin.settings_ai_model_label')) ?></label>
+    <input type="text" id="ai_model" name="ai_model" value="<?= e($values['ai.model']) ?>">
+  </div>
+
+  <div class="field">
+    <label for="ai_api_key"><?= e(t('admin.settings_ai_key_label')) ?></label>
+    <input type="password" id="ai_api_key" name="ai_api_key" autocomplete="off"
+           placeholder="<?= $aiApiKeyConfigured ? e(t('admin.settings_ai_key_configured')) : '' ?>">
+    <p class="field-hint"><?= e(t('admin.settings_ai_key_hint')) ?></p>
+    <?php if ($aiApiKeyConfigured): ?>
+      <label>
+        <input type="checkbox" name="ai_api_key_clear" value="1">
+        <?= e(t('admin.settings_ai_key_clear')) ?>
       </label>
     <?php endif; ?>
   </div>

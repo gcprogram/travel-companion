@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Controller\ServiceWorkerController;
 use App\Database\Connection;
 use App\Job\AdminNotifyHandler;
+use App\Job\DayEntrySummarizeHandler;
 use App\Job\EntryLocateHandler;
 use App\Job\GeocodeResolveHandler;
 use App\Job\PingHandler;
@@ -75,6 +76,7 @@ return [
         $worker->register('track.gapfill', $c->get(TrackGapFillHandler::class));
         $worker->register('geocode.resolve', $c->get(GeocodeResolveHandler::class));
         $worker->register('trip.metadata_refresh', $c->get(TripMetadataAutoFillHandler::class));
+        $worker->register('day_entry.summarize', $c->get(DayEntrySummarizeHandler::class));
 
         return $worker;
     },
