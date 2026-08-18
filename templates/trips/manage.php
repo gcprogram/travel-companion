@@ -118,4 +118,5 @@
 <script src="/assets/js/video-compress.js"></script>
 <script src="/assets/js/trip-photo-upload.js"></script>
 <script src="/assets/js/geocaching-gpx-import.js"></script>
+<script src="/assets/js/route-upload-table.js"></script>
 <script src="/assets/js/trip-metadata-ai.js"></script>

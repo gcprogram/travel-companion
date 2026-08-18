@@ -57,8 +57,8 @@ $wizardQs = $wizard ? '?wizard=1' : '';
 <?php if ($wizard && $canEdit): ?>
   <p class="field-hint"><?= e(t('wizard.route_skip_hint')) ?></p>
   <p class="page-actions">
-    <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/photos?wizard=1"><?= e(t('wizard.skip')) ?></a>
-    <a class="btn btn-primary" href="/trip/<?= e($trip['slug']) ?>/photos?wizard=1"><?= e(t('wizard.continue')) ?></a>
+    <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/pois?wizard=1"><?= e(t('wizard.skip')) ?></a>
+    <a class="btn btn-primary" href="/trip/<?= e($trip['slug']) ?>/pois?wizard=1"><?= e(t('wizard.continue')) ?></a>
   </p>
 <?php endif; ?>
 
@@ -77,4 +77,6 @@ $wizardQs = $wizard ? '?wizard=1' : '';
   <script src="/assets/js/video-geotag.js"></script>
   <script src="/assets/js/track-folder-scan.js"></script>
   <script src="/assets/js/google-timeline-import.js"></script>
+  <script src="/assets/js/geocaching-gpx-import.js"></script>
+  <script src="/assets/js/route-upload-table.js"></script>
 <?php endif; ?>

@@ -122,10 +122,12 @@ final class TripController
 
         $this->flash->add('success', t('flash.trip_created'));
         // A freshly created trip goes straight into the creation wizard
-        // (route -> photos -> visited places -> trip); editing an existing
-        // trip's metadata later (update(), below) always lands back on the
-        // plain trip page instead - that's not the wizard.
-        return $response->withHeader('Location', '/trip/' . $data['slug'] . '/map?wizard=1')->withStatus(302);
+        // (photos -> route -> visited places -> trip) - photos first since
+        // that's the most intuitive first action for a user just back from
+        // a trip; editing an existing trip's metadata later (update(),
+        // below) always lands back on the plain trip page instead - that's
+        // not the wizard.
+        return $response->withHeader('Location', '/trip/' . $data['slug'] . '/photos?wizard=1')->withStatus(302);
     }
 
     public function edit(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
