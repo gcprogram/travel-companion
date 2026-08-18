@@ -118,38 +118,13 @@ final class TripMapController
             'cacheIconUrl' => $p['category'] === 'geocache' ? cache_type_icon_url($p['cache_type']) : null,
         ], $this->pois->findByTrip((int) $trip['id']));
 
-        $canEdit = $this->access->canEdit($trip, $request->getAttribute('user'), $request);
-
         $response->getBody()->write((string) json_encode([
             'pins' => $pins,
             'track' => $this->buildTrack((int) $trip['id']),
-            // Full-resolution, untrimmed, unsmoothed points - only the trim
-            // slider UI needs these (to look up a time for any given seq, or
-            // preview the selection live before it's committed), so this is
-            // left out entirely for read-only viewers.
-            'trackFull' => $canEdit ? $this->buildRawTrackPoints((int) $trip['id']) : null,
             'pois' => $pois,
         ], JSON_THROW_ON_ERROR));
 
         return $response->withHeader('Content-Type', 'application/json');
-    }
-
-    /**
-     * @return list<array{seq: int, lat: float, lng: float, recordedAt: ?string}>
-     */
-    private function buildRawTrackPoints(int $tripId): array
-    {
-        $track = $this->tracks->findByTrip($tripId);
-        if ($track === null) {
-            return [];
-        }
-
-        return array_map(static fn (array $p): array => [
-            'seq' => (int) $p['seq'],
-            'lat' => (float) $p['lat'],
-            'lng' => (float) $p['lng'],
-            'recordedAt' => $p['recorded_at'],
-        ], $this->tracks->findPoints((int) $track['id']));
     }
 
     /**

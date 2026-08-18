@@ -130,35 +130,9 @@
     </div>
 
     <?php if ($track !== null): ?>
-      <?php if ($track['totalPoints'] > 2): ?>
-        <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/trim<?= e($wizardQs) ?>" class="map-view__trim-form" data-trim-slider-form>
-          <?= $csrf->field() ?>
-          <span class="map-view__trim-group">
-            <label>
-              <?= e(t('trip.map.trim_start')) ?>
-              <input type="range" name="trim_start" min="0" max="<?= (int) $track['totalPoints'] - 1 ?>"
-                     value="<?= (int) $track['trimStart'] ?>" data-trim-range="start">
-            </label>
-            <input type="datetime-local" step="1" class="map-view__trim-time" data-trim-time="start">
-          </span>
-          <span class="map-view__trim-group">
-            <label>
-              <?= e(t('trip.map.trim_end')) ?>
-              <input type="range" name="trim_end" min="0" max="<?= (int) $track['totalPoints'] - 1 ?>"
-                     value="<?= (int) $track['trimEnd'] ?>" data-trim-range="end">
-            </label>
-            <input type="datetime-local" step="1" class="map-view__trim-time" data-trim-time="end">
-          </span>
-          <button type="submit" class="btn btn-primary"><?= e(t('trip.map.trim_apply')) ?></button>
-        </form>
-        <p class="field-hint"><?= e(t('trip.map.trim_slider_hint')) ?></p>
-      <?php endif; ?>
-
-      <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/delete<?= e($wizardQs) ?>"
-            data-confirm="<?= e(t('trip.map.track_delete_confirm')) ?>">
-        <?= $csrf->field() ?>
-        <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.track_delete')) ?></button>
-      </form>
+      <p class="page-actions">
+        <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/route-edit"><?= e(t('trip.map.route_edit_link')) ?></a>
+      </p>
     <?php endif; ?>
   </div>
 <?php endif; ?>

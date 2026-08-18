@@ -208,6 +208,14 @@ final class TrackRepository
                 'UPDATE trip_tracks SET trim_start_seq = NULL, trim_end_seq = NULL, updated_at = ? WHERE id = ?'
             )->execute([gmdate('Y-m-d H:i:s'), $trackId]);
 
+            // A fresh upload invalidates any in-progress Route-editieren
+            // session for this track - its snapshot describes a point set
+            // that no longer exists (see TrackEditService::deletePoint/
+            // insertPoint, which create it lazily on first edit).
+            // replaceForTrip() doesn't need the same call: it deletes the
+            // whole trip_tracks row, cascading the snapshot away with it.
+            $this->clearEditSnapshot($trackId);
+
             $this->pdo->commit();
             return $trackId;
         } catch (\Throwable $e) {
@@ -227,6 +235,190 @@ final class TrackRepository
     public function deleteForTrip(int $tripId): void
     {
         $this->pdo->prepare('DELETE FROM trip_tracks WHERE trip_id = ?')->execute([$tripId]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function findPointById(int $pointId): ?array
+    {
+        $stmt = $this->pdo->prepare('SELECT * FROM trip_track_points WHERE id = ?');
+        $stmt->execute([$pointId]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
+
+    /**
+     * Removes one point and closes the seq gap it leaves - every later
+     * point's seq decrements by one, keeping the sequence contiguous
+     * (findPoints()'s ORDER BY seq and every other seq-based consumer
+     * assume 0..n-1 with no holes). Trim range resets, same convention
+     * appendForTrip() already uses whenever the point set's shape changes -
+     * old trim indices wouldn't line up with the shifted points anyway.
+     *
+     * @return array<string, mixed>|null the removed row (for the caller's
+     *         undo stack), or null if it didn't belong to this track
+     */
+    public function deletePoint(int $trackId, int $pointId): ?array
+    {
+        $point = $this->findPointById($pointId);
+        if ($point === null || (int) $point['track_id'] !== $trackId) {
+            return null;
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $this->pdo->prepare('DELETE FROM trip_track_points WHERE id = ?')->execute([$pointId]);
+            $this->pdo->prepare(
+                'UPDATE trip_track_points SET seq = seq - 1 WHERE track_id = ? AND seq > ?'
+            )->execute([$trackId, (int) $point['seq']]);
+            $this->resetTrim($trackId);
+            $this->pdo->commit();
+            return $point;
+        } catch (\Throwable $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Inserts a point right after an existing seq, shifting every later
+     * point's seq up by one to make room - the general primitive both a
+     * real "insert between two neighbours" (TrackEditService::insertPoint,
+     * $afterSeq = the earlier neighbour's own seq) and an undo-of-delete
+     * (TrackEditService::undo, $afterSeq = the deleted point's former
+     * seq - 1, putting it back exactly where it was) are built from.
+     *
+     * @return int the new point's id
+     */
+    public function insertPointAt(
+        int $trackId,
+        int $afterSeq,
+        float $lat,
+        float $lng,
+        ?float $elevation,
+        ?string $recordedAt,
+        ?float $accuracy = null,
+    ): int {
+        $this->pdo->beginTransaction();
+        try {
+            $this->pdo->prepare(
+                'UPDATE trip_track_points SET seq = seq + 1 WHERE track_id = ? AND seq > ?'
+            )->execute([$trackId, $afterSeq]);
+
+            $stmt = $this->pdo->prepare(
+                'INSERT INTO trip_track_points (track_id, seq, lat, lng, elevation_m, recorded_at, accuracy_m)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$trackId, $afterSeq + 1, $lat, $lng, $elevation, $recordedAt, $accuracy]);
+            $pointId = (int) $this->pdo->lastInsertId();
+
+            $this->resetTrim($trackId);
+            $this->pdo->commit();
+            return $pointId;
+        } catch (\Throwable $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    public function hasEditSnapshot(int $trackId): bool
+    {
+        $stmt = $this->pdo->prepare('SELECT 1 FROM trip_track_edit_snapshots WHERE track_id = ?');
+        $stmt->execute([$trackId]);
+        return $stmt->fetchColumn() !== false;
+    }
+
+    /**
+     * Copies the track's current point set aside, so Reset has something to
+     * restore to - called once, lazily, on the first edit of a Route-
+     * editieren session (TrackEditService), never again until the snapshot
+     * is consumed by restoreEditSnapshot() or invalidated by a fresh upload
+     * (clearEditSnapshot(), see appendForTrip()/replaceForTrip()).
+     */
+    public function createEditSnapshot(int $trackId): void
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $this->pdo->prepare('DELETE FROM trip_track_edit_snapshots WHERE track_id = ?')->execute([$trackId]);
+            $this->pdo->prepare('INSERT INTO trip_track_edit_snapshots (track_id, created_at) VALUES (?, ?)')
+                ->execute([$trackId, gmdate('Y-m-d H:i:s')]);
+            $snapshotId = (int) $this->pdo->lastInsertId();
+
+            $insertPoint = $this->pdo->prepare(
+                'INSERT INTO trip_track_edit_snapshot_points (snapshot_id, seq, lat, lng, elevation_m, recorded_at, accuracy_m)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)'
+            );
+            foreach ($this->findPoints($trackId) as $point) {
+                $insertPoint->execute([
+                    $snapshotId, $point['seq'], $point['lat'], $point['lng'],
+                    $point['elevation_m'], $point['recorded_at'], $point['accuracy_m'],
+                ]);
+            }
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Reset: replaces the track's current points with whatever
+     * createEditSnapshot() captured before the session's first edit, then
+     * consumes the snapshot - a further edit after this starts a new
+     * editing session (its own fresh snapshot on its first change), rather
+     * than every future Reset always jumping back to the same original
+     * point regardless of how many edits happened since.
+     */
+    public function restoreEditSnapshot(int $trackId): bool
+    {
+        $stmt = $this->pdo->prepare('SELECT id FROM trip_track_edit_snapshots WHERE track_id = ?');
+        $stmt->execute([$trackId]);
+        $snapshotId = $stmt->fetchColumn();
+        if ($snapshotId === false) {
+            return false;
+        }
+        $snapshotId = (int) $snapshotId;
+
+        $stmt2 = $this->pdo->prepare(
+            'SELECT * FROM trip_track_edit_snapshot_points WHERE snapshot_id = ? ORDER BY seq'
+        );
+        $stmt2->execute([$snapshotId]);
+        $points = $stmt2->fetchAll();
+
+        $this->pdo->beginTransaction();
+        try {
+            $this->pdo->prepare('DELETE FROM trip_track_points WHERE track_id = ?')->execute([$trackId]);
+            $insertPoint = $this->pdo->prepare(
+                'INSERT INTO trip_track_points (track_id, seq, lat, lng, elevation_m, recorded_at, accuracy_m)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)'
+            );
+            foreach ($points as $point) {
+                $insertPoint->execute([
+                    $trackId, $point['seq'], $point['lat'], $point['lng'],
+                    $point['elevation_m'], $point['recorded_at'], $point['accuracy_m'],
+                ]);
+            }
+            $this->pdo->prepare('DELETE FROM trip_track_edit_snapshots WHERE id = ?')->execute([$snapshotId]);
+            $this->resetTrim($trackId);
+            $this->pdo->commit();
+            return true;
+        } catch (\Throwable $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    public function clearEditSnapshot(int $trackId): void
+    {
+        $this->pdo->prepare('DELETE FROM trip_track_edit_snapshots WHERE track_id = ?')->execute([$trackId]);
+    }
+
+    private function resetTrim(int $trackId): void
+    {
+        $this->pdo->prepare(
+            'UPDATE trip_tracks SET trim_start_seq = NULL, trim_end_seq = NULL, updated_at = ? WHERE id = ?'
+        )->execute([gmdate('Y-m-d H:i:s'), $trackId]);
     }
 
     public function countByUser(int $userId): int

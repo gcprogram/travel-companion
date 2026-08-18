@@ -14,6 +14,7 @@ use App\Controller\PoiController;
 use App\Controller\ServiceWorkerController;
 use App\Controller\ShareController;
 use App\Controller\TrackController;
+use App\Controller\TrackEditController;
 use App\Controller\TripController;
 use App\Controller\TripManageController;
 use App\Controller\TripMapController;
@@ -66,6 +67,10 @@ return static function (App $app): void {
         $group->post('/trips/{id:[0-9]+}/track/points', [TrackController::class, 'submitPoints']);
         $group->post('/trips/{id:[0-9]+}/track/trim', [TrackController::class, 'trim']);
         $group->post('/trips/{id:[0-9]+}/track/delete', [TrackController::class, 'delete']);
+        $group->post('/trips/{id:[0-9]+}/track/points/insert', [TrackEditController::class, 'insertPoint']);
+        $group->post('/trips/{id:[0-9]+}/track/points/{pointId:[0-9]+}/delete', [TrackEditController::class, 'deletePoint']);
+        $group->post('/trips/{id:[0-9]+}/track/undo', [TrackEditController::class, 'undo']);
+        $group->post('/trips/{id:[0-9]+}/track/reset', [TrackEditController::class, 'reset']);
 
         // POIs: discovery dispatches a job, everything else is direct CRUD.
         $group->post('/trips/{id:[0-9]+}/pois/discover', [PoiController::class, 'discover']);
@@ -139,6 +144,8 @@ return static function (App $app): void {
     $app->get('/trip/{slug}/map', [TripMapController::class, 'show']);
     $app->get('/trip/{slug}/map/data', [TripMapController::class, 'data']);
     $app->get('/trip/{slug}/review', [TripMapController::class, 'review']);
+    $app->get('/trip/{slug}/route-edit', [TrackEditController::class, 'show']);
+    $app->get('/trip/{slug}/route-edit/data', [TrackEditController::class, 'data']);
     $app->get('/trip/{slug}/pois', [PoiController::class, 'index']);
     $app->get('/trip/{slug}/photos', [TripPhotoController::class, 'show']);
 
