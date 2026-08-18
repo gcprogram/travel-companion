@@ -17,6 +17,7 @@ use App\Support\View;
 use App\Support\WizardNav;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Slim\Exception\HttpForbiddenException;
 use Slim\Exception\HttpNotFoundException;
 
 final class TripMapController
@@ -204,5 +205,37 @@ final class TripMapController
             throw new HttpNotFoundException($request);
         }
         return $trip;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function requireEditable(ServerRequestInterface $request, string $slug): array
+    {
+        $trip = $this->requireViewable($request, $slug);
+        if (!$this->access->canEdit($trip, $request->getAttribute('user'), $request)) {
+            throw new HttpForbiddenException($request);
+        }
+        return $trip;
+    }
+
+    /**
+     * "Besuchte Orte prüfen": a map-zoom carousel over detected stays
+     * (stay-review.js) - accept (keep the resolved/edited name as a real
+     * visited place) or reject (StayDismissalRepository, so it stops
+     * resurfacing) one at a time. Edit-only: unlike the map/pois pages
+     * this has no read-only view, there's nothing to look at once every
+     * candidate is resolved.
+     */
+    public function review(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireEditable($request, (string) $args['slug']);
+        $pois = $this->pois->findByTrip((int) $trip['id']);
+
+        return $this->view->render($response, 'trips/review', [
+            'trip' => $trip,
+            'stays' => $this->routeSummary->detectStays((int) $trip['id'], $pois),
+            'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
+        ]);
     }
 }
