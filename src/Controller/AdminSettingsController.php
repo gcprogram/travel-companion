@@ -55,6 +55,7 @@ final class AdminSettingsController
         $this->setIntIfValid($body, 'quota_ai_manager', 'quota.ai.manager', min: 0);
         $this->setIntIfValid($body, 'poi_search_radius', 'poi.search_radius_meters', min: 50);
         $this->setIntIfValid($body, 'poi_photo_match', 'poi.photo_match_meters', min: 10);
+        $this->setIntIfValid($body, 'poi_geocache_import_radius', 'poi.geocache_import_radius_meters', min: 100);
 
         // Unchecking everything would silently disable discovery entirely,
         // so an empty selection keeps the previous value rather than saving

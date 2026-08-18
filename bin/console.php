@@ -9,10 +9,17 @@ declare(strict_types=1);
  *   php bin/console.php jobs:work          Work off due jobs (for the minute-cron)
  *       Options: --max-runtime=50          Second limit per run
  *   php bin/console.php jobs:ping          Enqueue a test job
+ *   php bin/console.php geocode:clear-cache
+ *       Wipes the reverse-geocode cache (geocode_cache) so already-cached
+ *       place names get re-resolved with current logic on next view -
+ *       run this after a ReverseGeocodingService change to fix names that
+ *       were cached before the fix (they don't refresh on their own, see
+ *       GeocodeCacheRepository).
  */
 
 use App\Database\Migrator;
 use App\Job\Worker;
+use App\Repository\GeocodeCacheRepository;
 use App\Repository\JobRepository;
 use App\Support\Env;
 use DI\ContainerBuilder;
@@ -56,7 +63,12 @@ switch ($command) {
         echo "Ping job #{$id} enqueued. Work it off with: php bin/console.php jobs:work\n";
         break;
 
+    case 'geocode:clear-cache':
+        $removed = $container->get(GeocodeCacheRepository::class)->clear();
+        echo "Cleared {$removed} cached geocode result(s). Names re-resolve on next view (via geocode.resolve jobs).\n";
+        break;
+
     default:
-        echo "Commands: migrate | jobs:work [--max-runtime=50] | jobs:ping\n";
+        echo "Commands: migrate | jobs:work [--max-runtime=50] | jobs:ping | geocode:clear-cache\n";
         exit($command === 'help' ? 0 : 1);
 }

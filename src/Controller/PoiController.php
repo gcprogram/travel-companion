@@ -8,6 +8,7 @@ use App\Repository\JobRepository;
 use App\Repository\PlaceDetailsCacheRepository;
 use App\Repository\PoiMediaRepository;
 use App\Repository\PoiRepository;
+use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
 use App\Service\FieldNotesParser;
 use App\Service\GeocachingGpxParser;
@@ -37,6 +38,7 @@ final class PoiController
         private readonly View $view,
         private readonly TripRepository $trips,
         private readonly PoiRepository $pois,
+        private readonly TrackRepository $tracks,
         private readonly PoiMediaRepository $poiMedia,
         private readonly PoiApproachService $poiApproach,
         private readonly Settings $settings,
@@ -182,6 +184,25 @@ final class PoiController
         $caches = array_values($combined);
         $relevant = array_values(array_filter($caches, static fn (array $c): bool => $c['found'] || $c['dnf']));
 
+        // A Pocket Query/field-notes combo has no location awareness of its
+        // own - it matches purely by GC code and date, so a find from a
+        // completely different place the traveller visited on the same
+        // trip (or just before/after) would otherwise get imported here
+        // too. Drop anything too far from this trip's own track, if one
+        // exists yet (nothing to compare against otherwise - import
+        // everything rather than silently dropping it all).
+        $droppedByDistance = 0;
+        $trackLatLngs = $this->trackLatLngs((int) $trip['id']);
+        if ($trackLatLngs !== []) {
+            $radius = $this->settings->getInt('poi.geocache_import_radius_meters');
+            $before = count($relevant);
+            $relevant = array_values(array_filter(
+                $relevant,
+                fn (array $c): bool => $this->nearAnyPoint($c['lat'], $c['lng'], $trackLatLngs, $radius),
+            ));
+            $droppedByDistance = $before - count($relevant);
+        }
+
         foreach ($relevant as $cache) {
             $this->pois->upsertFromGpxImport(
                 (int) $trip['id'],
@@ -197,12 +218,55 @@ final class PoiController
             );
         }
 
-        if ($relevant === []) {
+        if ($relevant === [] && $droppedByDistance > 0) {
+            $this->flash->add('error', t('trip.map.geocaching_gpx_all_too_far', ['count' => (string) $droppedByDistance]));
+        } elseif ($relevant === []) {
             $this->flash->add('error', t('trip.map.geocaching_gpx_none_found'));
+        } elseif ($droppedByDistance > 0) {
+            $this->flash->add('success', t('trip.map.geocaching_gpx_imported_with_dropped', [
+                'count' => (string) count($relevant),
+                'dropped' => (string) $droppedByDistance,
+            ]));
         } else {
             $this->flash->add('success', t('trip.map.geocaching_gpx_imported', ['count' => (string) count($relevant)]));
         }
         return $this->redirectToPois($request, $response, $trip);
+    }
+
+    /**
+     * @return list<array{lat: float, lng: float}>
+     */
+    private function trackLatLngs(int $tripId): array
+    {
+        $track = $this->tracks->findByTrip($tripId);
+        if ($track === null) {
+            return [];
+        }
+        return array_map(
+            static fn (array $p): array => ['lat' => (float) $p['lat'], 'lng' => (float) $p['lng']],
+            $this->tracks->findPoints((int) $track['id']),
+        );
+    }
+
+    /**
+     * @param list<array{lat: float, lng: float}> $points
+     */
+    private function nearAnyPoint(float $lat, float $lng, array $points, int $radiusMeters): bool
+    {
+        foreach ($points as $point) {
+            if ($this->haversineMeters($lat, $lng, $point['lat'], $point['lng']) <= $radiusMeters) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function haversineMeters(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+        return 6371000.0 * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 
     /**
