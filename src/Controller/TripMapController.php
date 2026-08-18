@@ -232,9 +232,36 @@ final class TripMapController
         $trip = $this->requireEditable($request, (string) $args['slug']);
         $pois = $this->pois->findByTrip((int) $trip['id']);
 
+        $stays = array_map(static fn (array $s): array => [
+            'kind' => 'stay',
+            'lat' => $s['lat'],
+            'lng' => $s['lng'],
+            'name' => $s['locationName'],
+            'startedAt' => $s['startedAt'],
+            'endedAt' => $s['endedAt'],
+            'durationSeconds' => $s['durationSeconds'],
+        ], $this->routeSummary->detectStays((int) $trip['id'], $pois));
+
+        // Overpass-discovered sights nobody has confirmed yet
+        // (source='overpass' AND visited=0 by construction - see
+        // PoiRepository::upsertFromOverpass) get folded into the same
+        // candidate list, so a user reviews stays and sights in one pass
+        // instead of jumping to /pois for a separate bulk workflow.
+        // Manually-added POIs are never candidates here - the user already
+        // typed those in themselves, nothing to confirm.
+        $sights = array_values(array_filter($pois, static fn (array $p): bool => $p['source'] === 'overpass' && !$p['visited']));
+        $sightCandidates = array_map(static fn (array $p): array => [
+            'kind' => 'sight',
+            'id' => (int) $p['id'],
+            'lat' => $p['lat'],
+            'lng' => $p['lng'],
+            'name' => $p['name'],
+            'categoryLabel' => t('trip.map.category.' . $p['category']),
+        ], $sights);
+
         return $this->view->render($response, 'trips/review', [
             'trip' => $trip,
-            'stays' => $this->routeSummary->detectStays((int) $trip['id'], $pois),
+            'candidates' => array_merge($stays, $sightCandidates),
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);
     }
