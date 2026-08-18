@@ -64,12 +64,10 @@
         </div>
         <div class="route-upload-table__extra timeline-import__range">
           <label><?= e(t('trip.map.timeline_from_label')) ?>
-            <input type="datetime-local" data-timeline-from
-                   value="<?= e($trip['date_start'] !== null ? $trip['date_start'] . 'T00:00' : '') ?>">
+            <input type="date" data-timeline-from value="<?= e($trip['date_start'] ?? '') ?>">
           </label>
           <label><?= e(t('trip.map.timeline_to_label')) ?>
-            <input type="datetime-local" data-timeline-to
-                   value="<?= e($trip['date_end'] !== null ? $trip['date_end'] . 'T23:59' : '') ?>">
+            <input type="date" data-timeline-to value="<?= e($trip['date_end'] ?? '') ?>">
           </label>
         </div>
         <p class="field-hint route-upload-table__hint" data-timeline-status><?= e(t('trip.map.track_method_timeline_hint')) ?></p>
