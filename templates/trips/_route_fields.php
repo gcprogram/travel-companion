@@ -124,9 +124,6 @@
 <?php if ($canEdit && $stays !== []): ?>
   <h2><?= e(t('trip.map.stays_heading')) ?></h2>
   <p class="field-hint"><?= e(t('trip.map.stays_hint')) ?></p>
-  <p class="page-actions">
-    <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/review"><?= e(t('trip.map.stays_review_link')) ?></a>
-  </p>
   <ul class="stay-list">
     <?php foreach ($stays as $stay): ?>
       <li class="stay-list__item">
