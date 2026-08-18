@@ -53,7 +53,7 @@ final class TripMetadataAutoFillHandler implements JobHandlerInterface
         $dateStart = $trip['date_start'] ?? substr($points[0]['at'], 0, 10);
         $dateEnd = $trip['date_end'] ?? substr($points[count($points) - 1]['at'], 0, 10);
 
-        $country = $trip['country'] ?? $this->resolveCountry($points[0]['lat'], $points[0]['lng']);
+        $country = $trip['country'] ?? $this->resolveCountry($tripId, $points[0]['lat'], $points[0]['lng']);
 
         $this->trips->updateAutoMetadata($tripId, $country, $dateStart, $dateEnd);
     }
@@ -82,9 +82,9 @@ final class TripMetadataAutoFillHandler implements JobHandlerInterface
         return $points;
     }
 
-    private function resolveCountry(float $lat, float $lng): ?string
+    private function resolveCountry(int $tripId, float $lat, float $lng): ?string
     {
-        $cached = $this->geocodeCache->find($lat, $lng);
+        $cached = $this->geocodeCache->find($tripId, $lat, $lng);
         if ($cached['found']) {
             return $cached['country'];
         }
@@ -95,7 +95,7 @@ final class TripMetadataAutoFillHandler implements JobHandlerInterface
             return null; // Leave uncached - worth a retry on the next photo/track update.
         }
 
-        $this->geocodeCache->store($lat, $lng, $result['name'], $result['country']);
+        $this->geocodeCache->store($tripId, $lat, $lng, $result['name'], $result['country']);
         return $result['country'];
     }
 }

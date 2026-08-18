@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Repository\GeocodeCacheRepository;
 use App\Repository\JobRepository;
 use App\Repository\PlaceDetailsCacheRepository;
 use App\Repository\PoiMediaRepository;
@@ -51,6 +52,7 @@ final class PoiController
         private readonly GooglePlacesService $places,
         private readonly PlaceDetailsCacheRepository $placeCache,
         private readonly StayDismissalRepository $dismissals,
+        private readonly GeocodeCacheRepository $geocodeCache,
         private readonly Flash $flash,
     ) {
     }
@@ -361,6 +363,23 @@ final class PoiController
         $removed = $this->pois->deleteUnphotographed((int) $trip['id']);
 
         $this->flash->add('success', t('trip.map.poi_unphotographed_removed', ['count' => (string) $removed]));
+        return $this->redirectToPois($request, $response, $trip);
+    }
+
+    /**
+     * Clears this trip's own share of geocode_cache only - the admin
+     * "Ortsnamen-Cache leeren" button (AdminSettingsController) wipes every
+     * trip of every user at once, which is overkill for "this one trip's
+     * place names look off, re-resolve them". Nothing but a re-resolve
+     * delay either way (GeocodeResolveHandler/TripMetadataAutoFillHandler
+     * refill it on the next miss).
+     */
+    public function clearGeocodeCache(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireEditable($request, (int) $args['id']);
+        $removed = $this->geocodeCache->clearForTrip((int) $trip['id']);
+
+        $this->flash->add('success', t('trip.map.geocode_cache_cleared', ['count' => (string) $removed]));
         return $this->redirectToPois($request, $response, $trip);
     }
 

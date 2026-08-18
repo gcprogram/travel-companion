@@ -77,6 +77,12 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
     </form>
     <p class="field-hint"><?= e(t('trip.map.poi_prune_hint')) ?></p>
   <?php endif; ?>
+
+  <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/clear-geocode-cache<?= e($wizardQs) ?>" class="page-actions">
+    <?= $csrf->field() ?>
+    <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.geocode_cache_clear')) ?></button>
+  </form>
+  <p class="field-hint"><?= e(t('trip.map.geocode_cache_clear_hint')) ?></p>
 <?php endif; ?>
 
 <?php if ($pois === []): ?>

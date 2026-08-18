@@ -8,7 +8,7 @@ use App\Repository\GeocodeCacheRepository;
 use App\Service\ReverseGeocodingService;
 
 /**
- * Job type "geocode.resolve". Payload: {"lat": float, "lng": float}.
+ * Job type "geocode.resolve". Payload: {"trip_id": int, "lat": float, "lng": float}.
  * Dispatched by TripMapController::detectStays() on a geocode_cache miss, so
  * the map page never calls Nominatim synchronously from a request - it shows
  * whatever's cached (possibly nothing, on the very first view of a new
@@ -26,15 +26,17 @@ final class GeocodeResolveHandler implements JobHandlerInterface
 
     public function handle(array $payload): void
     {
+        $tripId = $payload['trip_id'] ?? null;
         $lat = $payload['lat'] ?? null;
         $lng = $payload['lng'] ?? null;
-        if (!is_numeric($lat) || !is_numeric($lng)) {
+        if (!is_numeric($tripId) || !is_numeric($lat) || !is_numeric($lng)) {
             return;
         }
 
+        $tripId = (int) $tripId;
         $lat = (float) $lat;
         $lng = (float) $lng;
-        if ($this->cache->find($lat, $lng)['found']) {
+        if ($this->cache->find($tripId, $lat, $lng)['found']) {
             return; // Resolved by an earlier, duplicate job already.
         }
 
@@ -44,6 +46,6 @@ final class GeocodeResolveHandler implements JobHandlerInterface
             return; // Leave uncached - worth a retry on the next miss, unlike a genuine "nothing found".
         }
 
-        $this->cache->store($lat, $lng, $result['name'], $result['country']);
+        $this->cache->store($tripId, $lat, $lng, $result['name'], $result['country']);
     }
 }

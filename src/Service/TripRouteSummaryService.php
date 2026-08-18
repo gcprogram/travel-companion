@@ -92,12 +92,12 @@ final class TripRouteSummaryService
                 && !$this->isDismissed($dismissed, $stay['lat'], $stay['lng']),
         ));
 
-        return array_map(function (array $stay): array {
-            $cached = $this->geocodeCache->find($stay['lat'], $stay['lng']);
+        return array_map(function (array $stay) use ($tripId): array {
+            $cached = $this->geocodeCache->find($tripId, $stay['lat'], $stay['lng']);
             $stay['locationName'] = $cached['name'];
             $stay['locationResolved'] = $cached['found'];
             if (!$cached['found']) {
-                $this->jobs->dispatch('geocode.resolve', ['lat' => $stay['lat'], 'lng' => $stay['lng']]);
+                $this->jobs->dispatch('geocode.resolve', ['trip_id' => $tripId, 'lat' => $stay['lat'], 'lng' => $stay['lng']]);
             }
             return $stay;
         }, $unmatched);
