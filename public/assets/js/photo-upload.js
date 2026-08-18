@@ -29,15 +29,18 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
     input.disabled = true;
-    // Deliberately NOT the "saved on this device" message yet: queuing is
-    // just how the upload is made crash-proof, and online that queue drains
-    // immediately. Saying "will upload once back online" while it's already
-    // uploading is simply wrong - that message is only right if the sync
-    // below actually gets skipped.
-    status.textContent = '';
+    var total = files.length;
 
-    files.reduce(function (chain, file) {
+    files.reduce(function (chain, file, index) {
       return chain.then(function () {
+        // Writing each full-resolution photo into IndexedDB one at a time
+        // (the queue-first design - see file header) can itself take a
+        // few seconds for a multi-photo batch, with the upload counter
+        // below not appearing until every file is already queued. Without
+        // this, that whole phase was silent - looked stuck, not just slow.
+        status.textContent = (input.dataset.msgPreparing || '')
+          .replace(':current', String(index + 1))
+          .replace(':total', String(total));
         return OfflineQueue.add({
           type: 'photo',
           entryId: entryId,

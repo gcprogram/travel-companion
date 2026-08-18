@@ -32,6 +32,42 @@ $action = $isEdit ? '/trips/' . (int) $trip['id'] : '/trips';
   </div>
 
   <div class="field">
+    <label for="tags"><?= e(t('trip.form.tags_label')) ?></label>
+    <input type="text" id="tags" name="tags" value="<?= e($trip['tags'] ?? '') ?>"
+           placeholder="<?= e(t('trip.form.tags_placeholder')) ?>">
+    <p class="field-hint"><?= e(t('trip.form.tags_hint')) ?></p>
+  </div>
+
+  <?php if ($isEdit): ?>
+    <?php if (!empty($trip['ai_title_suggestion']) || !empty($trip['ai_tags_suggestion'])): ?>
+      <div class="ai-summary">
+        <p class="ai-summary__label"><?= e(t('trip.form.ai_suggestion_label')) ?></p>
+        <?php if (!empty($trip['ai_title_suggestion'])): ?>
+          <p class="ai-summary__text">
+            <?= e(t('trip.form.ai_suggested_title')) ?>: <strong id="ai-title-text"><?= e($trip['ai_title_suggestion']) ?></strong>
+            <button type="button" class="btn btn-ghost btn-small" data-ai-apply data-target="title"
+                    data-source="ai-title-text"><?= e(t('entry.form.ai_summary_apply')) ?></button>
+          </p>
+        <?php endif; ?>
+        <?php if (!empty($trip['ai_tags_suggestion'])): ?>
+          <p class="ai-summary__text">
+            <?= e(t('trip.form.ai_suggested_tags')) ?>: <strong id="ai-tags-text"><?= e($trip['ai_tags_suggestion']) ?></strong>
+            <button type="button" class="btn btn-ghost btn-small" data-ai-apply data-target="tags"
+                    data-source="ai-tags-text"><?= e(t('entry.form.ai_summary_apply')) ?></button>
+          </p>
+        <?php endif; ?>
+      </div>
+    <?php endif; ?>
+    <div class="field">
+      <form method="post" action="/trips/<?= (int) $trip['id'] ?>/suggest-meta">
+        <?= $csrf->field() ?>
+        <button type="submit" class="btn btn-ghost btn-small"><?= e(t('trip.form.ai_suggest_generate')) ?></button>
+        <p class="field-hint"><?= e(t('trip.form.ai_suggest_hint')) ?></p>
+      </form>
+    </div>
+  <?php endif; ?>
+
+  <div class="field">
     <label><?= e(t('trip.form.visibility_label')) ?></label>
     <div class="field-radio-group">
       <label>

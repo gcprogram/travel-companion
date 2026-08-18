@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Repository\DayEntryRatingRepository;
 use App\Repository\DayEntryRepository;
 use App\Repository\DayEntryWeatherHourRepository;
+use App\Repository\JobRepository;
 use App\Repository\ShareTokenRepository;
 use App\Repository\StationRepository;
 use App\Repository\TripRepository;
@@ -31,6 +32,7 @@ final class TripController
         private readonly DayEntryWeatherHourRepository $weatherHours,
         private readonly DayEntryRatingRepository $ratings,
         private readonly ShareTokenRepository $shareTokens,
+        private readonly JobRepository $jobs,
         private readonly Slugger $slugger,
         private readonly TripAccess $access,
         private readonly MediaCleanupService $mediaCleanup,
@@ -180,6 +182,21 @@ final class TripController
     }
 
     /**
+     * Dispatches the trip.suggest_meta job (see TripSuggestMetaHandler) - a
+     * text-completion call, so it goes through the queue like the day-entry
+     * summary job rather than blocking this request.
+     */
+    public function suggestMeta(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireEditable($request, (int) $args['id']);
+
+        $this->jobs->dispatch('trip.suggest_meta', ['trip_id' => (int) $trip['id']]);
+
+        $this->flash->add('success', t('trip.form.ai_suggest_started'));
+        return $response->withHeader('Location', '/trips/' . (int) $trip['id'] . '/edit')->withStatus(302);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function requireEditable(ServerRequestInterface $request, int $tripId): array
@@ -210,6 +227,7 @@ final class TripController
         $data = [
             'title' => trim((string) ($body['title'] ?? '')),
             'description' => $this->nullable($body['description'] ?? null),
+            'tags' => $this->nullable($body['tags'] ?? null),
             'visibility' => in_array($body['visibility'] ?? null, ['public', 'member_only'], true)
                 ? $body['visibility']
                 : 'private',
