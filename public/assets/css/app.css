@@ -555,6 +555,16 @@ form.auth-form { max-width: 420px; }
 }
 .review-bar__nav:disabled { color: var(--color-line); cursor: default; }
 .review-bar__info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.review-bar__kind {
+  align-self: flex-start;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+  background: var(--color-paper);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
 .review-bar__name {
   font-family: var(--font-display);
   font-size: 1.1rem;
@@ -562,6 +572,7 @@ form.auth-form { max-width: 420px; }
   border-radius: var(--radius);
   padding: 0.3rem 0.5rem;
 }
+.review-bar__name:read-only { background: var(--color-paper); border-color: transparent; }
 .review-bar__time { font-size: 0.82rem; color: var(--color-muted); }
 .review-bar__action {
   width: 2.5rem;

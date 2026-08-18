@@ -552,6 +552,15 @@ final class PoiController
         $poi = $this->requireEditablePoi($request, (int) $args['id']);
         $this->pois->setVisited((int) $poi['id'], !((bool) $poi['visited']));
 
+        // The unified review carousel (review-carousel.js) drives this same
+        // endpoint via fetch() to "confirm" an undiscovered sight without a
+        // full page reload - same X-Requested-With opt-in convention as
+        // addStay()'s stay-review branch above.
+        if ($request->getHeaderLine('X-Requested-With') === 'sight-review') {
+            $response->getBody()->write((string) json_encode(['ok' => true], JSON_THROW_ON_ERROR));
+            return $response->withHeader('Content-Type', 'application/json');
+        }
+
         $trip = $this->trips->findById((int) $poi['trip_id']);
         return $this->redirectToPois($request, $response, $trip);
     }

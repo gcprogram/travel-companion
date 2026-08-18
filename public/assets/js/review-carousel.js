@@ -1,11 +1,21 @@
 /**
- * "Besuchte Orte prüfen": a map-zoom carousel over detected stays
- * (TripMapController::review). One candidate at a time, map fit to a
- * ~2km box centred on it (track/sights/geocaches shown for context, from
- * the same /map/data endpoint the real map page uses), with a bottom bar
- * to edit the name and accept (keep as a visited place) or reject
- * (PoiController::dismissStay - the only "existence" a rejected,
- * never-persisted stay gets, so it stops resurfacing).
+ * "Besuchte Orte prüfen": a map-zoom carousel over review candidates
+ * (TripMapController::review) - detected stays AND undiscovered Overpass
+ * sights in one unified list (kind: 'stay'|'sight'), so a user reviews
+ * everything still needing confirmation in one pass instead of jumping
+ * between /review (stays only, formerly) and /pois (sights, bulk-only).
+ * One candidate at a time, map fit to a ~2km box centred on it (track/
+ * sights/geocaches shown for context, from the same /map/data endpoint the
+ * real map page uses), with a bottom bar to accept (keep) or reject.
+ *
+ * A stay's name is editable (nothing else knows its name yet - see
+ * PoiController::addStay); a sight already has a real OSM name, shown
+ * read-only. Accept/reject hit different existing endpoints per kind:
+ * - stay: PoiController::addStay / dismissStay (unchanged from before).
+ * - sight: PoiController::toggleVisited (X-Requested-With: sight-review,
+ *   the "confirm" this candidate is real) / PoiController::delete
+ *   (X-Inline-Delete: 1, "reject" - same convention confirm-remember.js's
+ *   inline delete already uses elsewhere).
  */
 document.addEventListener('DOMContentLoaded', function () {
   var container = document.getElementById('review-map');
@@ -14,16 +24,17 @@ document.addEventListener('DOMContentLoaded', function () {
     return;
   }
 
-  var stays = [];
+  var candidates = [];
   try {
-    stays = JSON.parse(container.dataset.stays || '[]');
+    candidates = JSON.parse(container.dataset.candidates || '[]');
   } catch (e) {
-    stays = [];
+    candidates = [];
   }
-  if (stays.length === 0) {
+  if (candidates.length === 0) {
     return;
   }
 
+  var kindSpan = document.querySelector('[data-review-kind]');
   var nameInput = document.querySelector('[data-review-name]');
   var timeSpan = document.querySelector('[data-review-time]');
   var prevBtn = document.querySelector('[data-review-prev]');
@@ -34,7 +45,10 @@ document.addEventListener('DOMContentLoaded', function () {
   var csrfToken = container.dataset.csrfToken;
   var acceptUrl = container.dataset.acceptUrl;
   var dismissUrl = container.dataset.dismissUrl;
+  var sightVisitedUrlBase = container.dataset.sightVisitedUrlBase;
+  var sightDeleteUrlBase = container.dataset.sightDeleteUrlBase;
   var fallbackName = container.dataset.fallbackName || '';
+  var kindLabels = { stay: container.dataset.kindStay || '', sight: container.dataset.kindSight || '' };
 
   var index = 0;
   var candidateMarker = null;
@@ -88,17 +102,25 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function render() {
-    var stay = stays[index];
-    nameInput.value = stay.name || '';
-    nameInput.placeholder = fallbackName;
+    var candidate = candidates[index];
+    kindSpan.textContent = kindLabels[candidate.kind] || '';
 
-    var minutes = Math.round(stay.durationSeconds / 60);
-    timeSpan.textContent = formatTime(stay.startedAt) + ' – ' + formatTime(stay.endedAt) + ' (' + minutes + ' min)';
+    if (candidate.kind === 'sight') {
+      nameInput.value = candidate.name || '';
+      nameInput.readOnly = true;
+      timeSpan.textContent = candidate.categoryLabel || '';
+    } else {
+      nameInput.value = candidate.name || '';
+      nameInput.placeholder = fallbackName;
+      nameInput.readOnly = false;
+      var minutes = Math.round(candidate.durationSeconds / 60);
+      timeSpan.textContent = formatTime(candidate.startedAt) + ' – ' + formatTime(candidate.endedAt) + ' (' + minutes + ' min)';
+    }
 
     if (candidateMarker) {
       map.removeLayer(candidateMarker);
     }
-    candidateMarker = L.circleMarker([stay.lat, stay.lng], {
+    candidateMarker = L.circleMarker([candidate.lat, candidate.lng], {
       radius: 10,
       color: '#c56a3c',
       fillColor: '#c56a3c',
@@ -109,21 +131,21 @@ document.addEventListener('DOMContentLoaded', function () {
     // ~2km north-south extent, centred on the candidate, regardless of
     // latitude (a fixed zoom level wouldn't give a consistent real-world
     // size at different latitudes).
-    map.fitBounds(L.latLng(stay.lat, stay.lng).toBounds(2000));
+    map.fitBounds(L.latLng(candidate.lat, candidate.lng).toBounds(2000));
 
     prevBtn.disabled = index === 0;
-    nextBtn.disabled = index === stays.length - 1;
+    nextBtn.disabled = index === candidates.length - 1;
   }
 
   function advanceAfterResolve() {
-    stays.splice(index, 1);
-    if (stays.length === 0) {
+    candidates.splice(index, 1);
+    if (candidates.length === 0) {
       container.innerHTML = '';
       bar.innerHTML = '<p class="field-hint">' + (container.dataset.msgDone || '') + '</p>';
       return;
     }
-    if (index >= stays.length) {
-      index = stays.length - 1;
+    if (index >= candidates.length) {
+      index = candidates.length - 1;
     }
     render();
   }
@@ -139,15 +161,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
   nextBtn.addEventListener('click', function () {
-    if (index < stays.length - 1) {
+    if (index < candidates.length - 1) {
       index++;
       render();
     }
   });
 
-  acceptBtn.addEventListener('click', function () {
-    var stay = stays[index];
-    setBusy(true);
+  function acceptStay(stay) {
     var body = new URLSearchParams();
     body.set('_csrf', csrfToken);
     body.set('lat', String(stay.lat));
@@ -155,12 +175,54 @@ document.addEventListener('DOMContentLoaded', function () {
     body.set('name', nameInput.value.trim());
     body.set('started_at', stay.startedAt);
     body.set('ended_at', stay.endedAt);
-    fetch(acceptUrl, {
+    return fetch(acceptUrl, {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'stay-review' },
       body: body.toString(),
-    }).then(function (r) {
+    });
+  }
+
+  function rejectStay(stay) {
+    var body = new URLSearchParams();
+    body.set('_csrf', csrfToken);
+    body.set('lat', String(stay.lat));
+    body.set('lng', String(stay.lng));
+    return fetch(dismissUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+  }
+
+  function acceptSight(sight) {
+    var body = new URLSearchParams();
+    body.set('_csrf', csrfToken);
+    return fetch(sightVisitedUrlBase + sight.id + '/visited', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'sight-review' },
+      body: body.toString(),
+    });
+  }
+
+  function rejectSight(sight) {
+    var body = new URLSearchParams();
+    body.set('_csrf', csrfToken);
+    return fetch(sightDeleteUrlBase + sight.id + '/delete', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Inline-Delete': '1' },
+      body: body.toString(),
+    });
+  }
+
+  acceptBtn.addEventListener('click', function () {
+    var candidate = candidates[index];
+    setBusy(true);
+    var request = candidate.kind === 'sight' ? acceptSight(candidate) : acceptStay(candidate);
+    request.then(function (r) {
       if (!r.ok) {
         throw new Error('accept failed: HTTP ' + r.status);
       }
@@ -173,18 +235,10 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   rejectBtn.addEventListener('click', function () {
-    var stay = stays[index];
+    var candidate = candidates[index];
     setBusy(true);
-    var body = new URLSearchParams();
-    body.set('_csrf', csrfToken);
-    body.set('lat', String(stay.lat));
-    body.set('lng', String(stay.lng));
-    fetch(dismissUrl, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    }).then(function (r) {
+    var request = candidate.kind === 'sight' ? rejectSight(candidate) : rejectStay(candidate);
+    request.then(function (r) {
       if (!r.ok) {
         throw new Error('dismiss failed: HTTP ' + r.status);
       }
