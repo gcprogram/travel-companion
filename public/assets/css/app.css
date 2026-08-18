@@ -627,6 +627,10 @@ form.auth-form { max-width: 420px; }
 .map-view__toggles { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0; }
 .map-view__toggle { display: flex; align-items: center; gap: 0.4rem; margin: 0; font-size: 0.9rem; }
 
+.route-edit__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin: var(--space-2) 0; }
+.route-edit__toolbar form { margin: 0; }
+.route-edit__mode-btn.is-active { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
+
 .map-view__track-tools { display: flex; flex-direction: column; gap: 0.5rem; margin: var(--space-2) 0; }
 .map-view__track-tools h2 { margin-bottom: 0.2rem; }
 .map-view__track-method {
