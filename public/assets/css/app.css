@@ -527,6 +527,60 @@ form.auth-form { max-width: 420px; }
 .empty-state { text-align: center; padding: var(--space-4) var(--space-2); color: var(--color-muted); }
 .bounce-page { text-align: center; padding: var(--space-4) var(--space-2); }
 
+/* --- "Besuchte Orte prüfen" review carousel --- */
+
+.review-map {
+  height: 60vh;
+  min-height: 320px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: var(--space-1);
+}
+.review-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--space-1) var(--space-2);
+}
+.review-bar__nav {
+  border: none;
+  background: none;
+  font-size: 1.4rem;
+  color: var(--color-brand);
+  cursor: pointer;
+  padding: 0.4rem;
+  flex-shrink: 0;
+}
+.review-bar__nav:disabled { color: var(--color-line); cursor: default; }
+.review-bar__info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.review-bar__name {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: 0.3rem 0.5rem;
+}
+.review-bar__time { font-size: 0.82rem; color: var(--color-muted); }
+.review-bar__action {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: #fff;
+}
+.review-bar__action--accept { background: var(--color-brand-dark); }
+.review-bar__action--reject { background: var(--color-danger); }
+.review-bar__action:disabled { opacity: 0.5; cursor: default; }
+
+@media (min-width: 700px) {
+  .review-map { height: 70vh; }
+}
+
 .offline-fallback { padding-top: 2rem; }
 
 .page-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-3); }

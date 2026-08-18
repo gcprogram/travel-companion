@@ -72,6 +72,7 @@ return static function (App $app): void {
         $group->post('/trips/{id:[0-9]+}/pois/geocaching-gpx', [PoiController::class, 'importGpx']);
         $group->post('/trips/{id:[0-9]+}/pois/prune', [PoiController::class, 'deleteUnphotographed']);
         $group->post('/trips/{id:[0-9]+}/pois/stay', [PoiController::class, 'addStay']);
+        $group->post('/trips/{id:[0-9]+}/pois/stay/dismiss', [PoiController::class, 'dismissStay']);
         $group->post('/trips/{id:[0-9]+}/pois', [PoiController::class, 'store']);
         $group->post('/pois/{id:[0-9]+}/visited', [PoiController::class, 'toggleVisited']);
         $group->post('/pois/{id:[0-9]+}/delete', [PoiController::class, 'delete']);
@@ -135,6 +136,7 @@ return static function (App $app): void {
     // Same visibility rule as the trip page itself, checked inside the controller.
     $app->get('/trip/{slug}/map', [TripMapController::class, 'show']);
     $app->get('/trip/{slug}/map/data', [TripMapController::class, 'data']);
+    $app->get('/trip/{slug}/review', [TripMapController::class, 'review']);
     $app->get('/trip/{slug}/pois', [PoiController::class, 'index']);
     $app->get('/trip/{slug}/photos', [TripPhotoController::class, 'show']);
 

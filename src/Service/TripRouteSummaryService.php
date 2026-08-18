@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Repository\GeocodeCacheRepository;
 use App\Repository\JobRepository;
+use App\Repository\StayDismissalRepository;
 use App\Repository\TrackRepository;
 
 /**
@@ -25,6 +26,7 @@ final class TripRouteSummaryService
         private readonly StayDetectionService $stayDetection,
         private readonly GeocodeCacheRepository $geocodeCache,
         private readonly JobRepository $jobs,
+        private readonly StayDismissalRepository $dismissals,
     ) {
     }
 
@@ -82,10 +84,12 @@ final class TripRouteSummaryService
         ], $this->tracks->findPoints((int) $track['id']));
 
         $stays = $this->stayDetection->detect($points);
+        $dismissed = $this->dismissals->dismissedSet($tripId);
 
         $unmatched = array_values(array_filter(
             $stays,
-            fn (array $stay): bool => !$this->hasPoiNear($pois, $stay['lat'], $stay['lng']),
+            fn (array $stay): bool => !$this->hasPoiNear($pois, $stay['lat'], $stay['lng'])
+                && !$this->isDismissed($dismissed, $stay['lat'], $stay['lng']),
         ));
 
         return array_map(function (array $stay): array {
@@ -113,5 +117,13 @@ final class TripRouteSummaryService
             }
         }
         return false;
+    }
+
+    /**
+     * @param array<string, true> $dismissed
+     */
+    private function isDismissed(array $dismissed, float $lat, float $lng): bool
+    {
+        return isset($dismissed[StayDismissalRepository::key($lat, $lng)]);
     }
 }

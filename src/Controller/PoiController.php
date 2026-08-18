@@ -8,6 +8,7 @@ use App\Repository\JobRepository;
 use App\Repository\PlaceDetailsCacheRepository;
 use App\Repository\PoiMediaRepository;
 use App\Repository\PoiRepository;
+use App\Repository\StayDismissalRepository;
 use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
 use App\Service\FieldNotesParser;
@@ -49,6 +50,7 @@ final class PoiController
         private readonly ReverseGeocodingService $geocoding,
         private readonly GooglePlacesService $places,
         private readonly PlaceDetailsCacheRepository $placeCache,
+        private readonly StayDismissalRepository $dismissals,
         private readonly Flash $flash,
     ) {
     }
@@ -463,8 +465,41 @@ final class PoiController
         );
         $this->pois->setVisited($poiId, true);
 
+        // The "Besuchte Orte prüfen" reviewer (stay-review.js) drives this
+        // same endpoint via fetch() to advance through candidates without a
+        // full page reload each time - same X-Inline-Delete-style opt-in
+        // header convention as confirm-remember.js's inline delete.
+        if ($request->getHeaderLine('X-Requested-With') === 'stay-review') {
+            $response->getBody()->write((string) json_encode(['ok' => true, 'name' => $name], JSON_THROW_ON_ERROR));
+            return $response->withHeader('Content-Type', 'application/json');
+        }
+
         $this->flash->add('success', t('trip.map.stay_added', ['name' => $name]));
         return $this->redirectToMap($request, $response, $trip);
+    }
+
+    /**
+     * The reviewer's reject action - see addStay() for why a stay needs
+     * StayDismissalRepository at all (it's the only "existence" a rejected,
+     * never-persisted stay gets, so it stops resurfacing as a candidate).
+     * JSON-only: only ever called from stay-review.js's fetch(), no plain
+     * form fallback needed (same convention as PoiController::rate()).
+     */
+    public function dismissStay(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireEditable($request, (int) $args['id']);
+        $body = (array) $request->getParsedBody();
+
+        $lat = $body['lat'] ?? '';
+        $lng = $body['lng'] ?? '';
+        if (!is_numeric($lat) || !is_numeric($lng)) {
+            return $response->withStatus(422);
+        }
+
+        $this->dismissals->dismiss((int) $trip['id'], (float) $lat, (float) $lng);
+
+        $response->getBody()->write((string) json_encode(['ok' => true], JSON_THROW_ON_ERROR));
+        return $response->withHeader('Content-Type', 'application/json');
     }
 
     public function toggleVisited(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
