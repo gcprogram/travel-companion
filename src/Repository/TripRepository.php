@@ -86,9 +86,9 @@ final class TripRepository
     {
         $now = gmdate('Y-m-d H:i:s');
         $stmt = $this->pdo->prepare(
-            'INSERT INTO trips (user_id, title, slug, country, operator, description,
+            'INSERT INTO trips (user_id, title, slug, country, operator, description, tags,
                                 date_start, date_end, visibility, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $userId,
@@ -97,6 +97,7 @@ final class TripRepository
             $data['country'],
             $data['operator'],
             $data['description'],
+            $data['tags'],
             $data['date_start'],
             $data['date_end'],
             $data['visibility'],
@@ -112,7 +113,7 @@ final class TripRepository
     public function update(int $id, array $data): void
     {
         $stmt = $this->pdo->prepare(
-            'UPDATE trips SET title = ?, slug = ?, country = ?, operator = ?, description = ?,
+            'UPDATE trips SET title = ?, slug = ?, country = ?, operator = ?, description = ?, tags = ?,
                     date_start = ?, date_end = ?, visibility = ?, updated_at = ?
              WHERE id = ?'
         );
@@ -122,6 +123,7 @@ final class TripRepository
             $data['country'],
             $data['operator'],
             $data['description'],
+            $data['tags'],
             $data['date_start'],
             $data['date_end'],
             $data['visibility'],
@@ -133,6 +135,19 @@ final class TripRepository
     public function delete(int $id): void
     {
         $this->pdo->prepare('DELETE FROM trips WHERE id = ?')->execute([$id]);
+    }
+
+    /**
+     * TripSuggestMetaHandler's write path - stashes the AI-generated
+     * title/tags suggestion for the metadata form to display, never writes
+     * into the real title/tags columns directly (see migration 0029).
+     */
+    public function updateAiSuggestions(int $id, ?string $title, ?string $tags): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE trips SET ai_title_suggestion = ?, ai_tags_suggestion = ?, updated_at = ? WHERE id = ?'
+        );
+        $stmt->execute([$title, $tags, gmdate('Y-m-d H:i:s'), $id]);
     }
 
     /**

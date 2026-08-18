@@ -160,6 +160,7 @@ $lng = $entry['lng'] ?? null;
            data-photo-input
            data-entry-id="<?= (int) $entry['id'] ?>"
            data-upload-url="/entries/<?= (int) $entry['id'] ?>/photos"
+           data-msg-preparing="<?= e(t('entry.form.photo_preparing')) ?>"
            data-msg-uploading="<?= e(t('entry.form.photo_uploading')) ?>"
            data-msg-queued="<?= e(t('entry.form.queued_offline')) ?>"
            data-msg-error="<?= e(t('entry.form.photo_upload_error')) ?>"
