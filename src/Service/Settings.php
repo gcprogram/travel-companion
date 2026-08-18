@@ -54,6 +54,14 @@ final class Settings
         // photos" action considers unphotographed, so too strict a value
         // silently discards places that were actually visited.
         'poi.photo_match_meters' => '150',
+        // How far a found/DNF geocache (matched via GPX/field-notes by GC
+        // code + date, not location) may be from the trip's own track and
+        // still count as "on this trip" (PoiController::importGpx) -
+        // without this, a find from a completely different place visited
+        // around the same dates would import too. Larger than
+        // poi.photo_match_meters on purpose: geocaches are found on foot
+        // but a car may be parked well away from the exact GPS track line.
+        'poi.geocache_import_radius_meters' => '2000',
         // Which categories discovery looks for, comma-separated. 'other'
         // is a manual-entry-only category, never searched for.
         'poi.categories' => 'museum,zoo,attraction,viewpoint,monument,sacred_building',

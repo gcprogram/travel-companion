@@ -83,6 +83,13 @@
     <p class="field-hint"><?= e(t('admin.settings_poi_photo_match_hint')) ?></p>
   </div>
 
+  <div class="field">
+    <label for="poi_geocache_import_radius"><?= e(t('admin.settings_geocache_import_radius')) ?></label>
+    <input type="number" id="poi_geocache_import_radius" name="poi_geocache_import_radius" min="100" max="50000" step="100"
+           value="<?= e($values['poi.geocache_import_radius_meters']) ?>">
+    <p class="field-hint"><?= e(t('admin.settings_geocache_import_radius_hint')) ?></p>
+  </div>
+
   <fieldset class="field">
     <legend><?= e(t('admin.settings_poi_categories')) ?></legend>
     <?php $enabled = array_map('trim', explode(',', $values['poi.categories'])); ?>

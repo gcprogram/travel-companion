@@ -44,6 +44,18 @@ final class GeocodeCacheRepository
     }
 
     /**
+     * Full wipe - this cache has no TTL, so it's the only way to make
+     * already-cached rows pick up a ReverseGeocodingService logic change
+     * (e.g. the pickName()/composeAddress() fix for bare-subdivision names
+     * like "Nordend"). Safe: nothing but a re-resolve delay, dispatched
+     * automatically on the next cache miss (GeocodeResolveHandler).
+     */
+    public function clear(): int
+    {
+        return $this->pdo->exec('DELETE FROM geocode_cache');
+    }
+
+    /**
      * @return array{0: float, 1: float}
      */
     private function round(float $lat, float $lng): array
