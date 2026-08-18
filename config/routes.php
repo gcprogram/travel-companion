@@ -71,6 +71,7 @@ return static function (App $app): void {
         $group->post('/trips/{id:[0-9]+}/pois/discover', [PoiController::class, 'discover']);
         $group->post('/trips/{id:[0-9]+}/pois/geocaching-gpx', [PoiController::class, 'importGpx']);
         $group->post('/trips/{id:[0-9]+}/pois/prune', [PoiController::class, 'deleteUnphotographed']);
+        $group->post('/trips/{id:[0-9]+}/pois/clear-geocode-cache', [PoiController::class, 'clearGeocodeCache']);
         $group->post('/trips/{id:[0-9]+}/pois/stay', [PoiController::class, 'addStay']);
         $group->post('/trips/{id:[0-9]+}/pois/stay/dismiss', [PoiController::class, 'dismissStay']);
         $group->post('/trips/{id:[0-9]+}/pois', [PoiController::class, 'store']);
