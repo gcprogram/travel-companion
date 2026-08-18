@@ -473,6 +473,10 @@ return [
     'admin.settings_ai_key_configured' => 'Configured — enter a new key to change it',
     'admin.settings_ai_key_hint' => 'Leave blank to keep the stored key.',
     'admin.settings_ai_key_clear' => 'Remove the stored key',
+    'admin.settings_maintenance_heading' => 'Maintenance',
+    'admin.settings_clear_geocode_cache' => 'Clear place-name cache',
+    'admin.settings_clear_geocode_cache_hint' => 'Deletes all cached auto-resolved place names (stays/photos). They get re-resolved automatically on next view - useful after a name-resolution improvement, so already-cached older names catch up.',
+    'admin.settings_geocode_cache_cleared' => ':count cached place name(s) cleared.',
     'admin.settings_poi_categories' => 'Types searched by default',
     'admin.settings_saved' => 'Settings saved.',
 

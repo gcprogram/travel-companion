@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Repository\GeocodeCacheRepository;
 use App\Service\PoiDiscoveryService;
 use App\Service\Settings;
 use App\Support\Flash;
@@ -20,6 +21,7 @@ final class AdminSettingsController
     public function __construct(
         private readonly View $view,
         private readonly Settings $settings,
+        private readonly GeocodeCacheRepository $geocodeCache,
         private readonly Flash $flash,
     ) {
     }
@@ -97,6 +99,21 @@ final class AdminSettingsController
         }
 
         $this->flash->add('success', t('admin.settings_saved'));
+        return $response->withHeader('Location', '/admin/settings')->withStatus(302);
+    }
+
+    /**
+     * The bin/console.php geocode:clear-cache CLI command, reachable from
+     * the admin UI - Stefan has no SSH/Plesk-scheduled-task access set up
+     * for one-off CLI commands, only a normal browser session. Same
+     * operation either way: geocode_cache has no TTL, so this is the only
+     * way an already-cached (possibly since-fixed) place name ever gets
+     * re-resolved.
+     */
+    public function clearGeocodeCache(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $removed = $this->geocodeCache->clear();
+        $this->flash->add('success', t('admin.settings_geocode_cache_cleared', ['count' => (string) $removed]));
         return $response->withHeader('Location', '/admin/settings')->withStatus(302);
     }
 

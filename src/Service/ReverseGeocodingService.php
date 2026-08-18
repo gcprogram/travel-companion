@@ -29,7 +29,17 @@ final class ReverseGeocodingService
             'format' => 'jsonv2',
             'lat' => $lat,
             'lon' => $lng,
-            'zoom' => 14,
+            // 18 = building-level detail. zoom=14 (the old value) capped
+            // Nominatim's own address-detail level at "hamlet/suburb", so
+            // it never even considered an actual named amenity sitting
+            // right at the point - discovered against Stefan's real report
+            // ("Landhaus Schlösser" resolved to "Schloss Lörsfeld", ~1km
+            // away: at zoom=14 that whole area shares one hamlet-sized
+            // catchment, the restaurant itself was never in the running).
+            // Nominatim still falls back to a coarser feature server-side
+            // when nothing more specific exists at a point, so this is
+            // strictly more precise, not just differently precise.
+            'zoom' => 18,
             'accept-language' => 'de,en',
         ]);
 
@@ -59,14 +69,28 @@ final class ReverseGeocodingService
     /**
      * A result whose own "name" is just a sub-city administrative boundary -
      * Nominatim resolves a point inside e.g. Frankfurt-Nordend directly to
-     * that suburb polygon at zoom=14, and its "name" is bare ("Nordend
-     * West") with no city attached. Meaningless on its own (discovered
-     * against Stefan's real report - see pickName()), so these fall
-     * through to composeAddress() the same as if there'd been no name.
+     * that suburb polygon, and its "name" is bare ("Nordend West") with no
+     * city attached. Meaningless on its own (discovered against Stefan's
+     * real report - see pickName()), so these fall through to
+     * composeAddress() the same as if there'd been no name.
      *
      * @var list<string>
      */
     private const SUBDIVISION_ADDRESS_TYPES = ['suburb', 'city_district', 'borough', 'quarter', 'neighbourhood'];
+
+    /**
+     * A result that's just a street/way, no place of its own - at
+     * zoom=18's building-level precision, a point out in the country with
+     * nothing built on it resolves to the nearest road by that name alone
+     * ("Ketziner Straße"), which means nothing without the village it runs
+     * through. composeAddress() already knows how to combine a road with
+     * its settlement, so these get the same treatment as a subdivision.
+     *
+     * @var list<string>
+     */
+    private const WAY_ADDRESS_TYPES = [
+        'road', 'residential', 'living_street', 'pedestrian', 'path', 'footway', 'track', 'service', 'cycleway',
+    ];
 
     /**
      * @param mixed $data decoded Nominatim jsonv2 response
@@ -78,13 +102,16 @@ final class ReverseGeocodingService
         }
 
         $addressType = $data['addresstype'] ?? null;
-        $isSubdivision = is_string($addressType) && in_array($addressType, self::SUBDIVISION_ADDRESS_TYPES, true);
+        $needsComposition = is_string($addressType)
+            && (in_array($addressType, self::SUBDIVISION_ADDRESS_TYPES, true)
+                || in_array($addressType, self::WAY_ADDRESS_TYPES, true));
 
         // The nearest named feature (a village, a national park, a named
         // attraction, ...) if Nominatim found one at this zoom level - but
-        // not a bare subdivision name, see SUBDIVISION_ADDRESS_TYPES.
+        // not a bare subdivision/road name, see SUBDIVISION_ADDRESS_TYPES/
+        // WAY_ADDRESS_TYPES.
         $name = $data['name'] ?? null;
-        if (is_string($name) && $name !== '' && !$isSubdivision) {
+        if (is_string($name) && $name !== '' && !$needsComposition) {
             return mb_substr($name, 0, 190);
         }
 
@@ -125,11 +152,17 @@ final class ReverseGeocodingService
      */
     private function composeAddress(array $address): ?string
     {
-        // county last: for a kreisfreie Stadt (Frankfurt, Munich, ...) the
+        // hamlet first: OSM's place hierarchy runs city > town > village >
+        // hamlet (most to least populous), so a hamlet is the *most*
+        // specific/local of these when present - "Schloss Lörsfeld"
+        // (a hamlet) rather than "Kerpen" (the town it's part of) is the
+        // useful label for a travel diary, same reasoning as
+        // suburb/city_district already winning over their parent city.
+        // County last: for a kreisfreie Stadt (Frankfurt, Munich, ...) the
         // address object can have a suburb but no city/town/village key at
         // all - county is that settlement's own name in that case, not an
         // actual rural county, so it's still worth combining with.
-        $settlement = $this->firstStringOf($address, ['city', 'town', 'village', 'municipality', 'county']);
+        $settlement = $this->firstStringOf($address, ['hamlet', 'city', 'town', 'village', 'municipality', 'county']);
         $locality = $this->firstStringOf($address, ['suburb', 'city_district', 'borough', 'quarter']);
 
         $street = null;

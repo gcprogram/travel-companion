@@ -473,6 +473,10 @@ return [
     'admin.settings_ai_key_configured' => 'Hinterlegt — zum Ändern neuen Key eingeben',
     'admin.settings_ai_key_hint' => 'Leer lassen, um den gespeicherten Key zu behalten.',
     'admin.settings_ai_key_clear' => 'Gespeicherten Key entfernen',
+    'admin.settings_maintenance_heading' => 'Wartung',
+    'admin.settings_clear_geocode_cache' => 'Ortsnamen-Cache leeren',
+    'admin.settings_clear_geocode_cache_hint' => 'Löscht alle zwischengespeicherten automatisch ermittelten Ortsnamen (Aufenthalte/Fotos). Sie werden beim nächsten Aufruf automatisch neu ermittelt - sinnvoll nach einer Verbesserung der Namensermittlung, damit ältere, schon gecachte Namen nachziehen.',
+    'admin.settings_geocode_cache_cleared' => ':count zwischengespeicherte Ortsnamen gelöscht.',
     'admin.settings_poi_categories' => 'Standardmäßig gesuchte Arten',
     'admin.settings_saved' => 'Einstellungen gespeichert.',
 

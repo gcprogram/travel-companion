@@ -65,6 +65,32 @@ final class PoiController
         $trip = $this->requireViewable($request, (string) $args['slug']);
 
         $pois = $this->pois->findByTrip((int) $trip['id']);
+        $poiApproach = $this->poiApproach->computeForTrip((int) $trip['id'], $pois);
+
+        // PoiRepository::findByTrip() orders alphabetically (category,
+        // name) - fine for grouping, useless for "what did we do when".
+        // Re-sort chronologically here instead: the track's own closest-
+        // approach time (poiApproach, precise to the minute) when known,
+        // falling back to the coarser visit_date (geocache found/DNF date,
+        // or a manually typed one) for POIs the track never passed near -
+        // alphabetically among themselves as the final tiebreak so the
+        // order stays deterministic instead of depending on array/DB scan
+        // order.
+        usort($pois, function (array $a, array $b) use ($poiApproach): int {
+            $aTime = $poiApproach[(int) $a['id']]['closestAt'] ?? $a['visit_date'];
+            $bTime = $poiApproach[(int) $b['id']]['closestAt'] ?? $b['visit_date'];
+            if ($aTime === null && $bTime === null) {
+                return strcmp((string) $a['name'], (string) $b['name']);
+            }
+            if ($aTime === null) {
+                return 1;
+            }
+            if ($bTime === null) {
+                return -1;
+            }
+            return $aTime <=> $bTime;
+        });
+
         $poiMedia = [];
         foreach ($pois as $poi) {
             $poiId = (int) $poi['id'];
@@ -84,7 +110,7 @@ final class PoiController
             'poiSearchRadius' => $this->settings->getInt('poi.search_radius_meters'),
             'poiSearchCategories' => $this->settings->getList('poi.categories'),
             'searchableCategories' => PoiDiscoveryService::searchableCategories(),
-            'poiApproach' => $this->poiApproach->computeForTrip((int) $trip['id'], $pois),
+            'poiApproach' => $poiApproach,
             'wizard' => WizardNav::isActive($request),
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);
