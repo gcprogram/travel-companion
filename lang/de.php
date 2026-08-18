@@ -164,6 +164,8 @@ return [
     'trip.manage.section_photos' => 'Fotos & Videos',
     'trip.manage.section_pois' => 'Besuchte Orte',
     'trip.map.show_route' => 'Route anzeigen',
+    'trip.map.show_photos' => 'Fotos anzeigen',
+    'trip.map.show_geocaches' => 'Geocaches anzeigen',
     'trip.map.empty' => 'Noch keine Fotos oder Videos mit Standort.',
     'trip.map.lightbox_close' => 'Schließen',
     'trip.map.gpx_label' => 'GPX-Track',

@@ -164,6 +164,8 @@ return [
     'trip.manage.section_photos' => 'Photos & videos',
     'trip.manage.section_pois' => 'Visited places',
     'trip.map.show_route' => 'Show route',
+    'trip.map.show_photos' => 'Show photos',
+    'trip.map.show_geocaches' => 'Show geocaches',
     'trip.map.empty' => 'No geotagged photos or videos yet.',
     'trip.map.lightbox_close' => 'Close',
     'trip.map.gpx_label' => 'GPX track',

@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   var routeToggle = document.querySelector('[data-map-route-toggle]');
+  var photoToggle = document.querySelector('[data-map-photo-toggle]');
+  var geocacheToggle = document.querySelector('[data-map-geocache-toggle]');
   var lightbox = document.querySelector('[data-map-lightbox]');
   var lightboxBody = document.querySelector('[data-map-lightbox-body]');
   var ZOOM_THUMBNAIL_THRESHOLD = 14;
@@ -397,10 +399,28 @@ document.addEventListener('DOMContentLoaded', function () {
       var markers = [];
       var pinLatlngs = [];
 
+      // Photo/video pins can get dense enough to bury geocache/sight
+      // markers and their labels underneath them - own layer group so
+      // they can be hidden with one click (data-map-photo-toggle) instead
+      // of hunting for the thing underneath.
+      var photoGroup = L.layerGroup();
+      if (!photoToggle || photoToggle.checked) {
+        photoGroup.addTo(map);
+      }
+      if (photoToggle) {
+        photoToggle.addEventListener('change', function () {
+          if (photoToggle.checked) {
+            photoGroup.addTo(map);
+          } else {
+            map.removeLayer(photoGroup);
+          }
+        });
+      }
+
       pins.forEach(function (pin) {
         var marker = L.marker([pin.lat, pin.lng], { icon: dotIcon(pin.kind) });
         marker.on('click', function () { openLightbox(pin); });
-        marker.addTo(map);
+        marker.addTo(photoGroup);
         markers.push({ marker: marker, pin: pin, dot: dotIcon(pin.kind), thumb: thumbIcon(pin) });
         pinLatlngs.push([pin.lat, pin.lng]);
       });
@@ -455,10 +475,27 @@ document.addEventListener('DOMContentLoaded', function () {
         });
       }
 
+      var geocacheGroup = L.layerGroup();
+      if (!geocacheToggle || geocacheToggle.checked) {
+        geocacheGroup.addTo(map);
+      }
+      if (geocacheToggle) {
+        geocacheToggle.addEventListener('change', function () {
+          if (geocacheToggle.checked) {
+            geocacheGroup.addTo(map);
+          } else {
+            map.removeLayer(geocacheGroup);
+          }
+        });
+      }
+
       var poiLatlngs = [];
       pois.forEach(function (poi) {
         // Geocaches (see PoiController::importGpx()) get their real
-        // cache_type SVG icon instead of the generic coloured dot.
+        // cache_type SVG icon instead of the generic coloured dot, and go
+        // in their own toggleable layer (data-map-geocache-toggle) -
+        // regular sights stay always-on, only geocaches tend to cluster
+        // densely enough to be worth hiding.
         var icon = poi.cacheIconUrl
           ? L.divIcon({
               className: 'map-view__poi-pin map-view__poi-pin--cache' + (poi.visited ? ' map-view__poi-pin--visited' : ''),
@@ -471,7 +508,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         var marker = L.marker([poi.lat, poi.lng], { icon: icon })
           .bindTooltip(poi.name, { sticky: true })
-          .addTo(map);
+          .addTo(poi.cacheIconUrl ? geocacheGroup : map);
         if (canEdit) {
           marker.bindPopup(buildPoiPopup(poi));
         }
