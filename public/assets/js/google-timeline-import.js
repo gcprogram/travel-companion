@@ -365,14 +365,16 @@ document.addEventListener('DOMContentLoaded', function () {
     return true;
   }
 
-  // Inputs are type="datetime-local" (prefilled to the trip's start day
-  // 00:00 / end day 23:59 by the template) - the value already carries a
-  // time component, unlike the old type="date" inputs this replaced.
+  // Inputs are type="date" (prefilled from the trip's own start/end day) -
+  // always whole calendar days, no time-of-day picking (Stefan: "lade am
+  // besten ganze Tage" - a few days' worth of Timeline data, not an
+  // hour-precision cut, which the track can already be trimmed to later
+  // via the trim slider anyway).
   function dateInputToRangeMs() {
     var fromStr = (fromInput && fromInput.value) || '';
     var toStr = (toInput && toInput.value) || '';
-    var fromMs = fromStr ? new Date(fromStr).getTime() : -Infinity;
-    var toMs = toStr ? new Date(toStr).getTime() : Infinity;
+    var fromMs = fromStr ? new Date(fromStr + 'T00:00:00').getTime() : -Infinity;
+    var toMs = toStr ? new Date(toStr + 'T23:59:59').getTime() : Infinity;
     return { fromMs: fromMs, toMs: toMs };
   }
 
