@@ -114,6 +114,7 @@ return static function (App $app): void {
         $group->post('/users/{id:[0-9]+}/delete', [AdminUserController::class, 'delete']);
         $group->get('/settings', [AdminSettingsController::class, 'show']);
         $group->post('/settings', [AdminSettingsController::class, 'save']);
+        $group->post('/settings/clear-geocode-cache', [AdminSettingsController::class, 'clearGeocodeCache']);
     })->add(RequireAdmin::class);
 
     // Public: sets the share_access cookie (ShareAccessCookie) and redirects

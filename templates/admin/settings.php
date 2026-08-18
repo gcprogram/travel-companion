@@ -149,3 +149,10 @@
 
   <button type="submit" class="btn btn-primary"><?= e(t('admin.save')) ?></button>
 </form>
+
+<h2><?= e(t('admin.settings_maintenance_heading')) ?></h2>
+<form method="post" action="/admin/settings/clear-geocode-cache">
+  <?= $csrf->field() ?>
+  <button type="submit" class="btn btn-ghost"><?= e(t('admin.settings_clear_geocode_cache')) ?></button>
+  <p class="field-hint"><?= e(t('admin.settings_clear_geocode_cache_hint')) ?></p>
+</form>
