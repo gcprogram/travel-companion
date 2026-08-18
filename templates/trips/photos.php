@@ -18,6 +18,9 @@
 <p class="page-actions">
   <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/map"><?= e(t('trip.map.back_to_map')) ?></a>
   <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/pois"><?= e(t('trip.show.pois_link')) ?></a>
+  <?php if ($canEdit): ?>
+    <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/review"><?= e(t('trip.map.stays_review_link')) ?></a>
+  <?php endif; ?>
 </p>
 
 <div class="map-view__canvas" id="trip-map"
