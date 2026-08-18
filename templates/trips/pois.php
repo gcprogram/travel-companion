@@ -54,6 +54,3 @@ $wizardQs = $wizard ? '?wizard=1' : '';
 
 <script src="/assets/js/vendor/leaflet.js"></script>
 <script src="/assets/js/trip-map.js"></script>
-<?php if ($canEdit): ?>
-  <script src="/assets/js/geocaching-gpx-import.js"></script>
-<?php endif; ?>

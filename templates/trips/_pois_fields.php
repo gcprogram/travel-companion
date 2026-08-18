@@ -18,31 +18,10 @@
 $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_building', 'other'];
 ?>
 
-<?php if ($canEdit): ?>
-  <h2><?= e(t('trip.map.geocaching_gpx_heading')) ?></h2>
-  <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/geocaching-gpx<?= e($wizardQs) ?>"
-        enctype="multipart/form-data" class="poi-search-form" data-geocaching-gpx-form>
-    <?= $csrf->field() ?>
-    <div class="field">
-      <label for="geocaching-gpx-file"><?= e(t('trip.map.geocaching_gpx_file_label')) ?></label>
-      <input type="file" id="geocaching-gpx-file" name="geocaching_gpx" accept=".gpx,.zip,application/gpx+xml,application/zip">
-    </div>
-    <div class="field">
-      <label for="geocaching-gpx-username"><?= e(t('trip.map.geocaching_gpx_username_label')) ?></label>
-      <input type="text" id="geocaching-gpx-username" name="gc_username" data-geocaching-gpx-username>
-      <p class="field-hint"><?= e(t('trip.map.geocaching_gpx_username_hint')) ?></p>
-    </div>
-    <div class="field">
-      <label for="geocaching-field-notes"><?= e(t('trip.map.geocaching_field_notes_label')) ?></label>
-      <input type="file" id="geocaching-field-notes" name="field_notes" accept=".txt,text/plain">
-      <p class="field-hint"><?= e(t('trip.map.geocaching_field_notes_hint')) ?></p>
-    </div>
-    <button type="submit" class="btn btn-ghost"><?= e(t('trip.map.geocaching_gpx_import')) ?></button>
-    <p class="field-hint"><?= e(t('trip.map.geocaching_gpx_hint')) ?></p>
-  </form>
-<?php endif; ?>
-
 <h2><?= e(t('trip.map.poi_heading')) ?></h2>
+<?php if ($canEdit): ?>
+  <p class="field-hint"><?= e(t('trip.map.geocaching_gpx_moved_hint')) ?></p>
+<?php endif; ?>
 
 <?php if ($canEdit): ?>
   <form method="post" action="/trips/<?= (int) $trip['id'] ?>/pois/discover<?= e($wizardQs) ?>" class="poi-search-form">

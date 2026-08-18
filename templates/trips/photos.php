@@ -30,8 +30,8 @@
 
 <?php if ($wizard && $canEdit): ?>
   <p class="page-actions">
-    <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/pois?wizard=1"><?= e(t('wizard.skip')) ?></a>
-    <a class="btn btn-primary" href="/trip/<?= e($trip['slug']) ?>/pois?wizard=1"><?= e(t('wizard.continue')) ?></a>
+    <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/map?wizard=1"><?= e(t('wizard.skip')) ?></a>
+    <a class="btn btn-primary" href="/trip/<?= e($trip['slug']) ?>/map?wizard=1"><?= e(t('wizard.continue')) ?></a>
   </p>
 <?php endif; ?>
 

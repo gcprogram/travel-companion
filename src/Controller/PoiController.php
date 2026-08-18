@@ -177,7 +177,7 @@ final class PoiController
         $file = $files['geocaching_gpx'] ?? null;
         if ($file === null || $file->getError() !== UPLOAD_ERR_OK) {
             $this->flash->add('error', t('trip.map.geocaching_gpx_upload_error'));
-            return $this->redirectToPois($request, $response, $trip);
+            return $this->redirectToMap($request, $response, $trip);
         }
 
         $body = (array) $request->getParsedBody();
@@ -193,7 +193,7 @@ final class PoiController
         $documents = $this->extractGpxDocuments($file);
         if ($documents === []) {
             $this->flash->add('error', t('trip.map.geocaching_gpx_zip_empty'));
-            return $this->redirectToPois($request, $response, $trip);
+            return $this->redirectToMap($request, $response, $trip);
         }
 
         // A Pocket Query ZIP's companion -wpts.gpx (extractGpxDocuments()
@@ -260,7 +260,7 @@ final class PoiController
         } else {
             $this->flash->add('success', t('trip.map.geocaching_gpx_imported', ['count' => (string) count($relevant)]));
         }
-        return $this->redirectToPois($request, $response, $trip);
+        return $this->redirectToMap($request, $response, $trip);
     }
 
     /**

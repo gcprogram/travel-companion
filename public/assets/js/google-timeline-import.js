@@ -66,15 +66,13 @@ document.addEventListener('DOMContentLoaded', function () {
   var status = document.querySelector('[data-timeline-status]');
   var summary = document.querySelector('[data-timeline-summary]');
   var visitList = document.querySelector('[data-timeline-visits]');
-  var submitTrackBtn = document.querySelector('[data-timeline-submit-track]');
+  var uploadBtn = document.querySelector('[data-timeline-upload-btn]');
   var fromInput = document.querySelector('[data-timeline-from]');
   var toInput = document.querySelector('[data-timeline-to]');
 
   var trackSubmitUrl = fileInput.dataset.trackSubmitUrl;
   var stayUrl = fileInput.dataset.stayUrl;
   var csrfToken = fileInput.dataset.csrfToken;
-
-  var parsedPoints = [];
 
   function setStatus(text) {
     if (status) {
@@ -367,11 +365,14 @@ document.addEventListener('DOMContentLoaded', function () {
     return true;
   }
 
+  // Inputs are type="datetime-local" (prefilled to the trip's start day
+  // 00:00 / end day 23:59 by the template) - the value already carries a
+  // time component, unlike the old type="date" inputs this replaced.
   function dateInputToRangeMs() {
     var fromStr = (fromInput && fromInput.value) || '';
     var toStr = (toInput && toInput.value) || '';
-    var fromMs = fromStr ? new Date(fromStr + 'T00:00:00').getTime() : -Infinity;
-    var toMs = toStr ? new Date(toStr + 'T23:59:59').getTime() : Infinity;
+    var fromMs = fromStr ? new Date(fromStr).getTime() : -Infinity;
+    var toMs = toStr ? new Date(toStr).getTime() : Infinity;
     return { fromMs: fromMs, toMs: toMs };
   }
 
@@ -426,13 +427,20 @@ document.addEventListener('DOMContentLoaded', function () {
     return li;
   }
 
-  fileInput.addEventListener('change', function () {
+  // One button does the whole thing (read -> parse -> filter by the
+  // current date range -> submit) - no separate preview/"Cut" step. The
+  // page only reloads (discarding the upload form) once there's nothing
+  // left to do; if the file also contained place-visits, those still need
+  // individual per-visit confirmation (buildVisitForm() below, a distinct
+  // feature from the track itself - see PoiController::addStay), so the
+  // reload waits until after the user has had a chance to act on them.
+  function runImport() {
     var file = fileInput.files[0];
     if (!file) {
+      setStatus(fileInput.dataset.msgNoFile || '');
       return;
     }
 
-    parsedPoints = [];
     if (visitList) {
       visitList.innerHTML = '';
     }
@@ -441,7 +449,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     setStatus(fileInput.dataset.msgReading || '');
-    fileInput.disabled = true;
+    if (uploadBtn) {
+      uploadBtn.disabled = true;
+    }
 
     file.text()
       .then(function (text) {
@@ -462,33 +472,67 @@ document.addEventListener('DOMContentLoaded', function () {
         // wherever they actually live in this particular export.
         walkForRawPoints(root, range.fromMs, range.toMs, points, seen, counts);
 
-        fileInput.disabled = false;
-
         if (!recognized && points.length === 0) {
           setStatus(fileInput.dataset.msgUnrecognized || '');
-          return;
+          if (uploadBtn) {
+            uploadBtn.disabled = false;
+          }
+          return null;
         }
 
-        parsedPoints = points;
-        setStatus((fileInput.dataset.msgParsed || '')
+        var parsedMsg = (fileInput.dataset.msgParsed || '')
           .replace(':points', String(counts.points))
           .replace(':visits', String(counts.visits))
-          .replace(':skipped', String(counts.skipped)));
+          .replace(':skipped', String(counts.skipped));
 
-        if (summary) {
-          summary.hidden = false;
+        if (points.length < 2) {
+          // Not enough for a track, but any place-visits found are still
+          // worth offering - a single-location day can have zero movement.
+          setStatus(parsedMsg);
+          if (uploadBtn) {
+            uploadBtn.disabled = false;
+          }
+          if (visitList && visits.length > 0) {
+            visits.forEach(function (visit) {
+              visitList.appendChild(buildVisitForm(visit));
+            });
+            if (summary) {
+              summary.hidden = false;
+            }
+          }
+          return null;
         }
-        if (submitTrackBtn) {
-          submitTrackBtn.disabled = points.length < 2;
-        }
-        if (visitList) {
-          visits.forEach(function (visit) {
-            visitList.appendChild(buildVisitForm(visit));
-          });
-        }
+
+        setStatus(fileInput.dataset.msgUploading || '');
+        return fetch(trackSubmitUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ _csrf: csrfToken, points: points }),
+        }).then(function (response) {
+          if (!response.ok) {
+            throw new Error('submit_failed: HTTP ' + response.status);
+          }
+          if (visits.length > 0 && visitList) {
+            visits.forEach(function (visit) {
+              visitList.appendChild(buildVisitForm(visit));
+            });
+            if (summary) {
+              summary.hidden = false;
+            }
+            setStatus(parsedMsg);
+            if (uploadBtn) {
+              uploadBtn.disabled = false;
+            }
+          } else {
+            window.location.reload();
+          }
+        });
       })
       .catch(function (err) {
-        fileInput.disabled = false;
+        if (uploadBtn) {
+          uploadBtn.disabled = false;
+        }
         // The generic error message alone gives no clue what actually broke
         // (JSON.parse failure vs. an export quirk crashing one of the
         // extract* walks) - logging it means a report of "something went
@@ -506,30 +550,9 @@ document.addEventListener('DOMContentLoaded', function () {
           : fileInput.dataset.msgError;
         setStatus(msg || '');
       });
-  });
+  }
 
-  if (submitTrackBtn) {
-    submitTrackBtn.addEventListener('click', function () {
-      if (parsedPoints.length < 2) {
-        return;
-      }
-      submitTrackBtn.disabled = true;
-      setStatus(fileInput.dataset.msgUploading || '');
-
-      fetch(trackSubmitUrl, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ _csrf: csrfToken, points: parsedPoints }),
-      }).then(function (response) {
-        if (!response.ok) {
-          throw new Error('submit_failed: HTTP ' + response.status);
-        }
-        window.location.reload();
-      }).catch(function () {
-        submitTrackBtn.disabled = false;
-        setStatus(fileInput.dataset.msgError || '');
-      });
-    });
+  if (uploadBtn) {
+    uploadBtn.addEventListener('click', runImport);
   }
 });

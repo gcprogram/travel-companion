@@ -645,6 +645,35 @@ form.auth-form { max-width: 420px; }
 .timeline-import__range { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-1); }
 .timeline-import__range label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; color: var(--color-muted); }
 
+/* Route-Details upload table (Phase 2): one row per track/waypoint source,
+   each with a Select + filename + Upload of equal visual weight - mobile-
+   first, so rows stack to a single column below the grid breakpoint rather
+   than squeezing four columns onto a phone screen. */
+.route-upload-table { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-2) 0; }
+.route-upload-table__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+}
+.route-upload-table__row strong { font-size: 0.95rem; }
+.route-upload-table__form { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
+.route-upload-table__btn { min-width: 9rem; text-align: center; }
+.route-upload-table__filename { font-size: 0.85rem; color: var(--color-muted); }
+.route-upload-table__extra { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.route-upload-table__extra label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; color: var(--color-muted); }
+.route-upload-table__hint { margin: 0; }
+
+@media (min-width: 640px) {
+  .route-upload-table__row { flex-direction: row; align-items: flex-start; flex-wrap: wrap; }
+  .route-upload-table__row strong { flex: 0 0 11rem; padding-top: 0.4rem; }
+  .route-upload-table__row > .route-upload-table__form,
+  .route-upload-table__row > .route-upload-table__extra { flex: 1 1 auto; }
+  .route-upload-table__hint { flex-basis: 100%; margin-left: 11rem; }
+}
+
 .map-view__poi-pin {
   width: 16px;
   height: 16px;
