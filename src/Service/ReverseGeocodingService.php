@@ -5,27 +5,290 @@ declare(strict_types=1);
 namespace App\Service;
 
 /**
- * Turns coordinates into a short place name via Nominatim's free reverse
- * geocoding endpoint - same OSM family as PoiDiscoveryService's Overpass
- * calls, but a different endpoint (reverse geocoding, not a tag search).
+ * Turns coordinates into a short place name. Two-stage lookup:
+ *
+ * 1. A small Overpass "around" search for named OSM elements close to the
+ *    point - same public API PoiDiscoveryService already queries for
+ *    sightseeing search, different query shape (radius around a point, not
+ *    a bbox). Nominatim's own reverse endpoint only ever returns its single
+ *    best-weighted guess for a point, which loses against a nearby-but-not-
+ *    nearest landmark whenever two named places sit close together (a
+ *    church next to a dentist's office, a restaurant near the hamlet it's
+ *    part of, ...) - discovered against three of Stefan's real stay
+ *    reports, see HANDOVER.md Teil 8. Overpass lets us actually rank the
+ *    candidates instead of trusting Nominatim's single pick.
+ * 2. Nominatim's /reverse, either to fill in the address around a landmark
+ *    Overpass found (which rarely carries a complete addr:* tag set), or as
+ *    the sole result when Overpass found nothing landmark-like nearby.
+ *
  * Best-effort throughout: called from job handlers where a missing location
  * name is a cosmetic gap, never worth failing/retrying a job over.
  *
  * Nominatim's usage policy caps this at ~1 request/second and requires a
  * real identifying User-Agent - both satisfied here: calls only happen a
  * handful of times per entry (photo/video upload, track upload), sequenced
- * through the job worker rather than fired in a burst.
+ * through the job worker rather than fired in a burst. Overpass is likewise
+ * called sparingly for the same reason (see PoiDiscoveryService).
  */
 final class ReverseGeocodingService
 {
-    private const ENDPOINT = 'https://nominatim.openstreetmap.org/reverse';
+    private const NOMINATIM_ENDPOINT = 'https://nominatim.openstreetmap.org/reverse';
+    private const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
+
+    // Tight pass: dense city blocks need a short leash, or the "nearest
+    // named thing" becomes noise (the next shop over, a parked landmark two
+    // doors down). Wide pass only fires when the tight one found nothing,
+    // and only for features that are genuinely visible/relevant from
+    // further out (a mountain, a national park, a church tower) - Stefan's
+    // own framing: "ein Berg ist weithin sichtbar, in der Innenstadt muss
+    // man enger schauen".
+    private const TIGHT_RADIUS_METERS = 50;
+    private const WIDE_RADIUS_METERS = 200;
+
+    /**
+     * Named OSM elements that are background infrastructure, never what a
+     * travel diary means by "the place" - a dentist's office or a bank
+     * happening to sit nearest to a stay's centroid shouldn't ever win over
+     * an actual named building/venue a few meters further out. Checked
+     * against the element's OSM key=value tags; a key with no listed values
+     * means "any value under that key is excluded" (e.g. every office=*).
+     *
+     * @var array<string, list<string>|true>
+     */
+    private const EXCLUDED_TAGS = [
+        'office' => true,
+        'healthcare' => true,
+        'craft' => true,
+        'highway' => true, // road names ("Werkstraße") are handled via composeAddress(), not as a landmark hit
+        'amenity' => [
+            'bank', 'atm', 'fuel', 'car_wash', 'vending_machine', 'dentist', 'doctors', 'clinic', 'pharmacy',
+            'veterinary', 'driving_school', 'police', 'fire_station', 'prison', 'toilets', 'parking',
+            'bicycle_parking', 'waste_disposal', 'recycling', 'post_box', 'post_depot', 'telephone',
+            'charging_station', 'social_facility', 'courthouse',
+        ],
+        'shop' => ['hairdresser', 'beauty', 'massage', 'tattoo', 'dry_cleaning', 'laundry', 'funeral_directors'],
+    ];
+
+    /**
+     * The wide-pass allow-list: only features notable/visible enough that
+     * being 50-200m off their centroid is still clearly "there" - the
+     * inverse of the tight pass's deny-list approach, since at this radius
+     * most named things are simply too far away to be what a stay is at.
+     *
+     * @var array<string, list<string>>
+     */
+    private const WIDE_LANDMARK_TAGS = [
+        'natural' => ['peak', 'volcano', 'glacier', 'cape'],
+        'boundary' => ['national_park', 'protected_area'],
+        'leisure' => ['nature_reserve'],
+        'tourism' => ['attraction', 'viewpoint', 'zoo', 'museum', 'theme_park'],
+        'historic' => ['castle', 'monument', 'memorial', 'ruins', 'fort'],
+        'amenity' => ['place_of_worship'],
+        'waterway' => ['waterfall'],
+    ];
 
     /**
      * @return array{name: ?string, country: ?string}
      */
     public function reverseGeocode(float $lat, float $lng): array
     {
-        $url = self::ENDPOINT . '?' . http_build_query([
+        $landmark = $this->findLandmark($lat, $lng);
+        if ($landmark !== null) {
+            return $this->resolveLandmark($landmark);
+        }
+
+        return $this->reverseGeocodeViaNominatim($lat, $lng);
+    }
+
+    /**
+     * @return array{name: ?string, country: ?string}
+     */
+    private function reverseGeocodeViaNominatim(float $lat, float $lng): array
+    {
+        $data = $this->nominatimReverseRaw($lat, $lng);
+        if ($data === null) {
+            return ['name' => null, 'country' => null];
+        }
+
+        return ['name' => $this->pickName($data), 'country' => $this->pickCountry($data)];
+    }
+
+    /**
+     * @return array{name: string, lat: float, lng: float, tags: array<string, string>}|null
+     */
+    private function findLandmark(float $lat, float $lng): ?array
+    {
+        try {
+            $tight = $this->queryOverpassAround($lat, $lng, self::TIGHT_RADIUS_METERS);
+        } catch (\Throwable) {
+            return null; // Best-effort - falls through to the Nominatim-only path.
+        }
+
+        $best = $this->nearestAllowed($tight, $lat, $lng, fn (array $tags) => !$this->isExcluded($tags));
+        if ($best !== null) {
+            return $best;
+        }
+
+        try {
+            $wide = $this->queryOverpassAround($lat, $lng, self::WIDE_RADIUS_METERS);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $this->nearestAllowed($wide, $lat, $lng, fn (array $tags) => $this->isWideLandmark($tags));
+    }
+
+    /**
+     * @param list<array{name: string, lat: float, lng: float, tags: array<string, string>}> $elements
+     * @param callable(array<string, string>): bool $accept
+     * @return array{name: string, lat: float, lng: float, tags: array<string, string>}|null
+     */
+    private function nearestAllowed(array $elements, float $lat, float $lng, callable $accept): ?array
+    {
+        $best = null;
+        $bestDistance = null;
+        foreach ($elements as $element) {
+            if (!$accept($element['tags'])) {
+                continue;
+            }
+            $distance = $this->haversineMeters($lat, $lng, $element['lat'], $element['lng']);
+            if ($bestDistance === null || $distance < $bestDistance) {
+                $best = $element;
+                $bestDistance = $distance;
+            }
+        }
+        return $best;
+    }
+
+    /**
+     * @param array{name: string, lat: float, lng: float, tags: array<string, string>} $landmark
+     * @return array{name: ?string, country: ?string}
+     */
+    private function resolveLandmark(array $landmark): array
+    {
+        $tags = $landmark['tags'];
+        $street = $tags['addr:street'] ?? null;
+        $houseNumber = $tags['addr:housenumber'] ?? null;
+        $postcode = $tags['addr:postcode'] ?? null;
+        $city = $tags['addr:city'] ?? null;
+
+        // Overpass tags rarely carry the full address set - fill whatever's
+        // missing (and grab the country, which OSM tags never carry) from
+        // Nominatim at the landmark's own coordinate. Overpass-supplied
+        // parts win where present: they're specific to this exact element,
+        // Nominatim's reverse pick at this point might not even agree it's
+        // the same building.
+        $country = null;
+        if ($street === null || $postcode === null || $city === null) {
+            $data = $this->nominatimReverseRaw($landmark['lat'], $landmark['lng']);
+            $address = is_array($data) ? ($data['address'] ?? null) : null;
+            if (is_array($address)) {
+                $street ??= $this->firstStringOf($address, ['road']);
+                $houseNumber ??= $this->firstStringOf($address, ['house_number']);
+                $postcode ??= $this->firstStringOf($address, ['postcode']);
+                $city ??= $this->firstStringOf($address, ['city', 'town', 'village', 'municipality', 'hamlet']);
+            }
+            $country = is_array($data) ? $this->pickCountry($data) : null;
+        }
+
+        $streetPart = $street !== null ? trim($street . ' ' . ($houseNumber ?? '')) : null;
+        $localityPart = ($postcode !== null && $city !== null) ? "$postcode $city" : $city;
+
+        $addressBits = array_values(array_filter([$streetPart, $localityPart], static fn ($v) => $v !== null && $v !== ''));
+        $name = $addressBits !== []
+            ? $landmark['name'] . ' (' . implode(', ', $addressBits) . ')'
+            : $landmark['name'];
+
+        return ['name' => mb_substr($name, 0, 190), 'country' => $country];
+    }
+
+    /**
+     * @param array<string, string> $tags
+     */
+    private function isExcluded(array $tags): bool
+    {
+        foreach (self::EXCLUDED_TAGS as $key => $values) {
+            if (!isset($tags[$key])) {
+                continue;
+            }
+            if ($values === true || in_array($tags[$key], $values, true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @param array<string, string> $tags
+     */
+    private function isWideLandmark(array $tags): bool
+    {
+        foreach (self::WIDE_LANDMARK_TAGS as $key => $values) {
+            if (isset($tags[$key]) && in_array($tags[$key], $values, true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @return list<array{name: string, lat: float, lng: float, tags: array<string, string>}>
+     */
+    private function queryOverpassAround(float $lat, float $lng, int $radiusMeters): array
+    {
+        $query = sprintf(
+            '[out:json][timeout:15];(node(around:%d,%F,%F)[name];way(around:%d,%F,%F)[name];relation(around:%d,%F,%F)[name];);out center tags;',
+            $radiusMeters, $lat, $lng,
+            $radiusMeters, $lat, $lng,
+            $radiusMeters, $lat, $lng,
+        );
+
+        $ch = curl_init(self::OVERPASS_ENDPOINT);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query(['data' => $query]),
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_HTTPHEADER => ['User-Agent: travel-companion (landmark-aware reverse geocoding)'],
+        ]);
+        $body = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($body === false || $status !== 200) {
+            return [];
+        }
+
+        try {
+            $data = json_decode((string) $body, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return [];
+        }
+
+        $results = [];
+        foreach ($data['elements'] ?? [] as $el) {
+            $name = $el['tags']['name'] ?? null;
+            $elLat = $el['lat'] ?? $el['center']['lat'] ?? null;
+            $elLng = $el['lon'] ?? $el['center']['lon'] ?? null;
+            if (!is_string($name) || $name === '' || $elLat === null || $elLng === null) {
+                continue;
+            }
+            $results[] = [
+                'name' => mb_substr($name, 0, 190),
+                'lat' => (float) $elLat,
+                'lng' => (float) $elLng,
+                'tags' => is_array($el['tags'] ?? null) ? $el['tags'] : [],
+            ];
+        }
+        return $results;
+    }
+
+    /**
+     * @return array<string, mixed>|null decoded Nominatim jsonv2 response
+     */
+    private function nominatimReverseRaw(float $lat, float $lng): ?array
+    {
+        $url = self::NOMINATIM_ENDPOINT . '?' . http_build_query([
             'format' => 'jsonv2',
             'lat' => $lat,
             'lon' => $lng,
@@ -54,16 +317,16 @@ final class ReverseGeocodingService
         curl_close($ch);
 
         if ($body === false || $status !== 200) {
-            return ['name' => null, 'country' => null];
+            return null;
         }
 
         try {
             $data = json_decode((string) $body, true, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
-            return ['name' => null, 'country' => null];
+            return null;
         }
 
-        return ['name' => $this->pickName($data), 'country' => $this->pickCountry($data)];
+        return is_array($data) ? $data : null;
     }
 
     /**
@@ -209,5 +472,15 @@ final class ReverseGeocodingService
         }
         $country = $data['address']['country'] ?? null;
         return (is_string($country) && $country !== '') ? mb_substr($country, 0, 100) : null;
+    }
+
+    private function haversineMeters(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $earthRadius = 6371000.0;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        return $earthRadius * $c;
     }
 }
