@@ -25,15 +25,32 @@ namespace App\Service;
  * name is a cosmetic gap, never worth failing/retrying a job over.
  *
  * Nominatim's usage policy caps this at ~1 request/second and requires a
- * real identifying User-Agent - both satisfied here: calls only happen a
- * handful of times per entry (photo/video upload, track upload), sequenced
- * through the job worker rather than fired in a burst. Overpass is likewise
- * called sparingly for the same reason (see PoiDiscoveryService).
+ * real identifying User-Agent; Overpass's public instance is similarly
+ * quick to rate-limit a burst (observed directly: two "around" queries ~2s
+ * apart already got refused). A single stay/photo/track upload naturally
+ * spaces calls out enough on its own, but detectStays() can dispatch a
+ * geocode.resolve job for a dozen-plus stays at once (e.g. right after a
+ * cache-clear or a big new track), and the job worker then runs them
+ * back-to-back inside one process with nothing else slowing it down - a
+ * silent Overpass rate-limit on one of those calls doesn't fail loudly, it
+ * just falls through to the plain Nominatim path and THAT gets cached
+ * permanently, indistinguishable from "genuinely no landmark here"
+ * (discovered against Stefan's real data: several stays regressed to a
+ * worse address composition right after a batch cache-clear). throttle()
+ * enforces a floor between every external call this class makes, Overpass
+ * and Nominatim alike, so a big batch just takes a bit longer across
+ * several job-worker runs instead of quietly degrading its own results.
  */
 final class ReverseGeocodingService
 {
     private const NOMINATIM_ENDPOINT = 'https://nominatim.openstreetmap.org/reverse';
     private const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
+    private const MIN_CALL_INTERVAL_SECONDS = 1.1;
+
+    // Static rather than an instance property: the throttle needs to hold
+    // across every job the worker process handles in one run, not just
+    // calls made through whichever single instance happens to receive them.
+    private static float $lastExternalCallAt = 0.0;
 
     // Tight pass: dense city blocks need a short leash, or the "nearest
     // named thing" becomes noise (the next shop over, a parked landmark two
@@ -236,6 +253,8 @@ final class ReverseGeocodingService
      */
     private function queryOverpassAround(float $lat, float $lng, int $radiusMeters): array
     {
+        $this->throttle();
+
         $query = sprintf(
             '[out:json][timeout:15];(node(around:%d,%F,%F)[name];way(around:%d,%F,%F)[name];relation(around:%d,%F,%F)[name];);out center tags;',
             $radiusMeters, $lat, $lng,
@@ -288,6 +307,8 @@ final class ReverseGeocodingService
      */
     private function nominatimReverseRaw(float $lat, float $lng): ?array
     {
+        $this->throttle();
+
         $url = self::NOMINATIM_ENDPOINT . '?' . http_build_query([
             'format' => 'jsonv2',
             'lat' => $lat,
@@ -482,5 +503,24 @@ final class ReverseGeocodingService
         $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
         return $earthRadius * $c;
+    }
+
+    /**
+     * Blocks until at least MIN_CALL_INTERVAL_SECONDS has passed since the
+     * last external call this class made (Overpass or Nominatim, either
+     * one counts against the same floor - see the class docblock for why a
+     * batch of many stays resolving back-to-back needs this, not just a
+     * single lookup). A worker resolving a big batch just runs a bit longer
+     * across more cron ticks; that's the acceptable cost, cheaper than a
+     * silently rate-limited call permanently caching a worse fallback name.
+     */
+    private function throttle(): void
+    {
+        $now = microtime(true);
+        $elapsed = $now - self::$lastExternalCallAt;
+        if ($elapsed < self::MIN_CALL_INTERVAL_SECONDS) {
+            usleep((int) round((self::MIN_CALL_INTERVAL_SECONDS - $elapsed) * 1_000_000));
+        }
+        self::$lastExternalCallAt = microtime(true);
     }
 }
