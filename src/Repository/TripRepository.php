@@ -152,20 +152,19 @@ final class TripRepository
 
     /**
      * TripMetadataAutoFillHandler's write path: fills country/date_start/
-     * date_end from track/photo data, but COALESCE means it never
-     * overwrites a value that's already there - manually typed or from an
-     * earlier run of this same job, same "never resets anything manual"
-     * rule as EntryLocateHandler.
+     * date_end from track/photo data. Plain UPDATE, no COALESCE - unlike
+     * country (a single value, fine to set once and leave alone), the
+     * caller (TripMetadataAutoFillHandler) already works out the correct
+     * date_start/date_end itself (widening the existing range rather than
+     * only filling from NULL), so this just writes whatever it was told.
+     * There's no UI path for a user to type these three fields in
+     * themselves (checked - not present in the metadata edit form), so
+     * nothing here is ever "resetting a manual edit".
      */
     public function updateAutoMetadata(int $id, ?string $country, ?string $dateStart, ?string $dateEnd): void
     {
         $stmt = $this->pdo->prepare(
-            'UPDATE trips SET
-                country = COALESCE(country, ?),
-                date_start = COALESCE(date_start, ?),
-                date_end = COALESCE(date_end, ?),
-                updated_at = ?
-             WHERE id = ?'
+            'UPDATE trips SET country = ?, date_start = ?, date_end = ?, updated_at = ? WHERE id = ?'
         );
         $stmt->execute([$country, $dateStart, $dateEnd, gmdate('Y-m-d H:i:s'), $id]);
     }

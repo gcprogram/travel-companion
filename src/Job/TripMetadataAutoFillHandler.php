@@ -13,14 +13,24 @@ use App\Service\ReverseGeocodingService;
 /**
  * Job type "trip.metadata_refresh". Payload: {"trip_id": int}.
  * Fills trip.country/date_start/date_end from track points and geotagged
- * photos once either becomes available, so the create form no longer has to
- * ask for them - never overwrites a value that's already set (manually
- * typed, or filled by an earlier run of this same job), same "never resets
- * anything manual" rule as EntryLocateHandler. Dispatched after every track
- * upload and every geotagged photo (TrackController, PhotoProcessHandler);
- * cheap enough (a couple of small queries, at most one Nominatim call which
- * is itself cached in geocode_cache) to fire on every one of those rather
- * than trying to detect "did this actually change anything" up front.
+ * photos so the create form no longer has to ask for them. Dispatched after
+ * every track upload and every geotagged photo (TrackController,
+ * PhotoProcessHandler); cheap enough (a couple of small queries, at most one
+ * Nominatim call which is itself cached in geocode_cache) to fire on every
+ * one of those rather than trying to detect "did this actually change
+ * anything" up front.
+ *
+ * date_start/date_end EXPAND to cover newly observed points rather than
+ * only filling from NULL - a multi-day trip whose photos/track get uploaded
+ * incrementally would otherwise freeze at whatever the first upload alone
+ * covered (e.g. day one only) and never widen once days two and three
+ * arrive, since every later run of this same job used to see the fields
+ * already non-null and stop touching them entirely. There's no risk of
+ * clobbering a user's own correction here - checked: date_start/date_end
+ * aren't editable anywhere in the UI, this job is their only writer, and
+ * expanding never narrows a range that's already correct. country still
+ * only fills once (a single value, not a range - once resolved there's
+ * nothing to "expand").
  */
 final class TripMetadataAutoFillHandler implements JobHandlerInterface
 {
@@ -40,9 +50,6 @@ final class TripMetadataAutoFillHandler implements JobHandlerInterface
         if ($trip === null) {
             return;
         }
-        if ($trip['country'] !== null && $trip['date_start'] !== null && $trip['date_end'] !== null) {
-            return; // Nothing left for this job to fill in.
-        }
 
         $points = $this->collectPoints($tripId);
         if ($points === []) {
@@ -50,10 +57,17 @@ final class TripMetadataAutoFillHandler implements JobHandlerInterface
         }
         usort($points, static fn (array $a, array $b): int => $a['at'] <=> $b['at']);
 
-        $dateStart = $trip['date_start'] ?? substr($points[0]['at'], 0, 10);
-        $dateEnd = $trip['date_end'] ?? substr($points[count($points) - 1]['at'], 0, 10);
+        $observedStart = substr($points[0]['at'], 0, 10);
+        $observedEnd = substr($points[count($points) - 1]['at'], 0, 10);
+
+        $dateStart = $trip['date_start'] !== null ? min($trip['date_start'], $observedStart) : $observedStart;
+        $dateEnd = $trip['date_end'] !== null ? max($trip['date_end'], $observedEnd) : $observedEnd;
 
         $country = $trip['country'] ?? $this->resolveCountry($tripId, $points[0]['lat'], $points[0]['lng']);
+
+        if ($country === $trip['country'] && $dateStart === $trip['date_start'] && $dateEnd === $trip['date_end']) {
+            return; // Nothing actually changed - skip the write.
+        }
 
         $this->trips->updateAutoMetadata($tripId, $country, $dateStart, $dateEnd);
     }
