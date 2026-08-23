@@ -20,6 +20,15 @@ window.OfflineQueue = (function () {
   const WIFI_ONLY_KEY = 'tc_sync_wifi_only';
 
   let dbPromise = null;
+  // Serializes actual upload attempts so two sync() calls never race each
+  // other - e.g. a page-load resume and a user picking new files, or the
+  // 'online' handler and a visibilitychange-triggered resume, firing
+  // around the same moment. A later call waits for the earlier one to
+  // finish rather than being silently skipped (which would have left
+  // files queued during that window sitting untouched until some other
+  // trigger came along) - once its turn comes it re-reads the queue fresh,
+  // so anything added in the meantime still gets picked up.
+  let syncTail = Promise.resolve();
 
   function openDb() {
     if (dbPromise) {
@@ -177,6 +186,17 @@ window.OfflineQueue = (function () {
       return Promise.resolve({ synced: 0, failed: 0, skipped: true });
     }
 
+    const run = syncTail.then(function () { return runSync(csrfToken, onProgress); });
+    // The tail must stay resolvable even if this run rejects, so a later
+    // call still gets its turn instead of chaining behind a permanently
+    // rejected promise - runSync() itself already catches per-item errors,
+    // so a rejection here would only ever come from something unexpected
+    // (e.g. getAll() itself failing).
+    syncTail = run.catch(function () {});
+    return run;
+  }
+
+  function runSync(csrfToken, onProgress) {
     return getAll().then(function (items) {
       const pending = items.filter(function (i) { return i.status !== 'syncing'; });
       let synced = 0;

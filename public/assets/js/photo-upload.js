@@ -14,6 +14,7 @@
 document.addEventListener('DOMContentLoaded', function () {
   var input = document.querySelector('[data-photo-input]');
   var status = document.querySelector('[data-photo-status]');
+  var progress = document.querySelector('[data-photo-progress]');
   var csrfField = document.querySelector('input[name="_csrf"]');
 
   if (!input || !status || !csrfField || !window.ChunkedUpload || !window.OfflineQueue) {
@@ -55,18 +56,32 @@ document.addEventListener('DOMContentLoaded', function () {
         // just now, same as clicking "sync now"; it shouldn't suddenly be
         // held back by the WiFi-only preference that only governs
         // unprompted background syncing (e.g. on reconnect).
+        if (progress) {
+          progress.hidden = false;
+          progress.value = 0;
+        }
         return OfflineQueue.sync({
           csrfToken: csrfField.value,
           force: true,
-          onProgress: function (done, total) {
+          onProgress: function (done, total, fraction) {
             status.textContent = (input.dataset.msgUploading || '')
               .replace(':current', String(done + 1))
               .replace(':total', String(total));
+            if (progress) {
+              progress.value = Math.round(((done + fraction) / total) * 100);
+            }
           },
         });
       })
       .then(function (result) {
-        if (result.synced > 0) {
+        if (progress) {
+          progress.hidden = true;
+        }
+        // authRequired first - a batch that synced some items before the
+        // session expired must still show the login prompt instead of
+        // jumping straight into the server's own /login redirect (see
+        // offline-gallery.js for the same reordering and why).
+        if (result.synced > 0 && !result.authRequired) {
           window.location.reload();
           return;
         }
@@ -87,6 +102,9 @@ document.addEventListener('DOMContentLoaded', function () {
         console.error('Photo upload failed:', err);
         status.textContent = input.dataset.msgError;
         input.disabled = false;
+        if (progress) {
+          progress.hidden = true;
+        }
       });
   });
 });

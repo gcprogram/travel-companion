@@ -32,6 +32,14 @@
 
 * { box-sizing: border-box; }
 
+/* The browser's own [hidden] rule is UA-stylesheet-level, so any author
+   class selector with its own `display` (e.g. .btn's `display:
+   inline-block`) silently wins over it - an element.hidden = true in JS
+   then does nothing visually. Found live: [data-sync-now]'s .btn.btn-ghost
+   classes kept the "Jetzt synchronisieren" button on-screen even after
+   JS set it hidden for the "session expired" state. */
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -164,6 +172,19 @@ select:focus-visible {
 .field textarea { resize: vertical; min-height: 6rem; }
 
 .field-hint { font-size: 0.82rem; color: var(--color-muted); margin-top: 0.3rem; }
+
+.upload-progress {
+  display: block;
+  width: 100%;
+  height: 0.5rem;
+  margin-top: 0.4rem;
+  border: none;
+  border-radius: var(--radius);
+  overflow: hidden; /* Firefox needs this for the border-radius to actually clip the bar */
+}
+.upload-progress::-webkit-progress-bar { background: var(--color-line); border-radius: var(--radius); }
+.upload-progress::-webkit-progress-value { background: var(--color-brand); border-radius: var(--radius); }
+.upload-progress::-moz-progress-bar { background: var(--color-brand); border-radius: var(--radius); }
 
 .field-radio-group { display: flex; gap: var(--space-2); }
 .field-radio-group label { display: flex; align-items: center; gap: 0.4rem; font-weight: 400; }

@@ -37,6 +37,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
   window.addEventListener('online', function () { trySync(false); });
   window.addEventListener('offlinequeue:change', render);
+  // A screen lock/backgrounded tab can leave a chunk upload stalled with no
+  // event of its own to signal "try again now" (see chunked-upload.js's
+  // timeout, which is what lets a stuck request actually fail so this can
+  // safely start a fresh attempt) - visibilitychange covers returning from
+  // a locked screen the same way 'online' covers regaining a connection.
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') {
+      trySync(false);
+    }
+  });
 
   render();
   trySync(false);
@@ -46,7 +56,13 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
     OfflineQueue.sync({ csrfToken: csrfField.value, force: force }).then(function (result) {
-      if (result.synced > 0) {
+      // Check authRequired first: a batch that synced a few items before
+      // hitting an expired session must still show the login prompt (via
+      // render()/renderSyncWidget()) - reloading unconditionally on
+      // synced>0 would jump straight to the server's own /login redirect
+      // before the user ever saw why, looking exactly like "my photos are
+      // gone" even though the ones that made it through are safe.
+      if (result.synced > 0 && !result.authRequired) {
         window.location.reload();
       } else {
         render();

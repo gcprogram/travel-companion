@@ -166,6 +166,7 @@ $lng = $entry['lng'] ?? null;
            data-msg-error="<?= e(t('entry.form.photo_upload_error')) ?>"
            data-msg-login-required="<?= e(t('entry.form.login_required')) ?>"
            class="visually-hidden">
+    <progress class="upload-progress" data-photo-progress max="100" hidden></progress>
     <p class="field-hint" data-photo-status></p>
   </div>
 
@@ -218,6 +219,7 @@ $lng = $entry['lng'] ?? null;
            data-msg-error="<?= e(t('entry.form.video_upload_error')) ?>"
            data-msg-login-required="<?= e(t('entry.form.login_required')) ?>"
            class="visually-hidden">
+    <progress class="upload-progress" data-video-progress max="100" hidden></progress>
     <p class="field-hint" data-video-status></p>
   </div>
 
