@@ -6,6 +6,15 @@
  */
 window.ChunkedUpload = (function () {
   const CHUNK_SIZE = 1024 * 1024; // 1 MB
+  // A screen lock/backgrounded tab can suspend an in-flight fetch()
+  // indefinitely (no browser-level timeout of its own) - without this, one
+  // stalled chunk would hang the whole sequential chain forever, with
+  // nothing left to ever retry it (see offline-queue.js's visibilitychange
+  // resume, which needs a stuck request to actually fail before a fresh
+  // sync() attempt can safely start). 45s is generous for a 1MB chunk even
+  // on a poor connection, short enough that a genuine stall surfaces well
+  // within one job-worker-style retry cycle.
+  const CHUNK_TIMEOUT_MS = 45000;
 
   /**
    * @param {Blob} blob
@@ -40,7 +49,28 @@ window.ChunkedUpload = (function () {
           });
           formData.append('chunk', chunk, filename);
 
-          return fetch(uploadUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
+          var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+          var timedOut = false;
+          var timer = controller ? setTimeout(function () {
+            timedOut = true;
+            controller.abort();
+          }, CHUNK_TIMEOUT_MS) : null;
+
+          return fetch(uploadUrl, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            signal: controller ? controller.signal : undefined,
+          })
+            .finally(function () { clearTimeout(timer); })
+            .catch(function (err) {
+              if (timedOut) {
+                var timeoutErr = new Error('upload_timeout');
+                timeoutErr.timedOut = true;
+                throw timeoutErr;
+              }
+              throw err;
+            })
             .then(function (response) {
               if (response.redirected) {
                 // The session expired (not just the CSRF token): RequireLogin

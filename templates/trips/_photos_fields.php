@@ -12,6 +12,22 @@
 <?php if ($canEdit): ?>
   <?= $csrf->field() ?>
 
+  <div class="sync-status" data-sync-status hidden
+       data-msg-pending-one="<?= e(t('offline.sync_pending_one')) ?>"
+       data-msg-pending-many="<?= e(t('offline.sync_pending_many')) ?>"
+       data-msg-waiting-wifi="<?= e(t('offline.sync_waiting_wifi')) ?>"
+       data-msg-login-required="<?= e(t('offline.sync_login_required')) ?>"
+       data-msg-quota-exceeded="<?= e(t('offline.sync_quota_exceeded')) ?>">
+    <p class="field-hint">
+      <span data-sync-count></span>
+      <button type="button" class="btn btn-ghost btn-small" data-sync-now><?= e(t('offline.sync_now')) ?></button>
+    </p>
+    <label class="field-hint sync-status__wifi-toggle">
+      <input type="checkbox" data-wifi-only-toggle>
+      <?= e(t('offline.wifi_only_label')) ?>
+    </label>
+  </div>
+
   <h2><?= e(t('trip.photos.upload_heading')) ?></h2>
   <p class="field-hint"><?= e(t('trip.photos.upload_hint')) ?></p>
 
@@ -31,6 +47,7 @@
            class="visually-hidden">
   </div>
 
+  <progress class="upload-progress" data-trip-upload-progress max="100" hidden></progress>
   <p class="field-hint" data-trip-upload-status
      data-msg-resolving="<?= e(t('trip.photos.status_resolving')) ?>"
      data-msg-uploading="<?= e(t('entry.form.photo_uploading')) ?>"

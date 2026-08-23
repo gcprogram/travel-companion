@@ -357,7 +357,7 @@ return [
     'entry.form.confirm_no' => 'No',
     'entry.form.confirm_all' => 'All (don\'t ask again)',
     'entry.form.photo_upload_error' => 'Upload failed. Please try again.',
-    'entry.form.login_required' => 'Your session expired. Please log in again and retry the upload.',
+    'entry.form.login_required' => 'Your session expired. Anything already uploaded is safely saved - please log in again and the rest will resume automatically.',
 
     'entry.form.videos_heading' => 'Videos',
     'entry.form.videos_add' => 'Add video',

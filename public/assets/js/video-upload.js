@@ -16,6 +16,7 @@
 document.addEventListener('DOMContentLoaded', function () {
   var input = document.querySelector('[data-video-input]');
   var status = document.querySelector('[data-video-status]');
+  var progress = document.querySelector('[data-video-progress]');
   var csrfField = document.querySelector('input[name="_csrf"]');
 
   if (!input || !status || !csrfField || !window.ChunkedUpload) {
@@ -44,11 +45,19 @@ document.addEventListener('DOMContentLoaded', function () {
     var geotagPromise = (window.VideoGeotag ? VideoGeotag.extract(file) : Promise.resolve(null))
       .catch(function () { return null; });
 
+    if (progress) {
+      progress.hidden = false;
+      progress.value = 0;
+    }
+
     Promise.all([
       geotagPromise,
       VideoCompress.compress(file, {
         onProgress: function (fraction) {
           status.textContent = input.dataset.msgCompressing + ' ' + Math.round(fraction * 100) + '%';
+          if (progress) {
+            progress.value = Math.round(fraction * 100);
+          }
         },
       }),
     ])
@@ -90,11 +99,22 @@ document.addEventListener('DOMContentLoaded', function () {
             // A video is one big item, so its own chunk percentage is the
             // useful signal - unlike photos, where the file count is.
             status.textContent = input.dataset.msgUploading + ' ' + Math.round(fraction * 100) + '%';
+            if (progress) {
+              progress.value = Math.round(fraction * 100);
+            }
           },
         });
       })
       .then(function (result) {
-        if (result.synced > 0) {
+        if (progress) {
+          progress.hidden = true;
+        }
+        // authRequired first - the queue is shared/global, so an older
+        // leftover item can still hit an expired session even after this
+        // video itself made it through; see photo-upload.js for the same
+        // reordering and why it matters (reloading straight into /login
+        // would hide that the video succeeded).
+        if (result.synced > 0 && !result.authRequired) {
           window.location.reload();
           return;
         }
@@ -111,6 +131,9 @@ document.addEventListener('DOMContentLoaded', function () {
       })
       .catch(function (err) {
         console.error('Video upload failed:', err);
+        if (progress) {
+          progress.hidden = true;
+        }
         if (err && err.message === 'video_too_long') {
           status.textContent = input.dataset.msgTooLong;
         } else if (err && err.message === 'codec_unsupported') {

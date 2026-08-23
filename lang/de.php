@@ -357,7 +357,7 @@ return [
     'entry.form.confirm_no' => 'Nein',
     'entry.form.confirm_all' => 'Alle (nicht mehr fragen)',
     'entry.form.photo_upload_error' => 'Upload fehlgeschlagen. Bitte erneut versuchen.',
-    'entry.form.login_required' => 'Deine Sitzung ist abgelaufen. Bitte erneut anmelden und den Upload wiederholen.',
+    'entry.form.login_required' => 'Deine Sitzung ist abgelaufen. Bereits hochgeladene Fotos/Videos sind sicher gespeichert - bitte erneut anmelden, der Rest wird dann automatisch fortgesetzt.',
 
     'entry.form.videos_heading' => 'Videos',
     'entry.form.videos_add' => 'Video hinzufügen',
