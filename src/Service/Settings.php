@@ -67,6 +67,11 @@ final class Settings
         'poi.categories' => 'museum,zoo,attraction,viewpoint,monument,sacred_building',
         // Encrypted (see getSecret()/setSecret()) - never a plaintext default.
         'google.places_api_key' => '',
+        // Cloud Translation API v2 - sight names in a non-Latin script
+        // (PoiNameTranslationService), deliberately its own key/quota
+        // rather than sharing the ai.* budget below (Stefan's call - see
+        // GoogleTranslateService).
+        'google.translate_api_key' => '',
         // AI provider profile for day-entry summaries (Phase 7, first
         // feature) - OpenAI-compatible chat completions endpoint, so the
         // same profile works for OpenAI itself, DeepSeek, OpenRouter,
