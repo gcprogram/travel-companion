@@ -72,15 +72,13 @@ final class Settings
         // rather than sharing the ai.* budget below (Stefan's call - see
         // GoogleTranslateService).
         'google.translate_api_key' => '',
-        // AI provider profile for day-entry summaries (Phase 7, first
-        // feature) - OpenAI-compatible chat completions endpoint, so the
-        // same profile works for OpenAI itself, DeepSeek, OpenRouter,
-        // Ollama, etc. (see CLAUDE.md "Getroffene Entscheidungen"). No
-        // default base_url/model: an empty key means the feature is off,
-        // same convention as google.places_api_key.
-        'ai.base_url' => 'https://api.openai.com/v1',
-        'ai.model' => 'gpt-4o-mini',
-        'ai.api_key' => '',
+        // Which saved ai_provider_configs row (AiProviderConfigRepository)
+        // each named purpose slot uses - '0'/unset means "off", same
+        // convention as an empty API key elsewhere. 'main' covers every AI
+        // feature so far (day-entry summaries, trip-title/tags); more slots
+        // (e.g. 'vision') get their own 'ai.slot.<name>' key with no schema
+        // change needed. See AiProviderResolver.
+        'ai.slot.main' => '0',
     ];
 
     /** @var array<string, string>|null */

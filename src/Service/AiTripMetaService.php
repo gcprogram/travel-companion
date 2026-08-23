@@ -7,18 +7,18 @@ namespace App\Service;
 /**
  * Second KI feature (Phase 7, see AiSummaryService for the first/CLAUDE.md
  * background): suggests a trip title and a handful of tags from the trip's
- * own day-entry texts, visited sights, and country. Same OpenAI-compatible
- * chat completions endpoint/config as AiSummaryService (ai.base_url/
- * ai.model/ai.api_key in /admin/settings) - kept as its own service rather
- * than folded into AiSummaryService since the prompt/response shape is
- * different (structured title+tags, not a single free-text summary), but
- * deliberately NOT a shared HTTP-client abstraction: ReverseGeocodingService/
- * GooglePlacesService already each own their curl call outright, this
- * follows the same established pattern rather than introducing a new one.
+ * own day-entry texts, visited sights, and country. Same "main" AI slot as
+ * AiSummaryService (AiProviderResolver, configs managed in
+ * /admin/settings) - kept as its own service rather than folded into
+ * AiSummaryService since the prompt/response shape is different (structured
+ * title+tags, not a single free-text summary), but deliberately NOT a
+ * shared HTTP-client abstraction: ReverseGeocodingService/GooglePlacesService
+ * already each own their curl call outright, this follows the same
+ * established pattern rather than introducing a new one.
  */
 final class AiTripMetaService
 {
-    public function __construct(private readonly Settings $settings)
+    public function __construct(private readonly AiProviderResolver $resolver)
     {
     }
 
@@ -28,30 +28,24 @@ final class AiTripMetaService
      */
     public function suggest(array $context): ?array
     {
-        $apiKey = $this->settings->getSecret('ai.api_key');
-        if ($apiKey === null) {
-            return null;
-        }
-
-        $baseUrl = rtrim($this->settings->get('ai.base_url'), '/');
-        $model = $this->settings->get('ai.model');
-        if ($baseUrl === '' || $model === '') {
+        $provider = $this->resolver->resolve('main');
+        if ($provider === null) {
             return null;
         }
 
         $prompt = $this->buildPrompt($context);
 
-        $ch = curl_init($baseUrl . '/chat/completions');
+        $ch = curl_init($provider['baseUrl'] . '/chat/completions');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 25,
             CURLOPT_POST => true,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
-                'Authorization: Bearer ' . $apiKey,
+                'Authorization: Bearer ' . $provider['apiKey'],
             ],
             CURLOPT_POSTFIELDS => json_encode([
-                'model' => $model,
+                'model' => $provider['model'],
                 'messages' => [
                     ['role' => 'system', 'content' =>
                         'Du schlägst für ein privates Reisetagebuch einen kurzen, einprägsamen deutschen '

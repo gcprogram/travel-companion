@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Controller\AdminAiProviderController;
 use App\Controller\AdminSettingsController;
 use App\Controller\AdminUserController;
 use App\Controller\AuthController;
@@ -121,6 +122,9 @@ return static function (App $app): void {
         $group->get('/settings', [AdminSettingsController::class, 'show']);
         $group->post('/settings', [AdminSettingsController::class, 'save']);
         $group->post('/settings/clear-geocode-cache', [AdminSettingsController::class, 'clearGeocodeCache']);
+        $group->post('/settings/ai-providers', [AdminAiProviderController::class, 'create']);
+        $group->post('/settings/ai-providers/{id:[0-9]+}/delete', [AdminAiProviderController::class, 'delete']);
+        $group->post('/settings/ai-providers/fetch-models', [AdminAiProviderController::class, 'fetchModels']);
     })->add(RequireAdmin::class);
 
     // Public: sets the share_access cookie (ShareAccessCookie) and redirects

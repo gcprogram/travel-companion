@@ -141,31 +141,93 @@
   <p class="field-hint"><?= e(t('admin.settings_ai_hint')) ?></p>
 
   <div class="field">
-    <label for="ai_base_url"><?= e(t('admin.settings_ai_base_url_label')) ?></label>
-    <input type="url" id="ai_base_url" name="ai_base_url" value="<?= e($values['ai.base_url']) ?>">
-    <p class="field-hint"><?= e(t('admin.settings_ai_base_url_hint')) ?></p>
-  </div>
-
-  <div class="field">
-    <label for="ai_model"><?= e(t('admin.settings_ai_model_label')) ?></label>
-    <input type="text" id="ai_model" name="ai_model" value="<?= e($values['ai.model']) ?>">
-  </div>
-
-  <div class="field">
-    <label for="ai_api_key"><?= e(t('admin.settings_ai_key_label')) ?></label>
-    <input type="password" id="ai_api_key" name="ai_api_key" autocomplete="off"
-           placeholder="<?= $aiApiKeyConfigured ? e(t('admin.settings_ai_key_configured')) : '' ?>">
-    <p class="field-hint"><?= e(t('admin.settings_ai_key_hint')) ?></p>
-    <?php if ($aiApiKeyConfigured): ?>
-      <label>
-        <input type="checkbox" name="ai_api_key_clear" value="1">
-        <?= e(t('admin.settings_ai_key_clear')) ?>
-      </label>
-    <?php endif; ?>
+    <label for="ai_slot_main"><?= e(t('admin.settings_ai_slot_main_label')) ?></label>
+    <select id="ai_slot_main" name="ai_slot_main">
+      <option value="0"><?= e(t('admin.settings_ai_slot_none')) ?></option>
+      <?php foreach ($aiProviders as $config): ?>
+        <option value="<?= (int) $config['id'] ?>" <?= $aiSlotMain === (int) $config['id'] ? 'selected' : '' ?>>
+          <?= e($config['label']) ?> (<?= e($config['model']) ?>)
+        </option>
+      <?php endforeach; ?>
+    </select>
+    <p class="field-hint"><?= e(t('admin.settings_ai_slot_main_hint')) ?></p>
   </div>
 
   <button type="submit" class="btn btn-primary"><?= e(t('admin.save')) ?></button>
 </form>
+
+<h2><?= e(t('admin.settings_ai_providers_heading')) ?></h2>
+<p class="field-hint"><?= e(t('admin.settings_ai_providers_hint')) ?></p>
+
+<?php if ($aiProviders !== []): ?>
+  <ul class="ai-provider-list">
+    <?php foreach ($aiProviders as $config): ?>
+      <li class="ai-provider-list__item">
+        <div>
+          <strong><?= e($config['label']) ?></strong>
+          <span class="field-hint"><?= e($config['base_url']) ?> · <?= e($config['model']) ?></span>
+        </div>
+        <form method="post" action="/admin/settings/ai-providers/<?= (int) $config['id'] ?>/delete"
+              data-confirm="<?= e(t('admin.settings_ai_provider_delete_confirm', ['label' => $config['label']])) ?>">
+          <?= $csrf->field() ?>
+          <button type="submit" class="btn btn-ghost btn-small"><?= e(t('admin.settings_ai_provider_delete')) ?></button>
+        </form>
+      </li>
+    <?php endforeach; ?>
+  </ul>
+<?php endif; ?>
+
+<form class="auth-form" method="post" action="/admin/settings/ai-providers" data-ai-provider-form
+      data-fetch-url="/admin/settings/ai-providers/fetch-models"
+      data-csrf-token="<?= e($csrf->token()) ?>"
+      data-msg-fetching="<?= e(t('admin.settings_ai_fetch_fetching')) ?>"
+      data-msg-fetch-error="<?= e(t('admin.settings_ai_fetch_error')) ?>"
+      data-msg-fetch-found="<?= e(t('admin.settings_ai_fetch_found')) ?>">
+  <?= $csrf->field() ?>
+
+  <div class="field">
+    <label for="ai_provider_label"><?= e(t('admin.settings_ai_provider_label_label')) ?></label>
+    <input type="text" id="ai_provider_label" name="label" data-ai-provider-label required>
+  </div>
+
+  <div class="field">
+    <label for="ai_provider_preset"><?= e(t('admin.settings_ai_provider_preset_label')) ?></label>
+    <select id="ai_provider_preset" name="provider" data-ai-provider-preset>
+      <?php foreach ($aiProviderPresets as $key => $preset): ?>
+        <option value="<?= e($key) ?>" data-base-url="<?= e($preset['baseUrl']) ?>">
+          <?= e($preset['label']) ?>
+        </option>
+      <?php endforeach; ?>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="ai_provider_base_url"><?= e(t('admin.settings_ai_provider_base_url_label')) ?></label>
+    <input type="url" id="ai_provider_base_url" name="base_url" data-ai-provider-base-url required>
+  </div>
+
+  <div class="field">
+    <label for="ai_provider_key"><?= e(t('admin.settings_ai_provider_key_label')) ?></label>
+    <input type="password" id="ai_provider_key" name="api_key" autocomplete="off" data-ai-provider-key required>
+  </div>
+
+  <p class="field-hint">
+    <button type="button" class="btn btn-ghost" data-ai-provider-fetch><?= e(t('admin.settings_ai_fetch_button')) ?></button>
+    <span data-ai-provider-fetch-status></span>
+  </p>
+
+  <div class="field">
+    <label for="ai_provider_model"><?= e(t('admin.settings_ai_provider_model_label')) ?></label>
+    <input type="text" id="ai_provider_model" name="model" data-ai-provider-model required
+           list="ai-provider-model-list"
+           placeholder="<?= e(t('admin.settings_ai_provider_model_placeholder')) ?>">
+    <datalist id="ai-provider-model-list" data-ai-provider-model-list></datalist>
+  </div>
+
+  <button type="submit" class="btn btn-primary"><?= e(t('admin.settings_ai_provider_add')) ?></button>
+</form>
+
+<script src="/assets/js/admin-ai-provider.js"></script>
 
 <h2><?= e(t('admin.settings_maintenance_heading')) ?></h2>
 <form method="post" action="/admin/settings/clear-geocode-cache">
