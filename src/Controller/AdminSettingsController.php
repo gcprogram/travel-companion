@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Repository\AiProviderConfigRepository;
 use App\Repository\GeocodeCacheRepository;
+use App\Service\AiProviderPresets;
 use App\Service\PoiDiscoveryService;
 use App\Service\Settings;
 use App\Support\Flash;
@@ -22,6 +24,7 @@ final class AdminSettingsController
         private readonly View $view,
         private readonly Settings $settings,
         private readonly GeocodeCacheRepository $geocodeCache,
+        private readonly AiProviderConfigRepository $aiProviders,
         private readonly Flash $flash,
     ) {
     }
@@ -36,7 +39,9 @@ final class AdminSettingsController
             // ever putting the secret back into the page/browser.
             'placesApiKeyConfigured' => $this->settings->getSecret('google.places_api_key') !== null,
             'translateApiKeyConfigured' => $this->settings->getSecret('google.translate_api_key') !== null,
-            'aiApiKeyConfigured' => $this->settings->getSecret('ai.api_key') !== null,
+            'aiProviders' => $this->aiProviders->findAll(),
+            'aiProviderPresets' => AiProviderPresets::PRESETS,
+            'aiSlotMain' => $this->settings->getInt('ai.slot.main'),
         ]);
     }
 
@@ -91,19 +96,12 @@ final class AdminSettingsController
             $this->settings->setSecret('google.translate_api_key', $translateApiKey);
         }
 
-        $aiBaseUrl = trim((string) ($body['ai_base_url'] ?? ''));
-        if ($aiBaseUrl !== '') {
-            $this->settings->set('ai.base_url', $aiBaseUrl);
-        }
-        $aiModel = trim((string) ($body['ai_model'] ?? ''));
-        if ($aiModel !== '') {
-            $this->settings->set('ai.model', $aiModel);
-        }
-        $aiApiKey = trim((string) ($body['ai_api_key'] ?? ''));
-        if (!empty($body['ai_api_key_clear'])) {
-            $this->settings->setSecret('ai.api_key', null);
-        } elseif ($aiApiKey !== '') {
-            $this->settings->setSecret('ai.api_key', $aiApiKey);
+        // '0' = no config assigned, same "off" convention as an empty key -
+        // only accepted if it's actually one of the saved configs, so a
+        // stale/tampered id can't silently point the slot at nothing.
+        $slotMain = (int) ($body['ai_slot_main'] ?? 0);
+        if ($slotMain === 0 || $this->aiProviders->findById($slotMain) !== null) {
+            $this->settings->set('ai.slot.main', (string) $slotMain);
         }
 
         $this->flash->add('success', t('admin.settings_saved'));

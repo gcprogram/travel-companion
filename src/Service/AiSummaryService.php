@@ -7,13 +7,14 @@ namespace App\Service;
 /**
  * First KI feature (Phase 7, see CLAUDE.md): a short summary of a day
  * entry from its own text/mood/weather. Talks to an OpenAI-compatible
- * chat completions endpoint (config in /admin/settings, ai.base_url +
- * ai.model + encrypted ai.api_key) - the same adapter shape covers OpenAI
- * itself, DeepSeek, OpenRouter, Ollama, etc. per the provider-abstraction
- * decision already documented in CLAUDE.md; native Anthropic/Gemini
- * adapters (for their own vision/websearch capabilities) are a later
- * addition once a second AI feature actually needs them - nothing here
- * assumes only one provider shape will ever exist.
+ * chat completions endpoint - config comes from the "main" AI slot
+ * (AiProviderResolver, saved provider profiles managed in
+ * /admin/settings) rather than a single fixed ai.base_url/model/key; the
+ * adapter shape itself still only speaks OpenAI-compatible (covers OpenAI,
+ * DeepSeek, OpenRouter, Ollama, ...) per the provider-abstraction decision
+ * already documented in CLAUDE.md - native Anthropic/Gemini adapters (for
+ * their own vision/websearch capabilities) are a later addition once a
+ * feature actually needs them, e.g. a future "vision" slot.
  *
  * Best-effort like GooglePlacesService/ReverseGeocodingService: returns
  * null on any failure (network, bad response, no key configured) rather
@@ -23,7 +24,7 @@ namespace App\Service;
  */
 final class AiSummaryService
 {
-    public function __construct(private readonly Settings $settings)
+    public function __construct(private readonly AiProviderResolver $resolver)
     {
     }
 
@@ -33,30 +34,24 @@ final class AiSummaryService
      */
     public function summarize(array $entry): ?string
     {
-        $apiKey = $this->settings->getSecret('ai.api_key');
-        if ($apiKey === null) {
-            return null;
-        }
-
-        $baseUrl = rtrim($this->settings->get('ai.base_url'), '/');
-        $model = $this->settings->get('ai.model');
-        if ($baseUrl === '' || $model === '') {
+        $provider = $this->resolver->resolve('main');
+        if ($provider === null) {
             return null;
         }
 
         $prompt = $this->buildPrompt($entry);
 
-        $ch = curl_init($baseUrl . '/chat/completions');
+        $ch = curl_init($provider['baseUrl'] . '/chat/completions');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 25,
             CURLOPT_POST => true,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
-                'Authorization: Bearer ' . $apiKey,
+                'Authorization: Bearer ' . $provider['apiKey'],
             ],
             CURLOPT_POSTFIELDS => json_encode([
-                'model' => $model,
+                'model' => $provider['model'],
                 'messages' => [
                     ['role' => 'system', 'content' =>
                         'Du fasst private Reisetagebuch-Einträge auf Deutsch in 2-3 kurzen, '
