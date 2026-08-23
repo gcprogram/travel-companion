@@ -122,6 +122,7 @@ return static function (App $app): void {
         $group->get('/settings', [AdminSettingsController::class, 'show']);
         $group->post('/settings', [AdminSettingsController::class, 'save']);
         $group->post('/settings/clear-geocode-cache', [AdminSettingsController::class, 'clearGeocodeCache']);
+        $group->post('/settings/clear-poi-translation-cache', [AdminSettingsController::class, 'clearPoiTranslationCache']);
         $group->post('/settings/ai-providers', [AdminAiProviderController::class, 'create']);
         $group->post('/settings/ai-providers/{id:[0-9]+}/delete', [AdminAiProviderController::class, 'delete']);
         $group->post('/settings/ai-providers/fetch-models', [AdminAiProviderController::class, 'fetchModels']);

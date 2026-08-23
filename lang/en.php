@@ -526,6 +526,9 @@ return [
     'admin.settings_clear_geocode_cache' => 'Clear place-name cache',
     'admin.settings_clear_geocode_cache_hint' => 'Deletes all cached auto-resolved place names (stays/photos). They get re-resolved automatically on next view - useful after a name-resolution improvement, so already-cached older names catch up.',
     'admin.settings_geocode_cache_cleared' => ':count cached place name(s) cleared.',
+    'admin.settings_clear_poi_translation_cache' => 'Clear sight-name translation cache',
+    'admin.settings_clear_poi_translation_cache_hint' => 'Deletes all cached AI/translation names for sights in a non-Latin script. They\'ll be re-translated on the next "Search for sights along the route" run - already-confirmed sights are kept, only the name gets refreshed. Useful after a bad translation or switching translation providers.',
+    'admin.settings_poi_translation_cache_cleared' => ':count cached translation(s) cleared.',
     'admin.settings_poi_categories' => 'Types searched by default',
     'admin.settings_saved' => 'Settings saved.',
 

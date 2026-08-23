@@ -34,4 +34,19 @@ final class PoiNameTranslationRepository
         );
         $stmt->execute([$sourceText, $translatedText, gmdate('Y-m-d H:i:s')]);
     }
+
+    /**
+     * Same "no TTL, so this is the only way a stale translation ever gets
+     * redone" rationale as GeocodeCacheRepository::clear() - lets a bad/
+     * outdated cached translation (e.g. from before the Google Translate
+     * switch) be forced to re-translate on the next "Sehenswürdigkeiten
+     * entlang der Route suchen" run, which re-upserts the name in place
+     * (PoiRepository::upsertFromOverpass) without touching visited/notes.
+     *
+     * @return int rows removed
+     */
+    public function clear(): int
+    {
+        return $this->pdo->exec('DELETE FROM poi_name_translations');
+    }
 }

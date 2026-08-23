@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Repository\AiProviderConfigRepository;
 use App\Repository\GeocodeCacheRepository;
+use App\Repository\PoiNameTranslationRepository;
 use App\Service\AiProviderPresets;
 use App\Service\PoiDiscoveryService;
 use App\Service\Settings;
@@ -24,6 +25,7 @@ final class AdminSettingsController
         private readonly View $view,
         private readonly Settings $settings,
         private readonly GeocodeCacheRepository $geocodeCache,
+        private readonly PoiNameTranslationRepository $poiTranslations,
         private readonly AiProviderConfigRepository $aiProviders,
         private readonly Flash $flash,
     ) {
@@ -120,6 +122,20 @@ final class AdminSettingsController
     {
         $removed = $this->geocodeCache->clear();
         $this->flash->add('success', t('admin.settings_geocode_cache_cleared', ['count' => (string) $removed]));
+        return $response->withHeader('Location', '/admin/settings')->withStatus(302);
+    }
+
+    /**
+     * Same idea as clearGeocodeCache(), for the other name cache
+     * (PoiNameTranslationRepository) - lets a translation that's stale or
+     * simply wrong (e.g. from before the Google Translate switch, or a
+     * change to what target language/wording is wanted) be forced to
+     * redo on the next POI discovery run rather than being stuck forever.
+     */
+    public function clearPoiTranslationCache(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $removed = $this->poiTranslations->clear();
+        $this->flash->add('success', t('admin.settings_poi_translation_cache_cleared', ['count' => (string) $removed]));
         return $response->withHeader('Location', '/admin/settings')->withStatus(302);
     }
 
