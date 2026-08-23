@@ -235,3 +235,9 @@
   <button type="submit" class="btn btn-ghost"><?= e(t('admin.settings_clear_geocode_cache')) ?></button>
   <p class="field-hint"><?= e(t('admin.settings_clear_geocode_cache_hint')) ?></p>
 </form>
+
+<form method="post" action="/admin/settings/clear-poi-translation-cache">
+  <?= $csrf->field() ?>
+  <button type="submit" class="btn btn-ghost"><?= e(t('admin.settings_clear_poi_translation_cache')) ?></button>
+  <p class="field-hint"><?= e(t('admin.settings_clear_poi_translation_cache_hint')) ?></p>
+</form>

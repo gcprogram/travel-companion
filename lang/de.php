@@ -526,6 +526,9 @@ return [
     'admin.settings_clear_geocode_cache' => 'Ortsnamen-Cache leeren',
     'admin.settings_clear_geocode_cache_hint' => 'Löscht alle zwischengespeicherten automatisch ermittelten Ortsnamen (Aufenthalte/Fotos). Sie werden beim nächsten Aufruf automatisch neu ermittelt - sinnvoll nach einer Verbesserung der Namensermittlung, damit ältere, schon gecachte Namen nachziehen.',
     'admin.settings_geocode_cache_cleared' => ':count zwischengespeicherte Ortsnamen gelöscht.',
+    'admin.settings_clear_poi_translation_cache' => 'Sehenswürdigkeiten-Übersetzungscache leeren',
+    'admin.settings_clear_poi_translation_cache_hint' => 'Löscht alle zwischengespeicherten KI-/Übersetzungs-Namen für Sehenswürdigkeiten in fremder Schrift. Beim nächsten "Sehenswürdigkeiten entlang der Route suchen" werden sie neu übersetzt - bereits bestätigte Sehenswürdigkeiten bleiben dabei erhalten, nur der Name wird aktualisiert. Sinnvoll nach einer fehlerhaften Übersetzung oder dem Wechsel des Übersetzungs-Anbieters.',
+    'admin.settings_poi_translation_cache_cleared' => ':count zwischengespeicherte Übersetzungen gelöscht.',
     'admin.settings_poi_categories' => 'Standardmäßig gesuchte Arten',
     'admin.settings_saved' => 'Einstellungen gespeichert.',
 
