@@ -1,6 +1,7 @@
 <?php
 /** @var array<string, string> $values */
 /** @var bool $placesApiKeyConfigured */
+/** @var bool $translateApiKeyConfigured */
 /** @var bool $aiApiKeyConfigured */
 ?>
 
@@ -116,6 +117,22 @@
       <label>
         <input type="checkbox" name="google_places_api_key_clear" value="1">
         <?= e(t('admin.settings_places_key_clear')) ?>
+      </label>
+    <?php endif; ?>
+  </div>
+
+  <h2><?= e(t('admin.settings_translate_heading')) ?></h2>
+  <p class="field-hint"><?= e(t('admin.settings_translate_hint')) ?></p>
+
+  <div class="field">
+    <label for="google_translate_api_key"><?= e(t('admin.settings_translate_key_label')) ?></label>
+    <input type="password" id="google_translate_api_key" name="google_translate_api_key" autocomplete="off"
+           placeholder="<?= $translateApiKeyConfigured ? e(t('admin.settings_translate_key_configured')) : '' ?>">
+    <p class="field-hint"><?= e(t('admin.settings_translate_key_hint')) ?></p>
+    <?php if ($translateApiKeyConfigured): ?>
+      <label>
+        <input type="checkbox" name="google_translate_api_key_clear" value="1">
+        <?= e(t('admin.settings_translate_key_clear')) ?>
       </label>
     <?php endif; ?>
   </div>
