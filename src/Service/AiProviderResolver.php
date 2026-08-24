@@ -28,7 +28,7 @@ final class AiProviderResolver
      *
      * @var list<string>
      */
-    public const KNOWN_SLOTS = ['main', 'vision'];
+    public const KNOWN_SLOTS = ['main', 'vision', 'translate'];
 
     public function __construct(
         private readonly Settings $settings,

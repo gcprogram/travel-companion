@@ -45,6 +45,7 @@ final class AdminSettingsController
             'aiProviderPresets' => AiProviderPresets::PRESETS,
             'aiSlotMain' => $this->settings->getInt('ai.slot.main'),
             'aiSlotVision' => $this->settings->getInt('ai.slot.vision'),
+            'aiSlotTranslate' => $this->settings->getInt('ai.slot.translate'),
         ]);
     }
 
@@ -110,6 +111,11 @@ final class AdminSettingsController
         $slotVision = (int) ($body['ai_slot_vision'] ?? 0);
         if ($slotVision === 0 || $this->aiProviders->findById($slotVision) !== null) {
             $this->settings->set('ai.slot.vision', (string) $slotVision);
+        }
+
+        $slotTranslate = (int) ($body['ai_slot_translate'] ?? 0);
+        if ($slotTranslate === 0 || $this->aiProviders->findById($slotTranslate) !== null) {
+            $this->settings->set('ai.slot.translate', (string) $slotTranslate);
         }
 
         $this->flash->add('success', t('admin.settings_saved'));

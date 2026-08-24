@@ -86,6 +86,14 @@ final class Settings
         // (not every OpenAI-compatible model accepts image input), which is
         // exactly why this is its own slot rather than reusing 'main'.
         'ai.slot.vision' => '0',
+        // AiTranslationService's fallback for sight-name translation
+        // (PoiNameTranslationService) when GoogleTranslateService is
+        // unavailable - unset on Bitpalast/most self-hosted installs since
+        // Cloud Translation's v2 API needs a billed Google Cloud project
+        // even for its free tier. "A simple model is enough for this"
+        // (Stefan) - deliberately its own slot so a cheap/fast model can be
+        // picked here without affecting 'main'.
+        'ai.slot.translate' => '0',
     ];
 
     /** @var array<string, string>|null */

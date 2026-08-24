@@ -6,6 +6,7 @@
 /** @var array<string, array{label: string, baseUrl: string}> $aiProviderPresets */
 /** @var int $aiSlotMain */
 /** @var int $aiSlotVision */
+/** @var int $aiSlotTranslate */
 ?>
 
 <h1><?= e(t('admin.settings_title')) ?></h1>
@@ -167,6 +168,19 @@
       <?php endforeach; ?>
     </select>
     <p class="field-hint"><?= e(t('admin.settings_ai_slot_vision_hint')) ?></p>
+  </div>
+
+  <div class="field">
+    <label for="ai_slot_translate"><?= e(t('admin.settings_ai_slot_translate_label')) ?></label>
+    <select id="ai_slot_translate" name="ai_slot_translate">
+      <option value="0"><?= e(t('admin.settings_ai_slot_none')) ?></option>
+      <?php foreach ($aiProviders as $config): ?>
+        <option value="<?= (int) $config['id'] ?>" <?= $aiSlotTranslate === (int) $config['id'] ? 'selected' : '' ?>>
+          <?= e($config['label']) ?> (<?= e($config['model']) ?>)
+        </option>
+      <?php endforeach; ?>
+    </select>
+    <p class="field-hint"><?= e(t('admin.settings_ai_slot_translate_hint')) ?></p>
   </div>
 
   <button type="submit" class="btn btn-primary"><?= e(t('admin.save')) ?></button>
