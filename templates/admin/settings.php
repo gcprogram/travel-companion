@@ -2,7 +2,10 @@
 /** @var array<string, string> $values */
 /** @var bool $placesApiKeyConfigured */
 /** @var bool $translateApiKeyConfigured */
-/** @var bool $aiApiKeyConfigured */
+/** @var list<array<string, mixed>> $aiProviders */
+/** @var array<string, array{label: string, baseUrl: string}> $aiProviderPresets */
+/** @var int $aiSlotMain */
+/** @var int $aiSlotVision */
 ?>
 
 <h1><?= e(t('admin.settings_title')) ?></h1>
@@ -153,6 +156,19 @@
     <p class="field-hint"><?= e(t('admin.settings_ai_slot_main_hint')) ?></p>
   </div>
 
+  <div class="field">
+    <label for="ai_slot_vision"><?= e(t('admin.settings_ai_slot_vision_label')) ?></label>
+    <select id="ai_slot_vision" name="ai_slot_vision">
+      <option value="0"><?= e(t('admin.settings_ai_slot_none')) ?></option>
+      <?php foreach ($aiProviders as $config): ?>
+        <option value="<?= (int) $config['id'] ?>" <?= $aiSlotVision === (int) $config['id'] ? 'selected' : '' ?>>
+          <?= e($config['label']) ?> (<?= e($config['model']) ?>)
+        </option>
+      <?php endforeach; ?>
+    </select>
+    <p class="field-hint"><?= e(t('admin.settings_ai_slot_vision_hint')) ?></p>
+  </div>
+
   <button type="submit" class="btn btn-primary"><?= e(t('admin.save')) ?></button>
 </form>
 
@@ -160,18 +176,28 @@
 <p class="field-hint"><?= e(t('admin.settings_ai_providers_hint')) ?></p>
 
 <?php if ($aiProviders !== []): ?>
-  <ul class="ai-provider-list">
+  <ul class="ai-provider-list" data-ai-provider-list data-csrf-token="<?= e($csrf->token()) ?>"
+      data-test-url-template="/admin/settings/ai-providers/__ID__/test"
+      data-msg-testing="<?= e(t('admin.settings_ai_test_testing')) ?>"
+      data-msg-test-ok="<?= e(t('admin.settings_ai_test_ok')) ?>"
+      data-msg-test-error="<?= e(t('admin.settings_ai_fetch_error')) ?>">
     <?php foreach ($aiProviders as $config): ?>
       <li class="ai-provider-list__item">
         <div>
           <strong><?= e($config['label']) ?></strong>
           <span class="field-hint"><?= e($config['base_url']) ?> · <?= e($config['model']) ?></span>
+          <span class="field-hint" data-ai-provider-test-status></span>
         </div>
-        <form method="post" action="/admin/settings/ai-providers/<?= (int) $config['id'] ?>/delete"
-              data-confirm="<?= e(t('admin.settings_ai_provider_delete_confirm', ['label' => $config['label']])) ?>">
-          <?= $csrf->field() ?>
-          <button type="submit" class="btn btn-ghost btn-small"><?= e(t('admin.settings_ai_provider_delete')) ?></button>
-        </form>
+        <div class="ai-provider-list__actions">
+          <button type="button" class="btn btn-ghost btn-small" data-ai-provider-test data-provider-id="<?= (int) $config['id'] ?>">
+            <?= e(t('admin.settings_ai_provider_test')) ?>
+          </button>
+          <form method="post" action="/admin/settings/ai-providers/<?= (int) $config['id'] ?>/delete"
+                data-confirm="<?= e(t('admin.settings_ai_provider_delete_confirm', ['label' => $config['label']])) ?>">
+            <?= $csrf->field() ?>
+            <button type="submit" class="btn btn-ghost btn-small"><?= e(t('admin.settings_ai_provider_delete')) ?></button>
+          </form>
+        </div>
       </li>
     <?php endforeach; ?>
   </ul>

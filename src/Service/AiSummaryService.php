@@ -17,10 +17,15 @@ namespace App\Service;
  * feature actually needs them, e.g. a future "vision" slot.
  *
  * Best-effort like GooglePlacesService/ReverseGeocodingService: returns
- * null on any failure (network, bad response, no key configured) rather
- * than throwing - always called from a job handler where that's a
- * cosmetic gap (the entry simply keeps no AI summary), never worth
- * retrying aggressively or failing a request over.
+ * null only once every candidate in the "main" slot's fallback chain has
+ * failed (network, bad response, no key configured) rather than throwing -
+ * always called from a job handler where that's a cosmetic gap (the entry
+ * simply keeps no AI summary), never worth failing a request over.
+ *
+ * Chain/retry (Stefan's ask): a rate limit or any other non-2xx/malformed
+ * response from one saved provider profile moves on to the next one in
+ * AiProviderResolver::resolveChain() (assigned profile first, then every
+ * other saved profile) rather than giving up on the first hiccup.
  */
 final class AiSummaryService
 {
@@ -34,13 +39,23 @@ final class AiSummaryService
      */
     public function summarize(array $entry): ?string
     {
-        $provider = $this->resolver->resolve('main');
-        if ($provider === null) {
-            return null;
-        }
-
         $prompt = $this->buildPrompt($entry);
 
+        foreach ($this->resolver->resolveChain('main') as $provider) {
+            $result = $this->callProvider($provider, $prompt);
+            if ($result !== null) {
+                return $result;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array{baseUrl: string, model: string, apiKey: string} $provider
+     */
+    private function callProvider(array $provider, string $prompt): ?string
+    {
         $ch = curl_init($provider['baseUrl'] . '/chat/completions');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,

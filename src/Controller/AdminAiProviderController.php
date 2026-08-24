@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Repository\AiProviderConfigRepository;
+use App\Service\AiProviderResolver;
 use App\Service\Settings;
 use App\Support\Flash;
 use Psr\Http\Message\ResponseInterface;
@@ -58,8 +59,10 @@ final class AdminAiProviderController
         // right degrade, but clearing the assignment explicitly means the
         // settings page doesn't keep showing a dropdown selection for a
         // config that's gone.
-        if ($this->settings->getInt('ai.slot.main') === $id) {
-            $this->settings->set('ai.slot.main', '0');
+        foreach (AiProviderResolver::KNOWN_SLOTS as $slot) {
+            if ($this->settings->getInt('ai.slot.' . $slot) === $id) {
+                $this->settings->set('ai.slot.' . $slot, '0');
+            }
         }
 
         $this->settings->setSecret('ai.provider.' . $id . '.api_key', null);
@@ -67,6 +70,104 @@ final class AdminAiProviderController
 
         $this->flash->add('success', t('admin.settings_ai_provider_deleted'));
         return $this->redirect($response);
+    }
+
+    /**
+     * "Testen" button next to an already-saved provider (Stefan's ask: a
+     * way to check a configured model is actually reachable and produces a
+     * real completion, not just that the /models list responds - a model
+     * name can be valid there and still fail/rate-limit on an actual chat
+     * call). Sends one minimal real chat-completion request using the
+     * saved base_url/model/key and reports success + latency, or the
+     * specific failure (explicitly calling out a 429 as a rate limit,
+     * since that's the case Stefan wants the fallback chain in
+     * AiProviderResolver::resolveChain() to route around).
+     */
+    public function test(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $id = (int) $args['id'];
+        $config = $this->providers->findById($id);
+        if ($config === null) {
+            return $this->json($response, ['ok' => false, 'error' => t('admin.settings_ai_test_not_found')], 404);
+        }
+
+        $apiKey = $this->settings->getSecret('ai.provider.' . $id . '.api_key');
+        if ($apiKey === null) {
+            return $this->json($response, ['ok' => false, 'error' => t('admin.settings_ai_test_no_key')], 422);
+        }
+
+        $baseUrl = rtrim((string) $config['base_url'], '/');
+        $started = microtime(true);
+
+        $ch = curl_init($baseUrl . '/chat/completions');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            // Longer than the 25s AiSummaryService/AiTripMetaService use in
+            // production - a "reasoning" model can genuinely take longer
+            // than that to think through even a trivial prompt (observed:
+            // ~13s for a 2-word answer), and a false "broken" report from
+            // this button for a model that's merely slow defeats its point.
+            // Production calls keep the shorter timeout deliberately -
+            // resolveChain()'s fallback already covers a slow/timing-out
+            // model there.
+            CURLOPT_TIMEOUT => 55,
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $apiKey,
+            ],
+            CURLOPT_POSTFIELDS => json_encode([
+                'model' => $config['model'],
+                'messages' => [
+                    ['role' => 'user', 'content' => 'Reply with only the single word: OK'],
+                ],
+                // Generous on purpose: a "reasoning" model (e.g. NVIDIA's
+                // nemotron line) can spend 200+ tokens on an internal
+                // chain-of-thought - returned as its own reasoning/
+                // reasoning_content field - before ever emitting the actual
+                // answer. A small max_tokens starves that answer entirely
+                // (empty content, even though the model is working fine),
+                // which would make this test wrongly report a healthy
+                // reasoning model as broken.
+                'max_tokens' => 400,
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        $body = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        $latencyMs = (int) round((microtime(true) - $started) * 1000);
+
+        if ($body === false) {
+            return $this->json($response, ['ok' => false, 'error' => $curlError, 'latencyMs' => $latencyMs], 502);
+        }
+        if ($status === 429) {
+            return $this->json($response, ['ok' => false, 'error' => t('admin.settings_ai_test_rate_limited'), 'latencyMs' => $latencyMs], 502);
+        }
+        if ($status !== 200) {
+            return $this->json($response, [
+                'ok' => false,
+                'error' => t('admin.settings_ai_fetch_http_error', ['status' => (string) $status]),
+                'latencyMs' => $latencyMs,
+            ], 502);
+        }
+
+        try {
+            $data = json_decode((string) $body, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return $this->json($response, ['ok' => false, 'error' => t('admin.settings_ai_fetch_bad_response'), 'latencyMs' => $latencyMs], 502);
+        }
+
+        $content = $data['choices'][0]['message']['content'] ?? null;
+        if (!is_string($content) || trim($content) === '') {
+            return $this->json($response, ['ok' => false, 'error' => t('admin.settings_ai_test_empty_response'), 'latencyMs' => $latencyMs], 502);
+        }
+
+        return $this->json($response, [
+            'ok' => true,
+            'latencyMs' => $latencyMs,
+            'sample' => mb_substr(trim($content), 0, 80),
+        ], 200);
     }
 
     /**

@@ -125,6 +125,7 @@ return static function (App $app): void {
         $group->post('/settings/clear-poi-translation-cache', [AdminSettingsController::class, 'clearPoiTranslationCache']);
         $group->post('/settings/ai-providers', [AdminAiProviderController::class, 'create']);
         $group->post('/settings/ai-providers/{id:[0-9]+}/delete', [AdminAiProviderController::class, 'delete']);
+        $group->post('/settings/ai-providers/{id:[0-9]+}/test', [AdminAiProviderController::class, 'test']);
         $group->post('/settings/ai-providers/fetch-models', [AdminAiProviderController::class, 'fetchModels']);
     })->add(RequireAdmin::class);
 

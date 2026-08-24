@@ -20,6 +20,16 @@ use App\Repository\AiProviderConfigRepository;
  */
 final class AiProviderResolver
 {
+    /**
+     * Every slot name the settings page/AdminAiProviderController::delete()
+     * need to enumerate (e.g. to clear a deleted config's assignment) -
+     * resolve()/resolveChain() themselves work with any string, this list
+     * only exists for the handful of places that need to know them all.
+     *
+     * @var list<string>
+     */
+    public const KNOWN_SLOTS = ['main', 'vision'];
+
     public function __construct(
         private readonly Settings $settings,
         private readonly AiProviderConfigRepository $configs,
@@ -36,6 +46,49 @@ final class AiProviderResolver
             return null;
         }
 
+        return $this->toCandidate($configId);
+    }
+
+    /**
+     * Same as resolve(), but followed by every other saved config (in id
+     * order) as fallbacks - a slot with no assignment still returns an
+     * empty list (an admin choosing "off" must stay off, not silently fall
+     * back to whatever else happens to be configured). Used by callers that
+     * want to retry a different model/provider on a rate limit or error
+     * (Stefan's ask) instead of giving up after a single failed call.
+     *
+     * @return list<array{id: int, baseUrl: string, model: string, apiKey: string}>
+     */
+    public function resolveChain(string $slot): array
+    {
+        $primaryId = $this->settings->getInt('ai.slot.' . $slot);
+        if ($primaryId <= 0) {
+            return [];
+        }
+
+        $ids = [$primaryId];
+        foreach ($this->configs->findAll() as $row) {
+            $id = (int) $row['id'];
+            if ($id !== $primaryId) {
+                $ids[] = $id;
+            }
+        }
+
+        $chain = [];
+        foreach ($ids as $id) {
+            $candidate = $this->toCandidate($id);
+            if ($candidate !== null) {
+                $chain[] = ['id' => $id, ...$candidate];
+            }
+        }
+        return $chain;
+    }
+
+    /**
+     * @return array{baseUrl: string, model: string, apiKey: string}|null
+     */
+    private function toCandidate(int $configId): ?array
+    {
         $config = $this->configs->findById($configId);
         if ($config === null) {
             return null;

@@ -15,6 +15,10 @@ namespace App\Service;
  * shared HTTP-client abstraction: ReverseGeocodingService/GooglePlacesService
  * already each own their curl call outright, this follows the same
  * established pattern rather than introducing a new one.
+ *
+ * Chain/retry (Stefan's ask): a rate limit or any other non-2xx/malformed
+ * response from one saved provider profile moves on to the next one in
+ * AiProviderResolver::resolveChain() rather than giving up immediately.
  */
 final class AiTripMetaService
 {
@@ -28,13 +32,24 @@ final class AiTripMetaService
      */
     public function suggest(array $context): ?array
     {
-        $provider = $this->resolver->resolve('main');
-        if ($provider === null) {
-            return null;
-        }
-
         $prompt = $this->buildPrompt($context);
 
+        foreach ($this->resolver->resolveChain('main') as $provider) {
+            $result = $this->callProvider($provider, $prompt);
+            if ($result !== null) {
+                return $result;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array{baseUrl: string, model: string, apiKey: string} $provider
+     * @return array{title: ?string, tags: ?list<string>}|null
+     */
+    private function callProvider(array $provider, string $prompt): ?array
+    {
         $ch = curl_init($provider['baseUrl'] . '/chat/completions');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
