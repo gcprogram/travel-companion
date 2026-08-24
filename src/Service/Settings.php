@@ -76,9 +76,16 @@ final class Settings
         // each named purpose slot uses - '0'/unset means "off", same
         // convention as an empty API key elsewhere. 'main' covers every AI
         // feature so far (day-entry summaries, trip-title/tags); more slots
-        // (e.g. 'vision') get their own 'ai.slot.<name>' key with no schema
-        // change needed. See AiProviderResolver.
+        // get their own 'ai.slot.<name>' key with no schema change needed.
+        // See AiProviderResolver.
         'ai.slot.main' => '0',
+        // Reserved for the planned photo-description feature (generating
+        // trip/sight/geocache context from what's actually in the images) -
+        // only the slot assignment exists so far, no vision feature reads
+        // it yet. A vision-capable model needs to be picked deliberately
+        // (not every OpenAI-compatible model accepts image input), which is
+        // exactly why this is its own slot rather than reusing 'main'.
+        'ai.slot.vision' => '0',
     ];
 
     /** @var array<string, string>|null */

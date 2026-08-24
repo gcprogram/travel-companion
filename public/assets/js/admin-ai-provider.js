@@ -89,4 +89,50 @@ document.addEventListener('DOMContentLoaded', function () {
         updateFetchButtonState();
       });
   });
+
+  var list = document.querySelector('[data-ai-provider-list]');
+  if (!list) {
+    return;
+  }
+
+  var listCsrfToken = list.dataset.csrfToken;
+  var testUrlTemplate = list.dataset.testUrlTemplate;
+
+  list.addEventListener('click', function (event) {
+    var button = event.target.closest('[data-ai-provider-test]');
+    if (!button) {
+      return;
+    }
+
+    var statusEl = button.closest('.ai-provider-list__item').querySelector('[data-ai-provider-test-status]');
+    var testUrl = testUrlTemplate.replace('__ID__', button.dataset.providerId);
+
+    button.disabled = true;
+    statusEl.textContent = list.dataset.msgTesting;
+
+    var body = new URLSearchParams();
+    body.set('_csrf', listCsrfToken);
+
+    fetch(testUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body,
+    })
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        if (!data.ok) {
+          statusEl.textContent = data.error || list.dataset.msgTestError;
+          return;
+        }
+        statusEl.textContent = list.dataset.msgTestOk
+          .replace('%dms', String(data.latencyMs) + ' ms');
+      })
+      .catch(function () {
+        statusEl.textContent = list.dataset.msgTestError;
+      })
+      .finally(function () {
+        button.disabled = false;
+      });
+  });
 });
