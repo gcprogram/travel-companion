@@ -7,6 +7,7 @@ namespace App\Job;
 use App\Repository\DayEntryRepository;
 use App\Repository\JobRepository;
 use App\Repository\PhotoRepository;
+use App\Service\AiMediaXmpReader;
 use App\Service\PhotoStorage;
 use Psr\Log\LoggerInterface;
 
@@ -53,6 +54,7 @@ final class PhotoProcessHandler implements JobHandlerInterface
         private readonly PhotoStorage $storage,
         private readonly DayEntryRepository $entries,
         private readonly JobRepository $jobs,
+        private readonly AiMediaXmpReader $aiMediaXmp,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -74,6 +76,16 @@ final class PhotoProcessHandler implements JobHandlerInterface
 
         try {
             $meta = $this->extractMetadata($originalPath);
+            // Must happen before renderVariant()'s stripImage()/the
+            // unlink() below - AI MediaAnalyzer's XMP-aimedia fields live
+            // only on the original, which is gone once this try block ends.
+            $aiMedia = $this->aiMediaXmp->read($originalPath);
+            $this->photos->updateAiMediaFields(
+                $photoId,
+                $aiMedia['address'],
+                $aiMedia['persons'],
+                $aiMedia['caption'],
+            );
 
             $thumbPath = $this->storage->derivativePath($photoId, 'thumb');
             $webPath = $this->storage->derivativePath($photoId, 'web');

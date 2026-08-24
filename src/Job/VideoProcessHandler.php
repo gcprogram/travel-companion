@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Job;
 
 use App\Repository\VideoRepository;
+use App\Service\AiMediaXmpReader;
 use App\Service\VideoStorage;
 use Psr\Log\LoggerInterface;
 
@@ -14,10 +15,15 @@ use Psr\Log\LoggerInterface;
  * The video itself is already marked ready at upload time (the client
  * supplies width/height/duration from compressing it, and the file was
  * sanity-checked to actually be an MP4) — this job only adds a poster
- * thumbnail, extracted via Imagick's video frame support. CLAUDE.md flags
- * that support as untested on the production host, so this must degrade
- * gracefully: no poster is a cosmetic gap, not a broken video, so failures
- * here are logged and swallowed rather than retried/failed like other jobs.
+ * thumbnail, extracted via Imagick's video frame support, and imports any
+ * AI MediaAnalyzer XMP metadata (AiMediaXmpReader) - unlike photos, a
+ * video's original is never deleted, so this isn't a one-shot-or-lost
+ * window the way PhotoProcessHandler's is, but it lives here anyway to
+ * mirror that same "runs once at process time" shape. CLAUDE.md flags
+ * Imagick's video frame support as untested on the production host, so the
+ * poster step must degrade gracefully: no poster is a cosmetic gap, not a
+ * broken video, so failures here are logged and swallowed rather than
+ * retried/failed like other jobs.
  */
 final class VideoProcessHandler implements JobHandlerInterface
 {
@@ -26,6 +32,7 @@ final class VideoProcessHandler implements JobHandlerInterface
     public function __construct(
         private readonly VideoRepository $videos,
         private readonly VideoStorage $storage,
+        private readonly AiMediaXmpReader $aiMediaXmp,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -42,6 +49,15 @@ final class VideoProcessHandler implements JobHandlerInterface
         if (!is_file($originalPath)) {
             return;
         }
+
+        $aiMedia = $this->aiMediaXmp->read($originalPath);
+        $this->videos->updateAiMediaFields(
+            $videoId,
+            $aiMedia['address'],
+            $aiMedia['persons'],
+            $aiMedia['caption'],
+            $aiMedia['transcript'],
+        );
 
         try {
             $posterPath = $this->storage->posterPath($videoId);
