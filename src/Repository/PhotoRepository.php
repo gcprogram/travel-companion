@@ -145,6 +145,27 @@ final class PhotoRepository
         $stmt->execute([gmdate('Y-m-d H:i:s'), $id]);
     }
 
+    /**
+     * AI MediaAnalyzer's own analysis results (AiMediaXmpReader), imported
+     * once at process time before the original is discarded. Only sets
+     * caption_source when a caption was actually found, so an empty import
+     * doesn't claim a source for a caption that isn't there.
+     */
+    public function updateAiMediaFields(int $id, ?string $address, ?string $persons, ?string $caption): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE photos SET ai_address = ?, ai_persons = ?, caption = ?, caption_source = ?, updated_at = ? WHERE id = ?'
+        );
+        $stmt->execute([
+            $address,
+            $persons,
+            $caption,
+            $caption !== null ? 'exif_import' : null,
+            gmdate('Y-m-d H:i:s'),
+            $id,
+        ]);
+    }
+
     public function updateBytes(int $id, int $bytes): void
     {
         $stmt = $this->pdo->prepare('UPDATE photos SET bytes = ? WHERE id = ?');

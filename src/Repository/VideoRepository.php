@@ -151,6 +151,26 @@ final class VideoRepository
         $stmt->execute([gmdate('Y-m-d H:i:s'), $id]);
     }
 
+    /**
+     * See PhotoRepository::updateAiMediaFields() - same source/reasoning,
+     * plus transcript (speech-to-text, video-only).
+     */
+    public function updateAiMediaFields(int $id, ?string $address, ?string $persons, ?string $caption, ?string $transcript): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE videos SET ai_address = ?, ai_persons = ?, caption = ?, caption_source = ?, transcript = ?, updated_at = ? WHERE id = ?'
+        );
+        $stmt->execute([
+            $address,
+            $persons,
+            $caption,
+            $caption !== null ? 'exif_import' : null,
+            $transcript,
+            gmdate('Y-m-d H:i:s'),
+            $id,
+        ]);
+    }
+
     public function updateBytes(int $id, int $bytes): void
     {
         $stmt = $this->pdo->prepare('UPDATE videos SET bytes = ? WHERE id = ?');
