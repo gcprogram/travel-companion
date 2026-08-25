@@ -325,6 +325,10 @@ final class DayEntryController
         // the very rows the cascade is about to remove.
         $this->mediaCleanup->deleteForEntry((int) $entry['id']);
         $this->entries->delete((int) $entry['id']);
+        // The deleted entry's own photos are gone with it (cascade) - the
+        // trip's displayed date range needs to reflect that, not keep
+        // showing whatever it covered before (TripMetadataAutoFillHandler).
+        $this->jobs->dispatch('trip.metadata_refresh', ['trip_id' => (int) $trip['id']]);
 
         $this->flash->add('success', t('flash.entry_deleted'));
         return $response->withHeader('Location', '/trip/' . $trip['slug'])->withStatus(302);
