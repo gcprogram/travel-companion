@@ -25,6 +25,8 @@
        data-kind-stay="<?= e(t('trip.review.candidate_kind_stay')) ?>"
        data-kind-sight="<?= e(t('trip.review.candidate_kind_sight')) ?>"></div>
 
+  <ul class="review-photos" data-review-photos hidden></ul>
+
   <div class="review-bar" data-review-bar>
     <button type="button" class="review-bar__nav" data-review-prev aria-label="<?= e(t('trip.review.prev')) ?>">&#9664;</button>
     <div class="review-bar__info">
