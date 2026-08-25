@@ -14,23 +14,31 @@ use App\Service\ReverseGeocodingService;
  * Job type "trip.metadata_refresh". Payload: {"trip_id": int}.
  * Fills trip.country/date_start/date_end from track points and geotagged
  * photos so the create form no longer has to ask for them. Dispatched after
- * every track upload and every geotagged photo (TrackController,
- * PhotoProcessHandler); cheap enough (a couple of small queries, at most one
- * Nominatim call which is itself cached in geocode_cache) to fire on every
- * one of those rather than trying to detect "did this actually change
- * anything" up front.
+ * every track upload, every geotagged photo, and every day-entry delete
+ * (TrackController, PhotoProcessHandler, DayEntryController); cheap enough
+ * (a couple of small queries, at most one Nominatim call which is itself
+ * cached in geocode_cache) to fire on every one of those rather than trying
+ * to detect "did this actually change anything" up front.
  *
- * date_start/date_end EXPAND to cover newly observed points rather than
- * only filling from NULL - a multi-day trip whose photos/track get uploaded
- * incrementally would otherwise freeze at whatever the first upload alone
- * covered (e.g. day one only) and never widen once days two and three
- * arrive, since every later run of this same job used to see the fields
- * already non-null and stop touching them entirely. There's no risk of
- * clobbering a user's own correction here - checked: date_start/date_end
- * aren't editable anywhere in the UI, this job is their only writer, and
- * expanding never narrows a range that's already correct. country still
- * only fills once (a single value, not a range - once resolved there's
- * nothing to "expand").
+ * date_start/date_end are fully recomputed from whatever's currently
+ * observable (not clamped to the previous value) every run - a plain "only
+ * fill from NULL" used to freeze a multi-day trip at whatever the first
+ * incremental upload alone covered; a later "always expand, never shrink"
+ * fix solved that but broke the opposite direction (Stefan's report: the
+ * trip's displayed dates stayed stale after deleting the day-entry whose
+ * photos were the ones providing that end of the range - cascade-deleted
+ * photos mean collectPoints() genuinely has less to work with, and the
+ * range should follow). A full recompute handles both correctly:
+ * collectPoints() always re-reads the trip's *current* track+photos from
+ * scratch, so growth (a later upload) and shrinkage (a deletion) both just
+ * fall out of comparing today's full point set to nothing carried over from
+ * before. No risk of clobbering a user's own correction - checked:
+ * date_start/date_end aren't editable anywhere in the UI, this job is their
+ * only writer. An empty point set (e.g. the last dated content just got
+ * deleted) clears the range rather than leaving a stale one behind.
+ * country still only fills once (a single value, not a range - nothing to
+ * "recompute" there, and re-resolving it would cost another paid API call
+ * for no benefit).
  */
 final class TripMetadataAutoFillHandler implements JobHandlerInterface
 {
@@ -52,16 +60,17 @@ final class TripMetadataAutoFillHandler implements JobHandlerInterface
         }
 
         $points = $this->collectPoints($tripId);
+
         if ($points === []) {
+            if ($trip['date_start'] !== null || $trip['date_end'] !== null) {
+                $this->trips->updateAutoMetadata($tripId, $trip['country'], null, null);
+            }
             return;
         }
         usort($points, static fn (array $a, array $b): int => $a['at'] <=> $b['at']);
 
-        $observedStart = substr($points[0]['at'], 0, 10);
-        $observedEnd = substr($points[count($points) - 1]['at'], 0, 10);
-
-        $dateStart = $trip['date_start'] !== null ? min($trip['date_start'], $observedStart) : $observedStart;
-        $dateEnd = $trip['date_end'] !== null ? max($trip['date_end'], $observedEnd) : $observedEnd;
+        $dateStart = substr($points[0]['at'], 0, 10);
+        $dateEnd = substr($points[count($points) - 1]['at'], 0, 10);
 
         $country = $trip['country'] ?? $this->resolveCountry($tripId, $points[0]['lat'], $points[0]['lng']);
 
