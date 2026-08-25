@@ -21,13 +21,13 @@ use App\Repository\TrackRepository;
  * fixed number of clusters/requests per run to stay a good citizen of the
  * free public Overpass instance.
  *
- * Name picking (pickName()): a sight discovered outside the Latin-script
- * world (Thailand, Russia, ...) used to show up in a script most travellers
- * can't read at all - OSM's own name:de/name:en tags are the first choice
- * when present, and a script-detecting fallback actively translates the
- * local name via PoiNameTranslationService when neither exists, rather
- * than showing unreadable text OR dropping the sight - discovered against
- * Stefan's real report from a Thailand/Russia-adjacent trip.
+ * Name picking: a sight discovered outside the Latin-script world (Thailand,
+ * Russia, ...) used to show up in a script most travellers can't read at
+ * all - delegated to OsmNameLocalizer (name:de/name:en tags first, a
+ * script-detecting translation fallback otherwise, never dropping the
+ * sight) - discovered against Stefan's real report from a Thailand/Russia-
+ * adjacent trip, later shared with ReverseGeocodingService's stay-landmark
+ * naming on his explicit ask.
  */
 final class PoiDiscoveryService
 {
@@ -57,7 +57,7 @@ final class PoiDiscoveryService
         private readonly StationRepository $stations,
         private readonly PoiRepository $pois,
         private readonly Settings $settings,
-        private readonly PoiNameTranslationService $translator,
+        private readonly OsmNameLocalizer $nameLocalizer,
     ) {
     }
 
@@ -292,52 +292,11 @@ final class PoiDiscoveryService
     }
 
     /**
-     * name:de wins over name:en (Stefan's own phrasing: "deutsch/englisch"
-     * in that order), both win over the bare local name whenever it's in a
-     * script most of this app's users can't read. A local name that IS
-     * already Latin-script (French, Vietnamese with diacritics, ...) is
-     * used as-is - only non-Latin script triggers a translation attempt,
-     * and only when name:de/name:en aren't already there to answer the
-     * same need for free.
-     *
      * @param array<string, string> $tags
      */
     private function pickName(array $tags): ?string
     {
-        $nameDe = $tags['name:de'] ?? null;
-        if (is_string($nameDe) && $nameDe !== '') {
-            return mb_substr($nameDe, 0, 190);
-        }
-        $nameEn = $tags['name:en'] ?? null;
-        if (is_string($nameEn) && $nameEn !== '') {
-            return mb_substr($nameEn, 0, 190);
-        }
-
-        $local = $tags['name'] ?? null;
-        if (!is_string($local) || $local === '') {
-            return null;
-        }
-        if (!$this->needsTranslation($local)) {
-            return mb_substr($local, 0, 190);
-        }
-
-        // Best-effort: falls through to the (unreadable, but still real)
-        // local name rather than ever discarding the sight - a name nobody
-        // asked to see is still better than the sight vanishing outright.
-        $translated = $this->translator->translate($local);
-        return mb_substr($translated ?? $local, 0, 190);
-    }
-
-    /**
-     * Whether $name contains any character outside Latin script (plus
-     * digits/punctuation/whitespace) - Cyrillic, Thai, CJK, Arabic, and
-     * every other non-Latin script all trigger this the same way, not just
-     * the two Stefan happened to run into (Russian, Thai).
-     */
-    private function needsTranslation(string $name): bool
-    {
-        $stripped = preg_replace('/[\p{Latin}\p{N}\p{P}\p{Z}\p{Cf}]/u', '', $name);
-        return $stripped !== null && $stripped !== '';
+        return $this->nameLocalizer->fromTags($tags);
     }
 
     /**

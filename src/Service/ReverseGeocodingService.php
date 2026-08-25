@@ -40,6 +40,15 @@ namespace App\Service;
  * enforces a floor between every external call this class makes, Overpass
  * and Nominatim alike, so a big batch just takes a bit longer across
  * several job-worker runs instead of quietly degrading its own results.
+ *
+ * Name localization (OsmNameLocalizer, "Gleiche Pipeline bitte" - Stefan's
+ * own ask): a stay's resolved name can end up non-Latin script from either
+ * source here - an Overpass landmark's own bare "name" tag with no
+ * name:de/name:en, or Nominatim's composed address when OSM has no
+ * localized name for that area either (accept-language=de,en below already
+ * covers the common case where one exists) - both get the same name:de ->
+ * name:en -> translate-if-non-Latin treatment PoiDiscoveryService already
+ * used for sights, via the same shared service.
  */
 final class ReverseGeocodingService
 {
@@ -103,6 +112,10 @@ final class ReverseGeocodingService
         'amenity' => ['place_of_worship'],
         'waterway' => ['waterfall'],
     ];
+
+    public function __construct(private readonly OsmNameLocalizer $nameLocalizer)
+    {
+    }
 
     /**
      * @return array{name: ?string, country: ?string}
@@ -212,9 +225,13 @@ final class ReverseGeocodingService
         $localityPart = ($postcode !== null && $city !== null) ? "$postcode $city" : $city;
 
         $addressBits = array_values(array_filter([$streetPart, $localityPart], static fn ($v) => $v !== null && $v !== ''));
-        $name = $addressBits !== []
-            ? $landmark['name'] . ' (' . implode(', ', $addressBits) . ')'
-            : $landmark['name'];
+        // Same localization as the landmark's own name (OsmNameLocalizer) -
+        // the address portion is a separate source (addr:* tags or a
+        // second Nominatim lookup) and can end up non-Latin script even
+        // when the landmark name itself resolved fine (Stefan's report:
+        // "die Schrift der Adresse noch teilweise in Kyrillisch").
+        $address = $addressBits !== [] ? $this->nameLocalizer->localize(implode(', ', $addressBits)) : null;
+        $name = $address !== null ? $landmark['name'] . ' (' . $address . ')' : $landmark['name'];
 
         return ['name' => mb_substr($name, 0, 190), 'country' => $country];
     }
@@ -286,17 +303,18 @@ final class ReverseGeocodingService
 
         $results = [];
         foreach ($data['elements'] ?? [] as $el) {
-            $name = $el['tags']['name'] ?? null;
+            $tags = is_array($el['tags'] ?? null) ? $el['tags'] : [];
+            $name = $this->nameLocalizer->fromTags($tags);
             $elLat = $el['lat'] ?? $el['center']['lat'] ?? null;
             $elLng = $el['lon'] ?? $el['center']['lon'] ?? null;
-            if (!is_string($name) || $name === '' || $elLat === null || $elLng === null) {
+            if ($name === null || $elLat === null || $elLng === null) {
                 continue;
             }
             $results[] = [
-                'name' => mb_substr($name, 0, 190),
+                'name' => $name,
                 'lat' => (float) $elLat,
                 'lng' => (float) $elLng,
-                'tags' => is_array($el['tags'] ?? null) ? $el['tags'] : [],
+                'tags' => $tags,
             ];
         }
         return $results;
@@ -381,6 +399,20 @@ final class ReverseGeocodingService
      */
     private function pickName(mixed $data): ?string
     {
+        $candidate = $this->pickRawName($data);
+        // Nominatim's accept-language=de,en (nominatimReverseRaw()) already
+        // returns a localized name/address when OSM has one tagged - this
+        // only fires for whatever's left over without one, same
+        // name:de/name:en-first-then-translate pipeline as sights
+        // (OsmNameLocalizer, shared on Stefan's explicit ask).
+        return $candidate !== null ? $this->nameLocalizer->localize($candidate) : null;
+    }
+
+    /**
+     * @param mixed $data decoded Nominatim jsonv2 response
+     */
+    private function pickRawName(mixed $data): ?string
+    {
         if (!is_array($data)) {
             return null;
         }
@@ -396,26 +428,26 @@ final class ReverseGeocodingService
         // WAY_ADDRESS_TYPES.
         $name = $data['name'] ?? null;
         if (is_string($name) && $name !== '' && !$needsComposition) {
-            return mb_substr($name, 0, 190);
+            return $name;
         }
 
         $address = $data['address'] ?? null;
         if (is_array($address)) {
             $composed = $this->composeAddress($address);
             if ($composed !== null) {
-                return mb_substr($composed, 0, 190);
+                return $composed;
             }
         }
 
         // No usable address components to compose with - the bare
         // subdivision name is still better than nothing at this point.
         if (is_string($name) && $name !== '') {
-            return mb_substr($name, 0, 190);
+            return $name;
         }
 
         $displayName = $data['display_name'] ?? null;
         if (is_string($displayName) && $displayName !== '') {
-            return mb_substr($displayName, 0, 190);
+            return $displayName;
         }
 
         return null;
