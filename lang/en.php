@@ -172,6 +172,8 @@ return [
     'trip.map.show_geocaches' => 'Show geocaches',
     'trip.map.empty' => 'No geotagged photos or videos yet.',
     'trip.map.lightbox_close' => 'Close',
+    'trip.map.lightbox_prev' => 'Previous photo',
+    'trip.map.lightbox_next' => 'Next photo',
     'trip.map.gpx_label' => 'GPX track',
     'trip.map.gpx_upload' => 'Upload',
     'trip.map.gpx_upload_error' => 'Please choose a GPX file.',

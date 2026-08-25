@@ -66,7 +66,10 @@ $wizardQs = $wizard ? '?wizard=1' : '';
   <div class="map-lightbox__backdrop" data-map-lightbox-close></div>
   <div class="map-lightbox__panel">
     <button type="button" class="map-lightbox__close" data-map-lightbox-close aria-label="<?= e(t('trip.map.lightbox_close')) ?>">&times;</button>
+    <button type="button" class="map-lightbox__nav map-lightbox__nav--prev" data-map-lightbox-prev aria-label="<?= e(t('trip.map.lightbox_prev')) ?>">&#9664;</button>
+    <button type="button" class="map-lightbox__nav map-lightbox__nav--next" data-map-lightbox-next aria-label="<?= e(t('trip.map.lightbox_next')) ?>">&#9654;</button>
     <div class="map-lightbox__body" data-map-lightbox-body></div>
+    <div class="map-lightbox__caption" data-map-lightbox-caption></div>
   </div>
 </div>
 

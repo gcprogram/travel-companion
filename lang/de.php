@@ -172,6 +172,8 @@ return [
     'trip.map.show_geocaches' => 'Geocaches anzeigen',
     'trip.map.empty' => 'Noch keine Fotos oder Videos mit Standort.',
     'trip.map.lightbox_close' => 'Schließen',
+    'trip.map.lightbox_prev' => 'Vorheriges Foto',
+    'trip.map.lightbox_next' => 'Nächstes Foto',
     'trip.map.gpx_label' => 'GPX-Track',
     'trip.map.gpx_upload' => 'Hochladen',
     'trip.map.gpx_upload_error' => 'Bitte eine GPX-Datei auswählen.',
