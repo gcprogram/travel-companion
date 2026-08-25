@@ -131,7 +131,7 @@ $lng = $entry['lng'] ?? null;
       <li class="photo-gallery__item" data-delete-item>
         <?php if ($photo['status'] === 'ready'): ?>
           <a href="/photos/<?= (int) $photo['id'] ?>/web" target="_blank" rel="noopener">
-            <img src="/photos/<?= (int) $photo['id'] ?>/thumb" alt="" loading="lazy">
+            <img class="photo-gallery__thumb" src="/photos/<?= (int) $photo['id'] ?>/thumb" alt="" loading="lazy">
           </a>
           <?php if ($photo['lat'] !== null): ?>
             <span class="geo-badge" title="<?= e(t('media.geotagged_hint')) ?>">📍</span>
@@ -181,11 +181,11 @@ $lng = $entry['lng'] ?? null;
       <li class="photo-gallery__item">
         <?php if ($video['type'] === 'youtube'): ?>
           <a href="https://www.youtube-nocookie.com/watch?v=<?= e((string) $video['youtube_id']) ?>" target="_blank" rel="noopener">
-            <img src="https://i.ytimg.com/vi/<?= e((string) $video['youtube_id']) ?>/hqdefault.jpg" alt="" loading="lazy">
+            <img class="photo-gallery__thumb" src="https://i.ytimg.com/vi/<?= e((string) $video['youtube_id']) ?>/hqdefault.jpg" alt="" loading="lazy">
           </a>
         <?php elseif ($video['status'] === 'ready'): ?>
           <a href="/videos/<?= (int) $video['id'] ?>" target="_blank" rel="noopener" class="photo-gallery__video-link">
-            <img src="/videos/<?= (int) $video['id'] ?>/poster" alt="" loading="lazy">
+            <img class="photo-gallery__thumb" src="/videos/<?= (int) $video['id'] ?>/poster" alt="" loading="lazy">
           </a>
           <?php if ($video['lat'] !== null): ?>
             <span class="geo-badge" title="<?= e(t('media.geotagged_hint')) ?>">📍</span>

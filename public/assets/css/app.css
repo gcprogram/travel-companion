@@ -435,17 +435,19 @@ form.auth-form { max-width: 420px; }
   font-size: 0.85rem;
   text-align: center;
 }
-.photo-gallery__poi-icon { font-size: 1.3rem; }
-.photo-gallery__poi-cache-icon { width: 28px; height: 28px; }
+.photo-gallery__poi-label { line-height: 1.25; }
 .photo-gallery__poi-gccode { font-family: var(--font-mono, monospace); font-size: 0.75rem; color: var(--color-muted); }
 
-/* A live, non-interactive ~600x600m Leaflet map (day-entry-detail-view.js) -
+/* A live, non-interactive ~600x700m Leaflet map (day-entry-detail-view.js) -
    dragging/zoom controls are disabled (it's just an area preview, not a
-   navigable map), so no pointer-events fuss needed beyond sizing it. */
+   navigable map), so no pointer-events fuss needed beyond sizing it.
+   6:7 matches the ~600x700m real-world extent fitBounds() targets. Its own
+   attribution control is off (the big map on the page already shows one),
+   so no crop/overlay trick is needed to hide it. */
 .photo-gallery__poi-minimap {
   display: block;
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 6 / 7;
   border-radius: calc(var(--radius) - 2px);
   background: var(--color-line);
 }
@@ -489,7 +491,7 @@ form.auth-form { max-width: 420px; }
   pointer-events: none;
 }
 
-.photo-gallery__item img {
+.photo-gallery__thumb {
   width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
