@@ -116,20 +116,22 @@ document.addEventListener('DOMContentLoaded', function () {
     window.openTripPhotoLightbox(photos, index);
   });
 
-  // Sight cards' small "area" map (Stefan's ask) - deliberately a real,
-  // live Leaflet instance per card rather than a pre-rendered static image:
-  // MapTiler's free tier has no static-image endpoint (Stefan's own point),
-  // and Bitpalast can't run a headless browser server-side to fake one
-  // (exec/proc_open disabled) - the only way to produce a "snippet" image
-  // at all would be capturing a canvas in the VISITOR's own browser and
-  // uploading it back for caching, real infrastructure that isn't built
-  // yet. A live tiny map is simpler and, since cards only exist inside a
-  // lazily-loaded, opt-in detail view, cheap in practice: a card's tiles
-  // are only ever fetched once it's actually both in the DOM (that day's
-  // panel expanded) and visible (detail mode on) - never for a whole trip's
-  // worth of sights at once. Fixed to a ~600x600m area via fitBounds()
-  // rather than a hardcoded zoom, so it comes out right regardless of the
-  // card's actual rendered size.
+  // Sight/geocache cards' small "area" map (Stefan's ask) - deliberately a
+  // real, live Leaflet instance per card rather than a pre-rendered static
+  // image: MapTiler's free tier has no static-image endpoint (Stefan's own
+  // point), and Bitpalast can't run a headless browser server-side to fake
+  // one (exec/proc_open disabled) - the only way to produce a "snippet"
+  // image at all would be capturing a canvas in the VISITOR's own browser
+  // and uploading it back for caching, real infrastructure that isn't
+  // built yet. A live tiny map is simpler and, since cards only exist
+  // inside a lazily-loaded, opt-in detail view, cheap in practice: a
+  // card's tiles are only ever fetched once it's actually both in the DOM
+  // (that day's panel expanded) and visible (detail mode on) - never for a
+  // whole trip's worth of sights at once. Fixed to a ~600x700m area via
+  // fitBounds() rather than a hardcoded zoom, so it comes out right
+  // regardless of the card's actual rendered size. Attribution is turned
+  // off since the big map on the same page already shows it, and at this
+  // card size the default control would dwarf everything else.
   var tileKey = list.dataset.tileKey;
 
   function initMinimap(el) {
@@ -148,18 +150,30 @@ document.addEventListener('DOMContentLoaded', function () {
       boxZoom: false,
       keyboard: false,
       tap: false,
+      attributionControl: false,
     });
     L.tileLayer('https://api.maptiler.com/maps/openstreetmap/256/{z}/{x}/{y}.jpg?key=' + tileKey, {
       maxZoom: 19,
       crossOrigin: true,
-      attribution: '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> '
-        + '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
     }).addTo(map);
-    L.marker([lat, lng]).addTo(map);
 
-    // ~300m in each direction -> a ~600x600m view; degrees-per-metre varies
-    // with latitude for longitude, not for latitude.
-    var degLat = 300 / 111320;
+    var track = window.tripTrackLatLngs || [];
+    if (track.length > 1) {
+      L.polyline(track, { color: '#e05a2b', weight: 3, opacity: 0.85 }).addTo(map);
+    }
+
+    var iconUrl = el.dataset.iconUrl;
+    if (iconUrl) {
+      L.marker([lat, lng], {
+        icon: L.icon({ iconUrl: iconUrl, iconSize: [26, 26], iconAnchor: [13, 13] }),
+      }).addTo(map);
+    } else {
+      L.marker([lat, lng]).addTo(map);
+    }
+
+    // ~300m east/west, ~350m north/south -> a ~600x700m view; degrees-per-
+    // metre varies with latitude for longitude, not for latitude.
+    var degLat = 350 / 111320;
     var degLng = 300 / (111320 * Math.cos(lat * Math.PI / 180));
     map.fitBounds([[lat - degLat, lng - degLng], [lat + degLat, lng + degLng]]);
   }

@@ -112,25 +112,28 @@ foreach ($entryPhotos as $photo) {
         <li class="photo-gallery__item photo-gallery__item--poi" data-detail-only>
           <?php if ($poi['category'] === 'geocache'): ?>
             <span class="photo-gallery__poi-card">
-              <img class="photo-gallery__poi-cache-icon" src="<?= e(cache_type_icon_url($poi['cacheType'])) ?>" alt="" width="28" height="28">
-              <?php if ($poi['gcCode'] !== null): ?>
-                <span class="photo-gallery__poi-gccode"><?= e($poi['gcCode']) ?></span>
-              <?php endif; ?>
-              <?= e($poi['name']) ?>
+              <span class="photo-gallery__poi-minimap" data-poi-minimap
+                    data-lat="<?= e((string) $poi['lat']) ?>" data-lng="<?= e((string) $poi['lng']) ?>"
+                    data-icon-url="<?= e(cache_type_icon_url($poi['cacheType'])) ?>"></span>
+              <span class="photo-gallery__poi-label">
+                <?php if ($poi['gcCode'] !== null): ?>
+                  <span class="photo-gallery__poi-gccode"><?= e($poi['gcCode']) ?></span>
+                <?php endif; ?>
+                <?= e($poi['name']) ?>
+              </span>
             </span>
           <?php else: ?>
             <span class="photo-gallery__poi-card">
               <span class="photo-gallery__poi-minimap" data-poi-minimap
                     data-lat="<?= e((string) $poi['lat']) ?>" data-lng="<?= e((string) $poi['lng']) ?>"></span>
-              <span class="photo-gallery__poi-icon" aria-hidden="true">📍</span>
-              <?= e($poi['name']) ?>
+              <span class="photo-gallery__poi-label"><?= e($poi['name']) ?></span>
             </span>
           <?php endif; ?>
         </li>
       <?php endif; ?>
       <li class="photo-gallery__item">
         <button type="button" class="photo-gallery__link" data-lightbox-photo="<?= (int) $photo['id'] ?>">
-          <img src="/photos/<?= (int) $photo['id'] ?>/thumb" alt="" loading="lazy">
+          <img class="photo-gallery__thumb" src="/photos/<?= (int) $photo['id'] ?>/thumb" alt="" loading="lazy">
         </button>
         <?php if ($photo['lat'] !== null): ?>
           <span class="geo-badge" title="<?= e(t('media.geotagged_hint')) ?>">📍</span>

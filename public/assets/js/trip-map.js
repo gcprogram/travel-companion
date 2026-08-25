@@ -344,6 +344,9 @@ document.addEventListener('DOMContentLoaded', function () {
       var trackLatlngs = (track && track.points && track.points.length > 1)
         ? track.points.map(function (p) { return [p.lat, p.lng]; })
         : [];
+      // Exposed so day-entry-detail-view.js's per-card minimaps can draw the
+      // same track without a duplicate /map/data fetch.
+      window.tripTrackLatLngs = trackLatlngs;
       var pois = data.pois || [];
 
       if (pins.length === 0 && trackLatlngs.length === 0 && pois.length === 0) {
