@@ -74,6 +74,9 @@ final class TrackController
         $this->gapFill->fillGaps((int) $trip['id']);
         $this->dispatchLocateForOpenEntries((int) $trip['id']);
         $this->jobs->dispatch('trip.metadata_refresh', ['trip_id' => (int) $trip['id']]);
+        // New/extended track = new bracketing data for photos still missing
+        // a position (PhotoPositionInterpolationService).
+        $this->jobs->dispatch('photo.interpolate', ['trip_id' => (int) $trip['id']]);
 
         $this->flash->add('success', t('trip.map.gpx_uploaded'));
         return $this->redirectToMap($request, $response, $trip);
@@ -131,6 +134,9 @@ final class TrackController
         $this->gapFill->fillGaps((int) $trip['id']);
         $this->dispatchLocateForOpenEntries((int) $trip['id']);
         $this->jobs->dispatch('trip.metadata_refresh', ['trip_id' => (int) $trip['id']]);
+        // New/extended track = new bracketing data for photos still missing
+        // a position (PhotoPositionInterpolationService).
+        $this->jobs->dispatch('photo.interpolate', ['trip_id' => (int) $trip['id']]);
 
         return $this->json($response, ['ok' => true], 200);
     }

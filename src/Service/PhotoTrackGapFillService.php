@@ -45,7 +45,11 @@ final class PhotoTrackGapFillService
      */
     public function fillGaps(int $tripId): int
     {
-        $photoPoints = $this->photos->findGeotaggedByTrip($tripId);
+        // Real EXIF fixes only (PhotoPositionInterpolationService) - an
+        // interpolated photo position is already a guess derived FROM the
+        // track/other photos; feeding it back in would compound one guess
+        // into the track other photos then interpolate against.
+        $photoPoints = $this->photos->findExifGeotaggedByTrip($tripId);
         if ($photoPoints === []) {
             return 0;
         }
