@@ -115,4 +115,66 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.openTripPhotoLightbox(photos, index);
   });
+
+  // Sight cards' small "area" map (Stefan's ask) - deliberately a real,
+  // live Leaflet instance per card rather than a pre-rendered static image:
+  // MapTiler's free tier has no static-image endpoint (Stefan's own point),
+  // and Bitpalast can't run a headless browser server-side to fake one
+  // (exec/proc_open disabled) - the only way to produce a "snippet" image
+  // at all would be capturing a canvas in the VISITOR's own browser and
+  // uploading it back for caching, real infrastructure that isn't built
+  // yet. A live tiny map is simpler and, since cards only exist inside a
+  // lazily-loaded, opt-in detail view, cheap in practice: a card's tiles
+  // are only ever fetched once it's actually both in the DOM (that day's
+  // panel expanded) and visible (detail mode on) - never for a whole trip's
+  // worth of sights at once. Fixed to a ~600x600m area via fitBounds()
+  // rather than a hardcoded zoom, so it comes out right regardless of the
+  // card's actual rendered size.
+  var tileKey = list.dataset.tileKey;
+
+  function initMinimap(el) {
+    el.dataset.mapInitialized = '1';
+    var lat = parseFloat(el.dataset.lat);
+    var lng = parseFloat(el.dataset.lng);
+    if (isNaN(lat) || isNaN(lng) || typeof window.L === 'undefined' || !tileKey) {
+      return;
+    }
+
+    var map = L.map(el, {
+      zoomControl: false,
+      dragging: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      boxZoom: false,
+      keyboard: false,
+      tap: false,
+    });
+    L.tileLayer('https://api.maptiler.com/maps/openstreetmap/256/{z}/{x}/{y}.jpg?key=' + tileKey, {
+      maxZoom: 19,
+      crossOrigin: true,
+      attribution: '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> '
+        + '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+    }).addTo(map);
+    L.marker([lat, lng]).addTo(map);
+
+    // ~300m in each direction -> a ~600x600m view; degrees-per-metre varies
+    // with latitude for longitude, not for latitude.
+    var degLat = 300 / 111320;
+    var degLng = 300 / (111320 * Math.cos(lat * Math.PI / 180));
+    map.fitBounds([[lat - degLat, lng - degLng], [lat + degLat, lng + degLng]]);
+  }
+
+  function initPendingMinimaps() {
+    if (!list.classList.contains('day-entry-list--detail')) {
+      return;
+    }
+    list.querySelectorAll('[data-poi-minimap]:not([data-map-initialized])').forEach(initMinimap);
+  }
+
+  toggle.addEventListener('change', initPendingMinimaps);
+  // Panels load lazily via innerHTML (day-entry-accordion.js, independent
+  // of this file) - a mutation observer picks up newly inserted minimap
+  // placeholders without this file needing to coordinate with that one.
+  new MutationObserver(initPendingMinimaps).observe(list, { childList: true, subtree: true });
+  initPendingMinimaps();
 });

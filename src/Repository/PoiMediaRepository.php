@@ -73,21 +73,23 @@ final class PoiMediaRepository
     }
 
     /**
-     * Reverse of findPhotosForPoi() - which sight (if any) each of the
-     * trip's photos was taken at (PoiAssignmentService, ~150m match), keyed
-     * by photo_id. Used to (1) intersperse a sight's name between the
-     * diary's photos at the point its own photos appear (detailed diary
-     * view, Stefan's ask), and (2) show it in the photo lightbox's caption
-     * line. One row per photo since a photo is assigned to at most one POI
+     * Reverse of findPhotosForPoi() - which sight/geocache (if any) each of
+     * the trip's photos was taken at (PoiAssignmentService, ~150m match),
+     * keyed by photo_id. Used to (1) intersperse it between the diary's
+     * photos at the point its own photos appear (detailed diary view,
+     * Stefan's ask - gc_code/cache_type so a geocache renders with its real
+     * icon+code instead of a generic sight card, lat/lng for the area
+     * minimap), and (2) show it in the photo lightbox's caption line. One
+     * row per photo since a photo is assigned to at most one POI
      * (PoiMediaRepository::assignPhoto() only ever inserts once, see
      * PoiAssignmentService's "already assigned, skip" check).
      *
-     * @return array<int, array{id: int, name: string, category: string}>
+     * @return array<int, array{id: int, name: string, category: string, gcCode: ?string, cacheType: ?string, lat: float, lng: float}>
      */
     public function findPoiByPhotoForTrip(int $tripId): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT tpp.photo_id, poi.id, poi.name, poi.category
+            'SELECT tpp.photo_id, poi.id, poi.name, poi.category, poi.gc_code, poi.cache_type, poi.lat, poi.lng
              FROM trip_poi_photos tpp
              JOIN photos ph ON ph.id = tpp.photo_id
              JOIN day_entries e ON e.id = ph.day_entry_id
@@ -102,6 +104,10 @@ final class PoiMediaRepository
                 'id' => (int) $row['id'],
                 'name' => (string) $row['name'],
                 'category' => (string) $row['category'],
+                'gcCode' => $row['gc_code'] !== null ? (string) $row['gc_code'] : null,
+                'cacheType' => $row['cache_type'] !== null ? (string) $row['cache_type'] : null,
+                'lat' => (float) $row['lat'],
+                'lng' => (float) $row['lng'],
             ];
         }
         return $result;
