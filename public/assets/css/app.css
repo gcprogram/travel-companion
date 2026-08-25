@@ -436,6 +436,19 @@ form.auth-form { max-width: 420px; }
   text-align: center;
 }
 .photo-gallery__poi-icon { font-size: 1.3rem; }
+.photo-gallery__poi-cache-icon { width: 28px; height: 28px; }
+.photo-gallery__poi-gccode { font-family: var(--font-mono, monospace); font-size: 0.75rem; color: var(--color-muted); }
+
+/* A live, non-interactive ~600x600m Leaflet map (day-entry-detail-view.js) -
+   dragging/zoom controls are disabled (it's just an area preview, not a
+   navigable map), so no pointer-events fuss needed beyond sizing it. */
+.photo-gallery__poi-minimap {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--color-line);
+}
 
 .photo-gallery__link {
   display: block;

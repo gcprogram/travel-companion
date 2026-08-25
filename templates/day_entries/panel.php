@@ -110,10 +110,22 @@ foreach ($entryPhotos as $photo) {
       <?php if ($poi !== null && !isset($shownPoiIds[$poi['id']])): ?>
         <?php $shownPoiIds[$poi['id']] = true; ?>
         <li class="photo-gallery__item photo-gallery__item--poi" data-detail-only>
-          <span class="photo-gallery__poi-card">
-            <span class="photo-gallery__poi-icon" aria-hidden="true">📍</span>
-            <?= e($poi['name']) ?>
-          </span>
+          <?php if ($poi['category'] === 'geocache'): ?>
+            <span class="photo-gallery__poi-card">
+              <img class="photo-gallery__poi-cache-icon" src="<?= e(cache_type_icon_url($poi['cacheType'])) ?>" alt="" width="28" height="28">
+              <?php if ($poi['gcCode'] !== null): ?>
+                <span class="photo-gallery__poi-gccode"><?= e($poi['gcCode']) ?></span>
+              <?php endif; ?>
+              <?= e($poi['name']) ?>
+            </span>
+          <?php else: ?>
+            <span class="photo-gallery__poi-card">
+              <span class="photo-gallery__poi-minimap" data-poi-minimap
+                    data-lat="<?= e((string) $poi['lat']) ?>" data-lng="<?= e((string) $poi['lng']) ?>"></span>
+              <span class="photo-gallery__poi-icon" aria-hidden="true">📍</span>
+              <?= e($poi['name']) ?>
+            </span>
+          <?php endif; ?>
         </li>
       <?php endif; ?>
       <li class="photo-gallery__item">

@@ -97,6 +97,7 @@
 
   <ul class="day-entry-list" data-day-entry-list
       data-csrf-token="<?= e($csrf->token()) ?>"
+      data-tile-key="<?= e($mapTilerKey ?? '') ?>"
       data-msg-generating="<?= e(t('media.caption_generating')) ?>"
       data-msg-caption-error="<?= e(t('media.caption_error')) ?>">
     <?php foreach ($entries as $entry): ?>
