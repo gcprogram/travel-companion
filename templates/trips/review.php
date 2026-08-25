@@ -20,6 +20,7 @@
        data-candidates='<?= e(json_encode($candidates)) ?>'
        data-msg-done="<?= e(t('trip.review.done')) ?>"
        data-msg-error="<?= e(t('trip.review.error')) ?>"
+       data-msg-session-expired="<?= e(t('trip.review.session_expired')) ?>"
        data-fallback-name="<?= e(t('trip.map.stay_fallback_name')) ?>"
        data-kind-stay="<?= e(t('trip.review.candidate_kind_stay')) ?>"
        data-kind-sight="<?= e(t('trip.review.candidate_kind_sight')) ?>"></div>

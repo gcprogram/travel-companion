@@ -245,6 +245,7 @@ return [
     'trip.review.back_to_map' => 'Zurück zur Karte',
     'trip.review.done' => 'Alle Kandidaten geprüft.',
     'trip.review.error' => 'Etwas ist schiefgelaufen. Bitte erneut versuchen.',
+    'trip.review.session_expired' => 'Sitzung abgelaufen (langes Durchsehen vieler Einträge) - bereits Bestätigtes/Abgelehntes bleibt erhalten. Seite lädt in Kürze neu …',
     'trip.review.prev' => 'Vorheriger Kandidat',
     'trip.review.next' => 'Nächster Kandidat',
     'trip.review.accept' => 'Bestätigen',
