@@ -186,26 +186,19 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  function openLightbox(pin) {
-    if (!lightbox || !lightboxBody) {
-      return;
-    }
-    if (pin.kind === 'video') {
-      lightboxBody.innerHTML = '<video controls autoplay class="map-lightbox__media" src="' + pin.fullUrl + '"></video>';
-      lightbox.hidden = false;
-      return;
-    }
-    var img = document.createElement('img');
-    img.className = 'map-lightbox__media';
-    img.alt = '';
-    img.onerror = function () {
-      console.error('Lightbox image failed to load:', pin.fullUrl);
-      img.style.display = 'none';
-    };
-    lightboxBody.innerHTML = '';
-    lightboxBody.appendChild(img);
-    img.src = pin.fullUrl;
-    lightbox.hidden = false;
+  var lightboxPrevBtn = document.querySelector('[data-map-lightbox-prev]');
+  var lightboxNextBtn = document.querySelector('[data-map-lightbox-next]');
+  var lightboxCaption = document.querySelector('[data-map-lightbox-caption]');
+  // The set prev/next currently cycles through - trip-map.js always uses
+  // every geotagged pin (already chronological, TripMapController::data()),
+  // set once the fetch resolves.
+  var lightboxPins = [];
+  var lightboxIndex = -1;
+
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   function formatTime(isoUtc) {
@@ -218,12 +211,88 @@ document.addEventListener('DOMContentLoaded', function () {
     return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '. ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
 
+  function renderLightboxCaption(pin) {
+    if (!lightboxCaption) {
+      return;
+    }
+    var lines = ['<p>' + escapeHtml(formatTime(pin.takenAt)) + '</p>'];
+    if (pin.address) {
+      lines.push('<p>' + escapeHtml(pin.address) + '</p>');
+    }
+    if (pin.poiName) {
+      lines.push('<p>' + escapeHtml(pin.poiName) + '</p>');
+    }
+    lightboxCaption.innerHTML = lines.join('');
+  }
+
+  function renderLightboxMedia(pin) {
+    if (pin.kind === 'video') {
+      lightboxBody.innerHTML = '<video controls autoplay class="map-lightbox__media" src="' + pin.fullUrl + '"></video>';
+      return;
+    }
+    var img = document.createElement('img');
+    img.className = 'map-lightbox__media';
+    img.alt = '';
+    img.onerror = function () {
+      console.error('Lightbox image failed to load:', pin.fullUrl);
+      img.style.display = 'none';
+    };
+    lightboxBody.innerHTML = '';
+    lightboxBody.appendChild(img);
+    img.src = pin.fullUrl;
+  }
+
+  // Called with (pinSet, index) so the diary panel's own click handler
+  // (day-entry-detail-view.js) can reuse this same overlay/CSS with a
+  // different photo set (just that entry's own photos) instead of the
+  // trip-wide pins list.
+  function openLightboxAt(pinSet, index) {
+    if (!lightbox || !lightboxBody || pinSet.length === 0) {
+      return;
+    }
+    lightboxPins = pinSet;
+    lightboxIndex = Math.max(0, Math.min(index, pinSet.length - 1));
+    var pin = lightboxPins[lightboxIndex];
+    renderLightboxMedia(pin);
+    renderLightboxCaption(pin);
+    if (lightboxPrevBtn) {
+      lightboxPrevBtn.disabled = lightboxIndex === 0;
+    }
+    if (lightboxNextBtn) {
+      lightboxNextBtn.disabled = lightboxIndex === lightboxPins.length - 1;
+    }
+    lightbox.hidden = false;
+  }
+
+  function stepLightbox(delta) {
+    if (lightboxIndex < 0) {
+      return;
+    }
+    var next = lightboxIndex + delta;
+    if (next < 0 || next >= lightboxPins.length) {
+      return;
+    }
+    openLightboxAt(lightboxPins, next);
+  }
+
+  if (lightboxPrevBtn) {
+    lightboxPrevBtn.addEventListener('click', function () { stepLightbox(-1); });
+  }
+  if (lightboxNextBtn) {
+    lightboxNextBtn.addEventListener('click', function () { stepLightbox(1); });
+  }
+  // Exposed so the diary panel's own gallery (day-entry-detail-view.js) can
+  // open the same overlay for a different (non-geotagged-only) photo set,
+  // without this file needing to know anything about that other context.
+  window.openTripPhotoLightbox = openLightboxAt;
+
   function closeLightbox() {
     if (!lightbox || !lightboxBody) {
       return;
     }
     lightbox.hidden = true;
     lightboxBody.innerHTML = '';
+    lightboxIndex = -1;
   }
 
   document.querySelectorAll('[data-map-lightbox-close]').forEach(function (el) {
@@ -306,9 +375,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
       }
 
-      pins.forEach(function (pin) {
+      pins.forEach(function (pin, pinIndex) {
         var marker = L.marker([pin.lat, pin.lng], { icon: dotIcon(pin) });
-        marker.on('click', function () { openLightbox(pin); });
+        marker.on('click', function () { openLightboxAt(pins, pinIndex); });
         marker.addTo(photoGroup);
         markers.push({ marker: marker, pin: pin, dot: dotIcon(pin), thumb: thumbIcon(pin) });
         pinLatlngs.push([pin.lat, pin.lng]);

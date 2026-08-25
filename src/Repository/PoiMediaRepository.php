@@ -71,4 +71,39 @@ final class PoiMediaRepository
         $stmt->execute([$poiId]);
         return $stmt->fetchAll();
     }
+
+    /**
+     * Reverse of findPhotosForPoi() - which sight (if any) each of the
+     * trip's photos was taken at (PoiAssignmentService, ~150m match), keyed
+     * by photo_id. Used to (1) intersperse a sight's name between the
+     * diary's photos at the point its own photos appear (detailed diary
+     * view, Stefan's ask), and (2) show it in the photo lightbox's caption
+     * line. One row per photo since a photo is assigned to at most one POI
+     * (PoiMediaRepository::assignPhoto() only ever inserts once, see
+     * PoiAssignmentService's "already assigned, skip" check).
+     *
+     * @return array<int, array{id: int, name: string, category: string}>
+     */
+    public function findPoiByPhotoForTrip(int $tripId): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT tpp.photo_id, poi.id, poi.name, poi.category
+             FROM trip_poi_photos tpp
+             JOIN photos ph ON ph.id = tpp.photo_id
+             JOIN day_entries e ON e.id = ph.day_entry_id
+             JOIN trip_pois poi ON poi.id = tpp.poi_id
+             WHERE e.trip_id = ?'
+        );
+        $stmt->execute([$tripId]);
+
+        $result = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $result[(int) $row['photo_id']] = [
+                'id' => (int) $row['id'],
+                'name' => (string) $row['name'],
+                'category' => (string) $row['category'],
+            ];
+        }
+        return $result;
+    }
 }

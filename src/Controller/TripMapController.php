@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Repository\DayEntryRepository;
 use App\Repository\PhotoRepository;
+use App\Repository\PoiMediaRepository;
 use App\Repository\PoiRepository;
 use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
@@ -32,6 +33,7 @@ final class TripMapController
         private readonly TrackRepository $tracks,
         private readonly TrackSmoothingService $smoothing,
         private readonly PoiRepository $pois,
+        private readonly PoiMediaRepository $poiMedia,
         private readonly TripAccess $access,
         private readonly TripRouteSummaryService $routeSummary,
         private readonly Settings $settings,
@@ -68,6 +70,9 @@ final class TripMapController
     public function data(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         $trip = $this->requireViewable($request, (string) $args['slug']);
+        // For the lightbox's caption line (time/address/sight) - one join,
+        // done once for the whole trip rather than per photo.
+        $poiByPhoto = $this->poiMedia->findPoiByPhotoForTrip((int) $trip['id']);
 
         $pins = [];
         foreach ($this->entries->findByTrip((int) $trip['id']) as $entry) {
@@ -75,6 +80,7 @@ final class TripMapController
                 if ($photo['status'] !== 'ready' || $photo['lat'] === null) {
                     continue;
                 }
+                $poi = $poiByPhoto[(int) $photo['id']] ?? null;
                 $pins[] = [
                     'kind' => 'photo',
                     'id' => (int) $photo['id'],
@@ -91,6 +97,11 @@ final class TripMapController
                     // (PhotoPositionInterpolationService) rather than
                     // showing it identically to a real GPS fix.
                     'interpolated' => $photo['lat_source'] === 'interpolated',
+                    // AI MediaAnalyzer's EXIF import (Address field) -
+                    // lightbox caption line, alongside the sight it was
+                    // assigned to (PoiAssignmentService), if any.
+                    'address' => $photo['ai_address'] ?? null,
+                    'poiName' => $poi !== null ? $poi['name'] : null,
                 ];
             }
             foreach ($this->videos->findByEntry((int) $entry['id']) as $video) {

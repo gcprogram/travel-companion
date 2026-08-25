@@ -2,6 +2,7 @@
 /** @var array<string, mixed> $entry */
 /** @var list<array<string, mixed>> $photos */
 /** @var list<array<string, mixed>> $videos */
+/** @var array<int, array{id: int, name: string, category: string}> $poiByPhoto */
 /** @var array{average: ?float, count: int} $ratingSummary */
 /** @var ?int $ownRating */
 /** @var bool $canRate */
@@ -79,14 +80,46 @@
   </details>
 <?php endif; ?>
 
-<?php $entryPhotos = array_filter($photos, static fn (array $p): bool => $p['status'] === 'ready'); ?>
+<?php
+$entryPhotos = array_values(array_filter($photos, static fn (array $p): bool => $p['status'] === 'ready'));
+usort($entryPhotos, static fn (array $a, array $b): int
+    => ($a['taken_at'] ?? $a['created_at']) <=> ($b['taken_at'] ?? $b['created_at']));
+
+// Detailed view (trip.show.detail_view_toggle): a sight's name is inserted
+// once, right before the first (chronologically) of its own assigned
+// photos (PoiAssignmentService/PoiMediaRepository) - not once per photo,
+// several photos of the same sight would just repeat it pointlessly.
+$shownPoiIds = [];
+$lightboxPhotos = [];
+foreach ($entryPhotos as $photo) {
+    $lightboxPhotos[] = [
+        'kind' => 'photo',
+        'id' => (int) $photo['id'],
+        'thumbUrl' => '/photos/' . $photo['id'] . '/thumb',
+        'fullUrl' => '/photos/' . $photo['id'] . '/web',
+        'takenAt' => $photo['taken_at'] ?? $photo['created_at'],
+        'address' => $photo['ai_address'] ?? null,
+        'poiName' => isset($poiByPhoto[(int) $photo['id']]) ? $poiByPhoto[(int) $photo['id']]['name'] : null,
+    ];
+}
+?>
 <?php if ($entryPhotos !== []): ?>
-  <ul class="photo-gallery">
+  <ul class="photo-gallery" data-lightbox-photos='<?= e(json_encode($lightboxPhotos)) ?>'>
     <?php foreach ($entryPhotos as $photo): ?>
+      <?php $poi = $poiByPhoto[(int) $photo['id']] ?? null; ?>
+      <?php if ($poi !== null && !isset($shownPoiIds[$poi['id']])): ?>
+        <?php $shownPoiIds[$poi['id']] = true; ?>
+        <li class="photo-gallery__item photo-gallery__item--poi" data-detail-only>
+          <span class="photo-gallery__poi-card">
+            <span class="photo-gallery__poi-icon" aria-hidden="true">📍</span>
+            <?= e($poi['name']) ?>
+          </span>
+        </li>
+      <?php endif; ?>
       <li class="photo-gallery__item">
-        <a href="/photos/<?= (int) $photo['id'] ?>/web" target="_blank" rel="noopener">
+        <button type="button" class="photo-gallery__link" data-lightbox-photo="<?= (int) $photo['id'] ?>">
           <img src="/photos/<?= (int) $photo['id'] ?>/thumb" alt="" loading="lazy">
-        </a>
+        </button>
         <?php if ($photo['lat'] !== null): ?>
           <span class="geo-badge" title="<?= e(t('media.geotagged_hint')) ?>">📍</span>
         <?php endif; ?>

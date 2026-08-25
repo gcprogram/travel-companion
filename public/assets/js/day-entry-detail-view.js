@@ -80,4 +80,39 @@ document.addEventListener('DOMContentLoaded', function () {
         button.disabled = false;
       });
   });
+
+  // Photo click -> the shared lightbox overlay trip-map.js already built
+  // (prev/next, click-outside-to-close, time/address/sight caption) - reused
+  // here with THIS diary entry's own photo set (data-lightbox-photos on the
+  // .photo-gallery <ul>, panel.php) instead of the map's trip-wide pins.
+  // window.openTripPhotoLightbox only exists on pages that also render
+  // trip-map.js (every page with a diary, i.e. the trip's own page) - a
+  // no-op click elsewhere would be a silent dead end, so nothing to guard
+  // beyond the existence check itself.
+  list.addEventListener('click', function (event) {
+    var trigger = event.target.closest('[data-lightbox-photo]');
+    if (!trigger || typeof window.openTripPhotoLightbox !== 'function') {
+      return;
+    }
+
+    var gallery = trigger.closest('[data-lightbox-photos]');
+    if (!gallery) {
+      return;
+    }
+
+    var photos;
+    try {
+      photos = JSON.parse(gallery.dataset.lightboxPhotos || '[]');
+    } catch (e) {
+      return;
+    }
+
+    var photoId = parseInt(trigger.dataset.lightboxPhoto, 10);
+    var index = photos.findIndex(function (p) { return p.id === photoId; });
+    if (index === -1) {
+      return;
+    }
+
+    window.openTripPhotoLightbox(photos, index);
+  });
 });

@@ -9,6 +9,7 @@ use App\Repository\DayEntryRepository;
 use App\Repository\DayEntryWeatherHourRepository;
 use App\Repository\JobRepository;
 use App\Repository\PhotoRepository;
+use App\Repository\PoiMediaRepository;
 use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
 use App\Service\DayEntryAccess;
@@ -32,6 +33,7 @@ final class DayEntryController
         private readonly VideoRepository $videos,
         private readonly DayEntryWeatherHourRepository $weatherHours,
         private readonly DayEntryRatingRepository $ratings,
+        private readonly PoiMediaRepository $poiMedia,
         private readonly TripRepository $trips,
         private readonly JobRepository $jobs,
         private readonly DayEntryAccess $access,
@@ -266,6 +268,11 @@ final class DayEntryController
             'entry' => $entry,
             'photos' => $this->photos->findByEntry((int) $entry['id']),
             'videos' => $this->videos->findByEntry((int) $entry['id']),
+            // Keyed by photo_id, trip-wide (cheap - one join, no per-photo
+            // query) - the detailed view's "sights between the photos"
+            // (Stefan's ask) and the photo lightbox's caption line both
+            // need "which sight was THIS photo taken at, if any".
+            'poiByPhoto' => $this->poiMedia->findPoiByPhotoForTrip((int) $entry['trip_id']),
             'weatherHours' => $this->weatherHours->findByEntry((int) $entry['id']),
             'ratingSummary' => $this->ratings->summaryForEntry((int) $entry['id']),
             // Ratings are a "member" thing (see rate() below) - a genuine
