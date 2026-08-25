@@ -107,6 +107,13 @@ final class PhotoProcessHandler implements JobHandlerInterface
             $this->photos->updateBytes($photoId, (int) filesize($thumbPath) + (int) filesize($webPath));
             @unlink($originalPath);
 
+            // Unconditional, unlike the block below: a photo with NO GPS of
+            // its own is exactly what PhotoPositionInterpolationService
+            // exists for, and one WITH a real fix is itself new bracketing
+            // data some other ungeotagged photo in this trip might now be
+            // able to use.
+            $this->dispatchInterpolation((int) $photo['day_entry_id']);
+
             if ($meta['lat'] !== null) {
                 $this->dispatchTripWideFollowUps((int) $photo['day_entry_id']);
                 $this->jobs->dispatch('entry.locate', ['day_entry_id' => (int) $photo['day_entry_id']]);
@@ -126,6 +133,15 @@ final class PhotoProcessHandler implements JobHandlerInterface
      * job needing its own PoiRepository/TrackRepository/TripRepository
      * dependencies.
      */
+    private function dispatchInterpolation(int $dayEntryId): void
+    {
+        $entry = $this->entries->findById($dayEntryId);
+        if ($entry === null) {
+            return;
+        }
+        $this->jobs->dispatch('photo.interpolate', ['trip_id' => (int) $entry['trip_id']]);
+    }
+
     private function dispatchTripWideFollowUps(int $dayEntryId): void
     {
         $entry = $this->entries->findById($dayEntryId);

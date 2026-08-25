@@ -163,9 +163,16 @@ document.addEventListener('DOMContentLoaded', function () {
     console.warn('Trip map: MAPTILER_KEY is empty — map tiles will not load. Set MAPTILER_KEY in .env on the server.');
   }
 
-  function dotIcon(kind) {
+  // Marks a best-guess position (PhotoPositionInterpolationService) as such
+  // rather than showing it identically to a real GPS fix - Stefan's own
+  // "always visibly interpolated" requirement.
+  function interpolatedClass(pin) {
+    return pin.interpolated ? ' map-view__pin-dot--interpolated' : '';
+  }
+
+  function dotIcon(pin) {
     return L.divIcon({
-      className: 'map-view__pin-dot' + (kind === 'video' ? ' map-view__pin-dot--video' : ''),
+      className: 'map-view__pin-dot' + (pin.kind === 'video' ? ' map-view__pin-dot--video' : '') + interpolatedClass(pin),
       iconSize: [14, 14],
     });
   }
@@ -173,7 +180,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function thumbIcon(pin) {
     var badge = pin.kind === 'video' ? '<span class="map-view__pin-thumb-badge">&#9654;</span>' : '';
     return L.divIcon({
-      className: 'map-view__pin-thumb',
+      className: 'map-view__pin-thumb' + (pin.interpolated ? ' map-view__pin-thumb--interpolated' : ''),
       html: '<img src="' + pin.thumbUrl + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">' + badge,
       iconSize: [44, 44],
     });
@@ -300,10 +307,10 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       pins.forEach(function (pin) {
-        var marker = L.marker([pin.lat, pin.lng], { icon: dotIcon(pin.kind) });
+        var marker = L.marker([pin.lat, pin.lng], { icon: dotIcon(pin) });
         marker.on('click', function () { openLightbox(pin); });
         marker.addTo(photoGroup);
-        markers.push({ marker: marker, pin: pin, dot: dotIcon(pin.kind), thumb: thumbIcon(pin) });
+        markers.push({ marker: marker, pin: pin, dot: dotIcon(pin), thumb: thumbIcon(pin) });
         pinLatlngs.push([pin.lat, pin.lng]);
       });
 

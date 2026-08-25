@@ -68,9 +68,9 @@ final class PhotoRepository
         $stmt = $this->pdo->prepare(
             "INSERT INTO photos (
                 day_entry_id, position, original_filename, extension, status,
-                width, height, lat, lng, taken_at, bytes, content_hash, source_photo_id,
+                width, height, lat, lng, lat_source, taken_at, bytes, content_hash, source_photo_id,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)"
+            ) VALUES (?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)"
         );
         $stmt->execute([
             $entryId,
@@ -81,6 +81,7 @@ final class PhotoRepository
             $canonical['height'],
             $canonical['lat'],
             $canonical['lng'],
+            $canonical['lat_source'] ?? null,
             $canonical['taken_at'],
             $canonical['content_hash'],
             $sourcePhotoId,
@@ -133,10 +134,16 @@ final class PhotoRepository
         ?float $lng = null,
         ?string $takenAt = null,
     ): void {
+        // lat_source only when there's actually a position to tag as real
+        // EXIF - never overwrite a NULL with 'exif', which would make an
+        // ungeotagged photo wrongly look already-resolved to
+        // findNeedingInterpolation()'s "lat IS NULL" check.
         $stmt = $this->pdo->prepare(
-            "UPDATE photos SET status = 'ready', width = ?, height = ?, lat = ?, lng = ?, taken_at = ?, updated_at = ? WHERE id = ?"
+            "UPDATE photos SET status = 'ready', width = ?, height = ?, lat = ?, lng = ?,
+                lat_source = CASE WHEN ? IS NOT NULL THEN 'exif' ELSE lat_source END,
+                taken_at = ?, updated_at = ? WHERE id = ?"
         );
-        $stmt->execute([$width, $height, $lat, $lng, $takenAt, gmdate('Y-m-d H:i:s'), $id]);
+        $stmt->execute([$width, $height, $lat, $lng, $lat, $takenAt, gmdate('Y-m-d H:i:s'), $id]);
     }
 
     public function markFailed(int $id): void
@@ -281,6 +288,79 @@ final class PhotoRepository
             'lng' => (float) $r['lng'],
             'takenAt' => (string) $r['taken_at'],
         ], $stmt->fetchAll());
+    }
+
+    /**
+     * Same as findGeotaggedByTrip(), but real EXIF fixes only
+     * (lat_source='exif') - PhotoTrackGapFillService and
+     * PhotoPositionInterpolationService both need this distinction: feeding
+     * an already-interpolated (i.e. already a guess) position back into the
+     * track, or using it as a bracket point for interpolating some OTHER
+     * photo, would compound one guess into another rather than anchoring on
+     * real data.
+     *
+     * @return list<array{lat: float, lng: float, takenAt: string}>
+     */
+    public function findExifGeotaggedByTrip(int $tripId): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT p.lat, p.lng, COALESCE(p.taken_at, p.created_at) AS taken_at
+             FROM photos p JOIN day_entries e ON e.id = p.day_entry_id
+             WHERE e.trip_id = ? AND p.status = \'ready\' AND p.lat_source = \'exif\''
+        );
+        $stmt->execute([$tripId]);
+        return array_map(static fn (array $r): array => [
+            'lat' => (float) $r['lat'],
+            'lng' => (float) $r['lng'],
+            'takenAt' => (string) $r['taken_at'],
+        ], $stmt->fetchAll());
+    }
+
+    /**
+     * Ready photos with no real EXIF position yet - either never had one, or
+     * only ever got an interpolated guess (which PhotoPositionInterpolation-
+     * Service always clears and recomputes fresh on every run, so this
+     * naturally includes "try again, maybe better data exists now" cases
+     * too). Same taken_at-or-created_at fallback as findGeotaggedByTrip() -
+     * a photo needs SOME timestamp to interpolate against.
+     *
+     * @return list<array{id: int, takenAt: string}>
+     */
+    public function findNeedingInterpolation(int $tripId): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT p.id, COALESCE(p.taken_at, p.created_at) AS taken_at
+             FROM photos p JOIN day_entries e ON e.id = p.day_entry_id
+             WHERE e.trip_id = ? AND p.status = \'ready\'
+               AND (p.lat IS NULL OR p.lat_source = \'interpolated\')'
+        );
+        $stmt->execute([$tripId]);
+        return array_map(static fn (array $r): array => [
+            'id' => (int) $r['id'],
+            'takenAt' => (string) $r['taken_at'],
+        ], $stmt->fetchAll());
+    }
+
+    public function updateInterpolatedPosition(int $id, float $lat, float $lng): void
+    {
+        $stmt = $this->pdo->prepare(
+            "UPDATE photos SET lat = ?, lng = ?, lat_source = 'interpolated', updated_at = ? WHERE id = ?"
+        );
+        $stmt->execute([$lat, $lng, gmdate('Y-m-d H:i:s'), $id]);
+    }
+
+    /**
+     * Only ever meaningful on a row with lat_source='interpolated' - called
+     * unconditionally on every "needs interpolation" candidate at the start
+     * of each run regardless, since a harmless no-op there is simpler than
+     * checking first.
+     */
+    public function clearInterpolatedPosition(int $id): void
+    {
+        $stmt = $this->pdo->prepare(
+            "UPDATE photos SET lat = NULL, lng = NULL, lat_source = NULL, updated_at = ? WHERE id = ? AND lat_source = 'interpolated'"
+        );
+        $stmt->execute([gmdate('Y-m-d H:i:s'), $id]);
     }
 
     /**

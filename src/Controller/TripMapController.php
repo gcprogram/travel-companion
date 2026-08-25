@@ -87,6 +87,10 @@ final class TripMapController
                     // (created_at) as a fallback for photos processed before
                     // taken_at existed, or lacking a DateTimeOriginal tag.
                     'takenAt' => $photo['taken_at'] ?? $photo['created_at'],
+                    // Lets the map mark a best-guess position as such
+                    // (PhotoPositionInterpolationService) rather than
+                    // showing it identically to a real GPS fix.
+                    'interpolated' => $photo['lat_source'] === 'interpolated',
                 ];
             }
             foreach ($this->videos->findByEntry((int) $entry['id']) as $video) {

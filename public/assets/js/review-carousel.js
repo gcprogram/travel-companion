@@ -113,7 +113,9 @@ document.addEventListener('DOMContentLoaded', function () {
       (data.pins || []).forEach(function (pin) {
         L.marker([pin.lat, pin.lng], {
           icon: L.divIcon({
-            className: 'map-view__pin-dot' + (pin.kind === 'video' ? ' map-view__pin-dot--video' : ''),
+            className: 'map-view__pin-dot'
+              + (pin.kind === 'video' ? ' map-view__pin-dot--video' : '')
+              + (pin.interpolated ? ' map-view__pin-dot--interpolated' : ''),
             iconSize: [14, 14],
           }),
         })

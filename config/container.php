@@ -8,6 +8,7 @@ use App\Job\AdminNotifyHandler;
 use App\Job\DayEntrySummarizeHandler;
 use App\Job\EntryLocateHandler;
 use App\Job\GeocodeResolveHandler;
+use App\Job\PhotoInterpolatePositionsHandler;
 use App\Job\PingHandler;
 use App\Job\PhotoProcessHandler;
 use App\Job\PoiAssignmentHandler;
@@ -75,6 +76,7 @@ return [
         $worker->register('user.delete', $c->get(UserDeleteHandler::class));
         $worker->register('entry.locate', $c->get(EntryLocateHandler::class));
         $worker->register('track.gapfill', $c->get(TrackGapFillHandler::class));
+        $worker->register('photo.interpolate', $c->get(PhotoInterpolatePositionsHandler::class));
         $worker->register('geocode.resolve', $c->get(GeocodeResolveHandler::class));
         $worker->register('trip.metadata_refresh', $c->get(TripMetadataAutoFillHandler::class));
         $worker->register('day_entry.summarize', $c->get(DayEntrySummarizeHandler::class));
