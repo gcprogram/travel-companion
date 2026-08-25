@@ -51,6 +51,10 @@ document.addEventListener('DOMContentLoaded', function () {
   var fallbackName = container.dataset.fallbackName || '';
   var kindLabels = { stay: container.dataset.kindStay || '', sight: container.dataset.kindSight || '' };
 
+  var routeToggle = document.querySelector('[data-map-route-toggle]');
+  var photoToggle = document.querySelector('[data-map-photo-toggle]');
+  var geocacheToggle = document.querySelector('[data-map-geocache-toggle]');
+
   var index = 0;
   var candidateMarker = null;
 
@@ -65,16 +69,70 @@ document.addEventListener('DOMContentLoaded', function () {
     }).addTo(map);
   }
 
-  // Context layers (track + sights/geocaches) load once, independent of
-  // which candidate is currently shown - only the map's viewport and the
-  // highlighted candidate marker change between prev/next.
+  // Context layers (track + photo pins + sights/geocaches) load once,
+  // independent of which candidate is currently shown - only the map's
+  // viewport and the highlighted candidate marker change between prev/next.
+  // Same three toggleable layer groups as the main map (trip-map.js) - this
+  // page never shared that script (its own zoom-to-one-candidate behaviour
+  // doesn't fit trip-map.js's fit-everything model), so it re-implements
+  // just the toggle wiring here rather than pulling in the whole file.
   fetch(container.dataset.mapDataUrl)
     .then(function (r) { return r.json(); })
     .then(function (data) {
       var track = data.track;
       if (track && track.points && track.points.length > 1) {
         var latlngs = track.points.map(function (p) { return [p.lat, p.lng]; });
-        L.polyline(latlngs, { color: '#2f6f5e', weight: 3, opacity: 0.8, interactive: false }).addTo(map);
+        var routeLine = L.polyline(latlngs, { color: '#2f6f5e', weight: 3, opacity: 0.8, interactive: false });
+        if (!routeToggle || routeToggle.checked) {
+          routeLine.addTo(map);
+        }
+        if (routeToggle) {
+          routeToggle.addEventListener('change', function () {
+            if (routeToggle.checked) {
+              routeLine.addTo(map);
+            } else {
+              map.removeLayer(routeLine);
+            }
+          });
+        }
+      }
+
+      var photoGroup = L.layerGroup();
+      if (!photoToggle || photoToggle.checked) {
+        photoGroup.addTo(map);
+      }
+      if (photoToggle) {
+        photoToggle.addEventListener('change', function () {
+          if (photoToggle.checked) {
+            photoGroup.addTo(map);
+          } else {
+            map.removeLayer(photoGroup);
+          }
+        });
+      }
+      (data.pins || []).forEach(function (pin) {
+        L.marker([pin.lat, pin.lng], {
+          icon: L.divIcon({
+            className: 'map-view__pin-dot' + (pin.kind === 'video' ? ' map-view__pin-dot--video' : ''),
+            iconSize: [14, 14],
+          }),
+        })
+          .bindTooltip('<img src="' + pin.thumbUrl + '" alt="" width="88" loading="lazy">', { direction: 'top', offset: [0, -8] })
+          .addTo(photoGroup);
+      });
+
+      var geocacheGroup = L.layerGroup();
+      if (!geocacheToggle || geocacheToggle.checked) {
+        geocacheGroup.addTo(map);
+      }
+      if (geocacheToggle) {
+        geocacheToggle.addEventListener('change', function () {
+          if (geocacheToggle.checked) {
+            geocacheGroup.addTo(map);
+          } else {
+            map.removeLayer(geocacheGroup);
+          }
+        });
       }
       (data.pois || []).forEach(function (poi) {
         var icon = poi.cacheIconUrl
@@ -87,7 +145,8 @@ document.addEventListener('DOMContentLoaded', function () {
               className: 'map-view__poi-pin' + (poi.visited ? ' map-view__poi-pin--visited' : ''),
               iconSize: [16, 16],
             });
-        L.marker([poi.lat, poi.lng], { icon: icon }).bindTooltip(poi.name, { sticky: true }).addTo(map);
+        var marker = L.marker([poi.lat, poi.lng], { icon: icon }).bindTooltip(poi.name, { sticky: true });
+        marker.addTo(poi.cacheIconUrl ? geocacheGroup : map);
       });
     })
     .catch(function () { /* context layers are a nice-to-have - the candidate itself still works without them */ });

@@ -28,6 +28,21 @@
        data-kind-stay="<?= e(t('trip.review.candidate_kind_stay')) ?>"
        data-kind-sight="<?= e(t('trip.review.candidate_kind_sight')) ?>"></div>
 
+  <div class="map-view__toggles">
+    <label class="map-view__toggle">
+      <input type="checkbox" data-map-route-toggle checked>
+      <?= e(t('trip.map.show_route')) ?>
+    </label>
+    <label class="map-view__toggle">
+      <input type="checkbox" data-map-photo-toggle checked>
+      <?= e(t('trip.map.show_photos')) ?>
+    </label>
+    <label class="map-view__toggle">
+      <input type="checkbox" data-map-geocache-toggle checked>
+      <?= e(t('trip.map.show_geocaches')) ?>
+    </label>
+  </div>
+
   <ul class="review-photos" data-review-photos hidden></ul>
 
   <div class="review-bar" data-review-bar>
