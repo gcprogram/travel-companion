@@ -245,6 +245,7 @@ return [
     'trip.review.back_to_map' => 'Back to map',
     'trip.review.done' => 'All candidates reviewed.',
     'trip.review.error' => 'Something went wrong. Please try again.',
+    'trip.review.session_expired' => "Session expired (a long review pass over many entries) - anything already accepted/rejected is kept. Reloading shortly …",
     'trip.review.prev' => 'Previous candidate',
     'trip.review.next' => 'Next candidate',
     'trip.review.accept' => 'Confirm',

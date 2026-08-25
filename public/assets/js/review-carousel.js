@@ -218,13 +218,34 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // A review pass over many candidates (checking each on the map, maybe
+  // renaming a stay) can easily outlast the server-side session lifetime -
+  // the page still has the CSRF token it was rendered with, but the
+  // session it belonged to is gone. CsrfMiddleware then answers with a 419
+  // HTML "bounce" page instead of the JSON these handlers expect, which
+  // used to just look like an opaque, unexplained failure (Stefan's
+  // report: "es ist etwas schiefgelaufen", nothing in the server log
+  // either - CsrfMiddleware/AppErrorHandler don't log this case). Anything
+  // already accepted/rejected before this point already succeeded for
+  // real; only the current candidate needs redoing after the reload.
+  function handleFailedResponse(response) {
+    if (response.status === 419) {
+      timeSpan.textContent = container.dataset.msgSessionExpired || '';
+      setTimeout(function () { window.location.reload(); }, 2500);
+      return;
+    }
+    timeSpan.textContent = container.dataset.msgError || '';
+  }
+
   acceptBtn.addEventListener('click', function () {
     var candidate = candidates[index];
     setBusy(true);
     var request = candidate.kind === 'sight' ? acceptSight(candidate) : acceptStay(candidate);
     request.then(function (r) {
       if (!r.ok) {
-        throw new Error('accept failed: HTTP ' + r.status);
+        handleFailedResponse(r);
+        setBusy(false);
+        return;
       }
       setBusy(false);
       advanceAfterResolve();
@@ -240,7 +261,9 @@ document.addEventListener('DOMContentLoaded', function () {
     var request = candidate.kind === 'sight' ? rejectSight(candidate) : rejectStay(candidate);
     request.then(function (r) {
       if (!r.ok) {
-        throw new Error('dismiss failed: HTTP ' + r.status);
+        handleFailedResponse(r);
+        setBusy(false);
+        return;
       }
       setBusy(false);
       advanceAfterResolve();
