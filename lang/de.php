@@ -93,6 +93,9 @@ return [
     'trip.badge_private' => 'privat',
     'trip.badge_member_only' => 'nur Mitglieder',
     'media.geotagged_hint' => 'Standort gespeichert',
+    'media.caption_generate' => 'Beschreibung generieren',
+    'media.caption_generating' => 'Generiere Beschreibung …',
+    'media.caption_error' => 'Beschreibung konnte nicht erzeugt werden. Vision-KI-Anbieter in den Admin-Einstellungen zugewiesen?',
 
     'trip.form.title_new' => 'Neue Reise',
     'trip.form.title_edit' => 'Reise bearbeiten',
@@ -126,6 +129,7 @@ return [
     'trip.show.by' => 'von',
     'trip.show.route_heading' => 'Route',
     'trip.show.diary_heading' => 'Tagebuch',
+    'trip.show.detail_view_toggle' => 'Detailansicht (Bildbeschreibungen anzeigen)',
     'trip.show.no_entries' => 'Noch keine Tagebucheinträge.',
     'trip.show.add_entry' => '+ Tagebucheintrag',
     'trip.show.edit' => 'Reise bearbeiten',

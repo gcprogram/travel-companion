@@ -93,6 +93,9 @@ return [
     'trip.badge_private' => 'private',
     'trip.badge_member_only' => 'members only',
     'media.geotagged_hint' => 'Location saved',
+    'media.caption_generate' => 'Generate description',
+    'media.caption_generating' => 'Generating description …',
+    'media.caption_error' => 'Could not generate a description. Is a vision AI provider assigned in admin settings?',
 
     'trip.form.title_new' => 'New trip',
     'trip.form.title_edit' => 'Edit trip',
@@ -126,6 +129,7 @@ return [
     'trip.show.by' => 'by',
     'trip.show.route_heading' => 'Route',
     'trip.show.diary_heading' => 'Diary',
+    'trip.show.detail_view_toggle' => 'Detailed view (show photo descriptions)',
     'trip.show.no_entries' => 'No diary entries yet.',
     'trip.show.add_entry' => '+ Diary entry',
     'trip.show.edit' => 'Edit trip',

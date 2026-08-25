@@ -171,6 +171,17 @@ final class VideoRepository
         ]);
     }
 
+    /**
+     * See PhotoRepository::updateVisionCaption() - same reasoning.
+     */
+    public function updateVisionCaption(int $id, string $caption): void
+    {
+        $stmt = $this->pdo->prepare(
+            "UPDATE videos SET caption = ?, caption_source = 'vision_ai', updated_at = ? WHERE id = ?"
+        );
+        $stmt->execute([$caption, gmdate('Y-m-d H:i:s'), $id]);
+    }
+
     public function updateBytes(int $id, int $bytes): void
     {
         $stmt = $this->pdo->prepare('UPDATE videos SET bytes = ? WHERE id = ?');

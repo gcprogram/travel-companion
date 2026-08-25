@@ -72,7 +72,15 @@
 <h2><?= e(t('trip.show.diary_heading')) ?></h2>
 
 <?php if ($entries !== []): ?>
-  <ul class="day-entry-list">
+  <label class="day-entry-detail-toggle">
+    <input type="checkbox" data-day-entry-detail-toggle>
+    <?= e(t('trip.show.detail_view_toggle')) ?>
+  </label>
+
+  <ul class="day-entry-list" data-day-entry-list
+      data-csrf-token="<?= e($csrf->token()) ?>"
+      data-msg-generating="<?= e(t('media.caption_generating')) ?>"
+      data-msg-caption-error="<?= e(t('media.caption_error')) ?>">
     <?php foreach ($entries as $entry): ?>
       <li class="day-entry-card" data-day-entry-card
           data-entry-id="<?= (int) $entry['id'] ?>"
@@ -189,4 +197,5 @@
 <script src="/assets/js/vendor/leaflet.js"></script>
 <script src="/assets/js/trip-map.js"></script>
 <script src="/assets/js/day-entry-accordion.js"></script>
+<script src="/assets/js/day-entry-detail-view.js"></script>
 <script src="/assets/js/day-entry-rating.js"></script>

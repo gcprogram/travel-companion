@@ -405,6 +405,32 @@ form.auth-form { max-width: 420px; }
 
 .photo-gallery__item { position: relative; text-align: center; }
 
+/* "Detailed" diary view (trip.show.detail_view_toggle): captions are
+   always rendered server-side, just hidden until the toggle sets this
+   modifier on the whole .day-entry-list - so freshly AJAX-loaded diary
+   entry panels (day-entry-accordion.js) pick up the current state for
+   free, no re-binding needed. */
+.day-entry-list--detail .photo-gallery { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+
+.photo-gallery__caption { display: none; margin-top: 0.3rem; text-align: left; }
+.day-entry-list--detail .photo-gallery__caption { display: block; }
+
+.photo-gallery__caption p {
+  margin: 0 0 0.3rem;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  min-height: 1.2em;
+}
+
+.day-entry-detail-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 var(--space-2);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
 .geo-badge {
   position: absolute;
   top: 4px;

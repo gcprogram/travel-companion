@@ -90,6 +90,15 @@
         <?php if ($photo['lat'] !== null): ?>
           <span class="geo-badge" title="<?= e(t('media.geotagged_hint')) ?>">📍</span>
         <?php endif; ?>
+        <div class="photo-gallery__caption" data-media-caption>
+          <p data-media-caption-text><?= e((string) ($photo['caption'] ?? '')) ?></p>
+          <?php if ($canEdit): ?>
+            <button type="button" class="btn btn-ghost btn-small" data-media-caption-generate
+                    data-caption-url="/photos/<?= (int) $photo['id'] ?>/caption">
+              <?= e(t('media.caption_generate')) ?>
+            </button>
+          <?php endif; ?>
+        </div>
       </li>
     <?php endforeach; ?>
   </ul>
@@ -113,6 +122,15 @@
           <?php if ($video['lat'] !== null): ?>
             <span class="geo-badge" title="<?= e(t('media.geotagged_hint')) ?>">📍</span>
           <?php endif; ?>
+          <div class="photo-gallery__caption" data-media-caption>
+            <p data-media-caption-text><?= e((string) ($video['caption'] ?? '')) ?></p>
+            <?php if ($canEdit): ?>
+              <button type="button" class="btn btn-ghost btn-small" data-media-caption-generate
+                      data-caption-url="/videos/<?= (int) $video['id'] ?>/caption">
+                <?= e(t('media.caption_generate')) ?>
+              </button>
+            <?php endif; ?>
+          </div>
         </div>
       <?php endif; ?>
     <?php endforeach; ?>
