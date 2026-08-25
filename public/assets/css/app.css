@@ -583,6 +583,26 @@ form.auth-form { max-width: 420px; }
   overflow: hidden;
   margin-bottom: var(--space-1);
 }
+/* Photos taken near the currently shown stay (temporal or spatial
+   proximity, TripMapController::review()) - small thumbnails only
+   (Stefan: "Kleines Bild reicht"), scrollable if there are several. */
+.review-photos {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  list-style: none;
+  margin: 0 0 var(--space-1);
+  padding: 0;
+}
+.review-photos__item { flex: 0 0 auto; }
+.review-photos__item img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  display: block;
+}
+
 .review-bar {
   display: flex;
   align-items: center;

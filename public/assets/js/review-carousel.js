@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var nextBtn = document.querySelector('[data-review-next]');
   var acceptBtn = document.querySelector('[data-review-accept]');
   var rejectBtn = document.querySelector('[data-review-reject]');
+  var photosList = document.querySelector('[data-review-photos]');
 
   var csrfToken = container.dataset.csrfToken;
   var acceptUrl = container.dataset.acceptUrl;
@@ -115,6 +116,25 @@ document.addEventListener('DOMContentLoaded', function () {
       nameInput.readOnly = false;
       var minutes = Math.round(candidate.durationSeconds / 60);
       timeSpan.textContent = formatTime(candidate.startedAt) + ' – ' + formatTime(candidate.endedAt) + ' (' + minutes + ' min)';
+    }
+
+    // A stay's resolved name is often unhelpful (garbled script, a bare
+    // street address) - the photos actually taken during that stay
+    // (TripMapController::review()'s photoIds) are usually the fastest way
+    // to recognise the place, faster than zooming into the map.
+    if (photosList) {
+      var photoIds = candidate.kind === 'stay' ? (candidate.photoIds || []) : [];
+      if (photoIds.length > 0) {
+        photosList.innerHTML = photoIds.map(function (id) {
+          return '<li class="review-photos__item">'
+            + '<a href="/photos/' + id + '/web" target="_blank" rel="noopener">'
+            + '<img src="/photos/' + id + '/thumb" alt="" loading="lazy"></a></li>';
+        }).join('');
+        photosList.hidden = false;
+      } else {
+        photosList.innerHTML = '';
+        photosList.hidden = true;
+      }
     }
 
     if (candidateMarker) {

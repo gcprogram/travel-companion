@@ -222,6 +222,38 @@ final class PhotoRepository
     }
 
     /**
+     * Every ready photo's capture time + position, for
+     * TripMapController::review() to match against each detected stay by
+     * temporal OR spatial proximity - a far easier way to identify an
+     * illegibly-named stay (a shop sign in Cyrillic, say) than zooming into
+     * the map trying to spot it (Stefan's own framing; "OR spatial" so a
+     * photo taken right at the place still matches even if its own
+     * timestamp drifted outside the detected stay window, or vice versa).
+     * Same taken_at-or-created_at fallback as findGeotaggedByTrip() - a
+     * photo without a resolved capture time still has an upload time worth
+     * matching against, rather than being silently excluded from every
+     * stay's photo strip.
+     *
+     * @return list<array{id: int, takenAt: string, lat: ?float, lng: ?float}>
+     */
+    public function findReadyByTripWithTakenAt(int $tripId): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT p.id, COALESCE(p.taken_at, p.created_at) AS taken_at, p.lat, p.lng
+             FROM photos p JOIN day_entries e ON e.id = p.day_entry_id
+             WHERE e.trip_id = ? AND p.status = \'ready\'
+             ORDER BY taken_at ASC'
+        );
+        $stmt->execute([$tripId]);
+        return array_map(static fn (array $r): array => [
+            'id' => (int) $r['id'],
+            'takenAt' => (string) $r['taken_at'],
+            'lat' => $r['lat'] !== null ? (float) $r['lat'] : null,
+            'lng' => $r['lng'] !== null ? (float) $r['lng'] : null,
+        ], $stmt->fetchAll());
+    }
+
+    /**
      * Photos with both a position and a capture time - the two things
      * PhotoTrackGapFillService needs to place one on the track. A reference
      * (migration 0019) already has lat/lng/taken_at copied from its

@@ -10,6 +10,7 @@ use App\Repository\PoiRepository;
 use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
+use App\Service\Settings;
 use App\Service\TrackSmoothingService;
 use App\Service\TripAccess;
 use App\Service\TripRouteSummaryService;
@@ -33,6 +34,7 @@ final class TripMapController
         private readonly PoiRepository $pois,
         private readonly TripAccess $access,
         private readonly TripRouteSummaryService $routeSummary,
+        private readonly Settings $settings,
     ) {
     }
 
@@ -207,15 +209,38 @@ final class TripMapController
         $trip = $this->requireEditable($request, (string) $args['slug']);
         $pois = $this->pois->findByTrip((int) $trip['id']);
 
-        $stays = array_map(static fn (array $s): array => [
-            'kind' => 'stay',
-            'lat' => $s['lat'],
-            'lng' => $s['lng'],
-            'name' => $s['locationName'],
-            'startedAt' => $s['startedAt'],
-            'endedAt' => $s['endedAt'],
-            'durationSeconds' => $s['durationSeconds'],
-        ], $this->routeSummary->detectStays((int) $trip['id'], $pois));
+        // A stay's resolved name is often unhelpful (a shop sign in
+        // Cyrillic, or just a street address) - the photos actually taken
+        // near that stay are a much faster way to recognise the place than
+        // zooming into the map (Stefan's own framing). "Near" is temporal
+        // OR spatial (his own refinement): a photo within the detected
+        // stay's time window counts even if GPS drift put it a bit outside
+        // poi.photo_match_meters, and a photo taken right at the spot
+        // counts even if its own timestamp (EXIF clock drift, or no EXIF
+        // time at all) fell outside the window. Fetched once for the whole
+        // trip and matched per stay below, rather than one query per stay.
+        $tripPhotos = $this->photos->findReadyByTripWithTakenAt((int) $trip['id']);
+        $matchRadiusMeters = (float) $this->settings->getInt('poi.photo_match_meters');
+
+        $stays = array_map(function (array $s) use ($tripPhotos, $matchRadiusMeters): array {
+            return [
+                'kind' => 'stay',
+                'lat' => $s['lat'],
+                'lng' => $s['lng'],
+                'name' => $s['locationName'],
+                'startedAt' => $s['startedAt'],
+                'endedAt' => $s['endedAt'],
+                'durationSeconds' => $s['durationSeconds'],
+                'photoIds' => $this->photosNearStay(
+                    $tripPhotos,
+                    $s['startedAt'],
+                    $s['endedAt'],
+                    (float) $s['lat'],
+                    (float) $s['lng'],
+                    $matchRadiusMeters,
+                ),
+            ];
+        }, $this->routeSummary->detectStays((int) $trip['id'], $pois));
 
         // Overpass-discovered sights nobody has confirmed yet
         // (source='overpass' AND visited=0 by construction - see
@@ -239,5 +264,39 @@ final class TripMapController
             'candidates' => array_merge($stays, $sightCandidates),
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);
+    }
+
+    /**
+     * @param list<array{id: int, takenAt: string, lat: ?float, lng: ?float}> $tripPhotos
+     * @return list<int>
+     */
+    private function photosNearStay(
+        array $tripPhotos,
+        string $startedAt,
+        string $endedAt,
+        float $stayLat,
+        float $stayLng,
+        float $matchRadiusMeters,
+    ): array {
+        $matches = array_filter($tripPhotos, function (array $p) use ($startedAt, $endedAt, $stayLat, $stayLng, $matchRadiusMeters): bool {
+            if ($p['takenAt'] >= $startedAt && $p['takenAt'] <= $endedAt) {
+                return true;
+            }
+            if ($p['lat'] === null || $p['lng'] === null) {
+                return false;
+            }
+            return $this->haversineMeters($stayLat, $stayLng, $p['lat'], $p['lng']) <= $matchRadiusMeters;
+        });
+
+        return array_values(array_map(static fn (array $p): int => $p['id'], $matches));
+    }
+
+    private function haversineMeters(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $earthRadius = 6371000.0;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+        return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 }
