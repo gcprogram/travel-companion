@@ -39,6 +39,21 @@ $wizardQs = $wizard ? '?wizard=1' : '';
      data-msg-poi-delete="<?= e(t('trip.map.poi_delete')) ?>"
      data-msg-poi-delete-confirm="<?= e(t('trip.map.poi_delete_confirm')) ?>"></div>
 
+<div class="map-view__toggles">
+  <label class="map-view__toggle">
+    <input type="checkbox" data-map-route-toggle checked>
+    <?= e(t('trip.map.show_route')) ?>
+  </label>
+  <label class="map-view__toggle">
+    <input type="checkbox" data-map-photo-toggle checked>
+    <?= e(t('trip.map.show_photos')) ?>
+  </label>
+  <label class="map-view__toggle">
+    <input type="checkbox" data-map-geocache-toggle checked>
+    <?= e(t('trip.map.show_geocaches')) ?>
+  </label>
+</div>
+
 <?php include __DIR__ . '/_pois_fields.php'; ?>
 
 <?php if ($wizard && $canEdit): ?>

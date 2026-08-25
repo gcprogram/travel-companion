@@ -36,6 +36,21 @@
      data-msg-empty="<?= e(t('trip.map.empty')) ?>"
      data-msg-pause="<?= e(t('trip.map.pause_label')) ?>"></div>
 
+<div class="map-view__toggles">
+  <label class="map-view__toggle">
+    <input type="checkbox" data-map-route-toggle checked>
+    <?= e(t('trip.map.show_route')) ?>
+  </label>
+  <label class="map-view__toggle">
+    <input type="checkbox" data-map-photo-toggle checked>
+    <?= e(t('trip.map.show_photos')) ?>
+  </label>
+  <label class="map-view__toggle">
+    <input type="checkbox" data-map-geocache-toggle checked>
+    <?= e(t('trip.map.show_geocaches')) ?>
+  </label>
+</div>
+
 <div class="map-lightbox" data-map-lightbox hidden>
   <div class="map-lightbox__backdrop" data-map-lightbox-close></div>
   <div class="map-lightbox__panel">
