@@ -5,9 +5,12 @@
 
 <h1><?= e(t('trip.review.heading')) ?></h1>
 
+<p class="page-actions">
+  <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/map">&larr; <?= e(t('trip.review.back_to_map')) ?></a>
+</p>
+
 <?php if ($candidates === []): ?>
   <p class="empty-state"><?= e(t('trip.review.empty')) ?></p>
-  <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/map">&larr; <?= e(t('trip.review.back_to_map')) ?></a>
 <?php else: ?>
   <div id="review-map" class="review-map"
        data-tile-key="<?= e($mapTilerKey ?? '') ?>"
