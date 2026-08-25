@@ -166,6 +166,19 @@ final class PhotoRepository
         ]);
     }
 
+    /**
+     * The button-triggered "generate via vision AI" action - overwrites
+     * whatever caption is there (EXIF-imported or a previous vision-AI run)
+     * without touching ai_address/ai_persons, unlike updateAiMediaFields().
+     */
+    public function updateVisionCaption(int $id, string $caption): void
+    {
+        $stmt = $this->pdo->prepare(
+            "UPDATE photos SET caption = ?, caption_source = 'vision_ai', updated_at = ? WHERE id = ?"
+        );
+        $stmt->execute([$caption, gmdate('Y-m-d H:i:s'), $id]);
+    }
+
     public function updateBytes(int $id, int $bytes): void
     {
         $stmt = $this->pdo->prepare('UPDATE photos SET bytes = ? WHERE id = ?');

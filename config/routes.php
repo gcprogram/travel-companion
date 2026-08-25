@@ -100,11 +100,13 @@ return static function (App $app): void {
         // Photos: uploading/deleting requires edit rights on the parent entry's trip.
         $group->post('/entries/{entryId:[0-9]+}/photos', [PhotoUploadController::class, 'uploadChunk']);
         $group->post('/photos/{id:[0-9]+}/delete', [PhotoController::class, 'delete']);
+        $group->post('/photos/{id:[0-9]+}/caption', [PhotoController::class, 'caption']);
 
         // Videos: same rule, plus a plain-form path for adding a YouTube link.
         $group->post('/entries/{entryId:[0-9]+}/videos', [VideoUploadController::class, 'uploadChunk']);
         $group->post('/entries/{entryId:[0-9]+}/videos/youtube', [VideoUploadController::class, 'addYoutube']);
         $group->post('/videos/{id:[0-9]+}/delete', [VideoController::class, 'delete']);
+        $group->post('/videos/{id:[0-9]+}/caption', [VideoController::class, 'caption']);
     })->add(RequireLogin::class);
 
     // Admin area: RequireAdmin alone gates it (a null/non-admin user 404s,

@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Repository\DayEntryRepository;
 use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
+use App\Service\AiVisionCaptionService;
 use App\Service\DayEntryAccess;
 use App\Service\TripAccess;
 use App\Service\VideoStorage;
@@ -24,6 +25,7 @@ final class VideoController
         private readonly TripAccess $tripAccess,
         private readonly DayEntryAccess $entryAccess,
         private readonly VideoStorage $storage,
+        private readonly AiVisionCaptionService $visionCaption,
         private readonly Flash $flash,
     ) {
     }
@@ -80,6 +82,43 @@ final class VideoController
 
         $this->flash->add('success', t('flash.video_deleted'));
         return $response->withHeader('Location', '/entries/' . $entry['id'] . '/edit')->withStatus(302);
+    }
+
+    /**
+     * See PhotoController::caption() - same button/feature, using the
+     * poster frame (a video has no 'web' still image derivative).
+     */
+    public function caption(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $video = $this->videos->findById((int) $args['id']);
+        if ($video === null || $video['type'] !== 'upload' || $video['status'] !== 'ready') {
+            throw new HttpNotFoundException($request);
+        }
+
+        $this->entryAccess->requireEditableEntry($request, (int) $video['day_entry_id']);
+
+        $path = $this->storage->posterPath($this->storageId($video));
+        if (!is_file($path)) {
+            return $this->json($response, ['ok' => false, 'error' => t('media.caption_error')], 404);
+        }
+
+        $caption = $this->visionCaption->describe((string) file_get_contents($path), 'image/webp');
+        if ($caption === null) {
+            return $this->json($response, ['ok' => false, 'error' => t('media.caption_error')], 502);
+        }
+
+        $this->videos->updateVisionCaption((int) $video['id'], $caption);
+
+        return $this->json($response, ['ok' => true, 'caption' => $caption], 200);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function json(ResponseInterface $response, array $data, int $status): ResponseInterface
+    {
+        $response->getBody()->write((string) json_encode($data, JSON_THROW_ON_ERROR));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
     }
 
     /**

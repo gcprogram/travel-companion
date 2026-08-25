@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Repository\DayEntryRepository;
 use App\Repository\PhotoRepository;
 use App\Repository\TripRepository;
+use App\Service\AiVisionCaptionService;
 use App\Service\DayEntryAccess;
 use App\Service\PhotoStorage;
 use App\Service\TripAccess;
@@ -26,6 +27,7 @@ final class PhotoController
         private readonly TripAccess $tripAccess,
         private readonly DayEntryAccess $entryAccess,
         private readonly PhotoStorage $storage,
+        private readonly AiVisionCaptionService $visionCaption,
         private readonly Flash $flash,
     ) {
     }
@@ -105,5 +107,47 @@ final class PhotoController
 
         $this->flash->add('success', t('flash.photo_deleted'));
         return $response->withHeader('Location', '/entries/' . $entry['id'] . '/edit')->withStatus(302);
+    }
+
+    /**
+     * "Detailed" diary view's per-photo "generate description" button
+     * (day-entry-photo-caption.js) - always overwrites whatever caption is
+     * already there (EXIF-imported or an earlier vision-AI run), same
+     * "the online model is expected to do better" call Stefan made when
+     * asking for this. Sends the small 'web' derivative, never the
+     * (already-deleted, for photos) original.
+     */
+    public function caption(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $photo = $this->photos->findById((int) $args['id']);
+        if ($photo === null || $photo['status'] !== 'ready') {
+            throw new HttpNotFoundException($request);
+        }
+
+        $this->entryAccess->requireEditableEntry($request, (int) $photo['day_entry_id']);
+
+        $storageId = $photo['source_photo_id'] !== null ? (int) $photo['source_photo_id'] : (int) $photo['id'];
+        $path = $this->storage->derivativePath($storageId, 'web');
+        if (!is_file($path)) {
+            return $this->json($response, ['ok' => false, 'error' => t('media.caption_error')], 404);
+        }
+
+        $caption = $this->visionCaption->describe((string) file_get_contents($path), 'image/jpeg');
+        if ($caption === null) {
+            return $this->json($response, ['ok' => false, 'error' => t('media.caption_error')], 502);
+        }
+
+        $this->photos->updateVisionCaption((int) $photo['id'], $caption);
+
+        return $this->json($response, ['ok' => true, 'caption' => $caption], 200);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function json(ResponseInterface $response, array $data, int $status): ResponseInterface
+    {
+        $response->getBody()->write((string) json_encode($data, JSON_THROW_ON_ERROR));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
     }
 }
