@@ -847,6 +847,17 @@ form.auth-form { max-width: 420px; }
   padding: 0.15rem 0.6rem;
 }
 .poi-list__name { font-weight: 600; }
+.poi-list__rename-btn {
+  border: none;
+  background: none;
+  color: var(--color-muted);
+  cursor: pointer;
+  font-size: 0.85em;
+  padding: 0 0.2rem;
+  vertical-align: baseline;
+}
+.poi-list__rename-btn:hover { color: var(--color-ink); }
+.poi-list__rename-input { font: inherit; font-weight: 600; padding: 0.1rem 0.3rem; border: 1px solid var(--color-line); border-radius: calc(var(--radius) - 4px); min-width: 12rem; }
 .poi-list__approach { font-size: 0.8rem; color: var(--color-muted); white-space: nowrap; }
 .poi-list__distance { font-weight: 400; color: var(--color-muted); font-size: 0.85em; }
 .poi-list__dnf-badge { color: var(--color-danger); }

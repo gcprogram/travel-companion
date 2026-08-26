@@ -565,6 +565,32 @@ final class PoiController
         return $this->redirectToPois($request, $response, $trip);
     }
 
+    /**
+     * Renaming a sight/geocache after it's already in trip_pois - the
+     * review carousel only lets you edit a STAY's name before it's created
+     * (addStay()'s form field); nothing existed for correcting an
+     * already-confirmed POI's name (e.g. an untranslated/foreign-script
+     * Overpass result) until Stefan asked for it. JSON-only: only ever
+     * called from poi-rename.js's fetch(), no plain form fallback needed
+     * (same convention as dismissStay()/rate()).
+     */
+    public function rename(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $poi = $this->requireEditablePoi($request, (int) $args['id']);
+
+        $body = (array) $request->getParsedBody();
+        $name = trim((string) ($body['name'] ?? ''));
+        if ($name === '') {
+            return $response->withStatus(422);
+        }
+
+        $name = mb_substr($name, 0, 190);
+        $this->pois->updateName((int) $poi['id'], $name);
+
+        $response->getBody()->write((string) json_encode(['ok' => true, 'name' => $name], JSON_THROW_ON_ERROR));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
     public function delete(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         $poi = $this->requireEditablePoi($request, (int) $args['id']);

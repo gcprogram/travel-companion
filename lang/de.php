@@ -297,6 +297,8 @@ return [
     'trip.map.poi_mark_unvisited' => 'Als nicht besucht markieren',
     'trip.map.poi_delete' => 'Entfernen',
     'trip.map.poi_delete_confirm' => 'Diesen Ort wirklich entfernen?',
+    'trip.map.poi_rename' => 'Umbenennen',
+    'trip.map.poi_rename_error' => 'Umbenennen fehlgeschlagen.',
     'trip.map.poi_visited_badge' => '✓ besucht',
     'trip.map.poi_name_label' => 'Name',
     'trip.map.poi_category_label' => 'Kategorie',

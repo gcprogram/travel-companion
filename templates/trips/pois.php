@@ -89,3 +89,4 @@ $wizardQs = $wizard ? '?wizard=1' : '';
 
 <script src="/assets/js/vendor/leaflet.js"></script>
 <script src="/assets/js/trip-map.js"></script>
+<script src="/assets/js/poi-rename.js"></script>

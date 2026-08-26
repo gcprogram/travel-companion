@@ -297,6 +297,8 @@ return [
     'trip.map.poi_mark_unvisited' => 'Mark not visited',
     'trip.map.poi_delete' => 'Remove',
     'trip.map.poi_delete_confirm' => 'Really remove this spot?',
+    'trip.map.poi_rename' => 'Rename',
+    'trip.map.poi_rename_error' => 'Renaming failed.',
     'trip.map.poi_visited_badge' => '✓ visited',
     'trip.map.poi_name_label' => 'Name',
     'trip.map.poi_category_label' => 'Category',
