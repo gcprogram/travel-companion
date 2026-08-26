@@ -124,6 +124,7 @@
 
 <script src="/assets/js/vendor/leaflet.js"></script>
 <script src="/assets/js/trip-map.js"></script>
+<script src="/assets/js/poi-rename.js"></script>
 <script src="/assets/js/exclusive-accordion.js"></script>
 <script src="/assets/js/photo-geotag.js"></script>
 <script src="/assets/js/video-geotag.js"></script>

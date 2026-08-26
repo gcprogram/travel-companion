@@ -67,7 +67,8 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
 <?php if ($pois === []): ?>
   <p class="empty-state"><?= e(t('trip.map.poi_empty')) ?></p>
 <?php else: ?>
-  <ul class="poi-list">
+  <ul class="poi-list" data-poi-list data-csrf-token="<?= e($csrf->token()) ?>"
+      data-msg-rename-error="<?= e(t('trip.map.poi_rename_error')) ?>">
     <?php foreach ($pois as $poi): ?>
       <li class="poi-list__item<?= $poi['visited'] ? ' poi-list__item--visited' : '' ?>" data-delete-item>
         <?php $approach = $poiApproach[(int) $poi['id']] ?? null; ?>
@@ -87,7 +88,11 @@ $categories = ['museum', 'zoo', 'attraction', 'viewpoint', 'monument', 'sacred_b
           <?php if ($poi['category'] === 'geocache' && !empty($poi['gc_code'])): ?>
             <a href="https://coord.info/<?= e((string) $poi['gc_code']) ?>" target="_blank" rel="noopener"><?= e((string) $poi['gc_code']) ?></a> -
           <?php endif; ?>
-          <?= e($poi['name']) ?>
+          <span class="poi-list__name-text" data-poi-name data-poi-id="<?= (int) $poi['id'] ?>"><?= e($poi['name']) ?></span>
+          <?php if ($canEdit): ?>
+            <button type="button" class="poi-list__rename-btn" data-poi-rename-trigger data-poi-id="<?= (int) $poi['id'] ?>"
+                    title="<?= e(t('trip.map.poi_rename')) ?>" aria-label="<?= e(t('trip.map.poi_rename')) ?>">&#9998;</button>
+          <?php endif; ?>
           <?php if ($poi['category'] === 'geocache' && ($poi['difficulty'] !== null || $poi['terrain'] !== null)): ?>
             <span class="poi-list__distance">(D<?= e(number_format((float) ($poi['difficulty'] ?? 0), 1)) ?>/T<?= e(number_format((float) ($poi['terrain'] ?? 0), 1)) ?>)</span>
           <?php endif; ?>

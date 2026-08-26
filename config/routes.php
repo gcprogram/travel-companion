@@ -82,6 +82,7 @@ return static function (App $app): void {
         $group->post('/trips/{id:[0-9]+}/pois/stay/dismiss', [PoiController::class, 'dismissStay']);
         $group->post('/trips/{id:[0-9]+}/pois', [PoiController::class, 'store']);
         $group->post('/pois/{id:[0-9]+}/visited', [PoiController::class, 'toggleVisited']);
+        $group->post('/pois/{id:[0-9]+}/rename', [PoiController::class, 'rename']);
         $group->post('/pois/{id:[0-9]+}/delete', [PoiController::class, 'delete']);
 
         // Day entries: creating hangs off the trip, editing/deleting off the entry itself.

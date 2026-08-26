@@ -124,6 +124,12 @@ final class PoiRepository
         $stmt->execute([$visited ? 1 : 0, gmdate('Y-m-d H:i:s'), $id]);
     }
 
+    public function updateName(int $id, string $name): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE trip_pois SET name = ?, updated_at = ? WHERE id = ?');
+        $stmt->execute([$name, gmdate('Y-m-d H:i:s'), $id]);
+    }
+
     public function delete(int $id): void
     {
         $this->pdo->prepare('DELETE FROM trip_pois WHERE id = ?')->execute([$id]);
