@@ -102,6 +102,10 @@ final class TripMapController
                     // assigned to (PoiAssignmentService), if any.
                     'address' => $photo['ai_address'] ?? null,
                     'poiName' => $poi !== null ? $poi['name'] : null,
+                    // Lightbox "Fav" stars (migration 0037) - rotate/rate
+                    // only make sense for photos, not videos, hence absent
+                    // from the video pin below.
+                    'rating' => (int) $photo['rating'],
                 ];
             }
             foreach ($this->videos->findByEntry((int) $entry['id']) as $video) {

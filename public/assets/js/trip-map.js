@@ -18,8 +18,17 @@ document.addEventListener('DOMContentLoaded', function () {
   var geocacheToggle = document.querySelector('[data-map-geocache-toggle]');
   var lightbox = document.querySelector('[data-map-lightbox]');
   var lightboxBody = document.querySelector('[data-map-lightbox-body]');
+  var lightboxActions = document.querySelector('[data-map-lightbox-actions]');
   var ZOOM_THUMBNAIL_THRESHOLD = 14;
   var canEdit = container.dataset.canEdit === '1';
+  var csrfToken = container.dataset.csrfToken || '';
+  var msgLightboxDeleteConfirm = container.dataset.msgLightboxDeleteConfirm || '';
+  var msgLightboxActionError = container.dataset.msgLightboxActionError || '';
+  // Keyed "kind:id" (photo ids and video ids share one numeric namespace,
+  // not each other's) -> {marker, group}, so a lightbox delete can remove
+  // the matching live marker instead of requiring a full page reload to
+  // see it disappear from the map. Populated as markers are built below.
+  var lightboxMarkersByKey = {};
 
   // Day-accordion filtering (see day-entry-accordion.js): only relevant on
   // the trip page, a no-op everywhere else since no 'day-entry-toggle'
@@ -225,6 +234,35 @@ document.addEventListener('DOMContentLoaded', function () {
     lightboxCaption.innerHTML = lines.join('');
   }
 
+  // Rotate/rate only apply to photos (rotate needs Imagick pixels to work
+  // on; a video has none of its own here, and xmp:Rating-style "Fav" stars
+  // were only asked for photos) - hidden for a video pin, delete stays
+  // available for both since PhotoController/VideoController both support
+  // the same inline-delete convention.
+  var lightboxStarButtons = lightboxActions
+    ? Array.prototype.slice.call(lightboxActions.querySelectorAll('[data-map-lightbox-star]'))
+    : [];
+  var lightboxRotateButtons = lightboxActions
+    ? Array.prototype.slice.call(lightboxActions.querySelectorAll('[data-map-lightbox-rotate]'))
+    : [];
+
+  function renderLightboxActions(pin) {
+    if (!lightboxActions) {
+      return;
+    }
+    var isPhoto = pin.kind === 'photo';
+    lightboxRotateButtons.forEach(function (btn) { btn.hidden = !isPhoto; });
+    var ratingEl = lightboxActions.querySelector('[data-map-lightbox-rating]');
+    if (ratingEl) {
+      ratingEl.hidden = !isPhoto;
+    }
+    var rating = isPhoto ? (pin.rating || 0) : 0;
+    lightboxStarButtons.forEach(function (btn) {
+      var value = parseInt(btn.dataset.mapLightboxStar, 10);
+      btn.classList.toggle('is-filled', value <= rating);
+    });
+  }
+
   function renderLightboxMedia(pin) {
     if (pin.kind === 'video') {
       lightboxBody.innerHTML = '<video controls autoplay class="map-lightbox__media" src="' + pin.fullUrl + '"></video>';
@@ -255,6 +293,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var pin = lightboxPins[lightboxIndex];
     renderLightboxMedia(pin);
     renderLightboxCaption(pin);
+    renderLightboxActions(pin);
     if (lightboxPrevBtn) {
       lightboxPrevBtn.disabled = lightboxIndex === 0;
     }
@@ -298,9 +337,153 @@ document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('[data-map-lightbox-close]').forEach(function (el) {
     el.addEventListener('click', closeLightbox);
   });
+
+  // Every visible copy of a photo (gallery thumbnail, map marker, the
+  // lightbox's own <img>) is just an <img src="/photos/ID/..."> pointing at
+  // the same stable URL - rotate/caption-regenerate change the bytes behind
+  // that URL without changing it, so a plain cache-bust sweep refreshes
+  // every surface at once without each one needing its own update path.
+  function cacheBustPhoto(photoId) {
+    document.querySelectorAll(
+      'img[src*="/photos/' + photoId + '/thumb"], img[src*="/photos/' + photoId + '/web"]'
+    ).forEach(function (img) {
+      img.src = img.src.split('?')[0] + '?t=' + Date.now();
+    });
+  }
+
+  function currentLightboxPhotoBody() {
+    var body = new URLSearchParams();
+    body.set('_csrf', csrfToken);
+    return body;
+  }
+
+  if (lightboxActions) {
+    lightboxRotateButtons.forEach(function (btn) {
+      btn.addEventListener('click', function () { rotateCurrentLightboxPhoto(btn.dataset.mapLightboxRotate); });
+    });
+    lightboxStarButtons.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        rateCurrentLightboxPhoto(parseInt(btn.dataset.mapLightboxStar, 10));
+      });
+    });
+    var deleteBtn = lightboxActions.querySelector('[data-map-lightbox-delete]');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', deleteCurrentLightboxPhoto);
+    }
+  }
+
+  function rotateCurrentLightboxPhoto(direction) {
+    if (lightboxIndex < 0 || (direction !== 'l' && direction !== 'r')) {
+      return;
+    }
+    var pin = lightboxPins[lightboxIndex];
+    if (!pin || pin.kind !== 'photo') {
+      return;
+    }
+    var body = currentLightboxPhotoBody();
+    body.set('direction', direction);
+    fetch('/photos/' + pin.id + '/rotate', { method: 'POST', credentials: 'same-origin', body: body })
+      .then(function (r) { return r.json().catch(function () { return { ok: false }; }); })
+      .then(function (data) {
+        if (!data.ok) {
+          throw new Error('rotate failed');
+        }
+        // Updates the still-open lightbox <img> (its src already contains
+        // "/photos/ID/web", matched by the same substring selector) plus
+        // every other visible copy of this photo on the page - no need to
+        // rebuild the lightbox body itself.
+        cacheBustPhoto(pin.id);
+      })
+      .catch(function () { window.alert(msgLightboxActionError); });
+  }
+
+  function rateCurrentLightboxPhoto(rating) {
+    if (lightboxIndex < 0) {
+      return;
+    }
+    var pin = lightboxPins[lightboxIndex];
+    if (!pin || pin.kind !== 'photo') {
+      return;
+    }
+    // Clicking the already-top-rated star again clears the rating, same as
+    // most star-rating widgets - lets you unfavorite without a separate control.
+    var newRating = pin.rating === rating ? 0 : rating;
+    var body = currentLightboxPhotoBody();
+    body.set('rating', String(newRating));
+    fetch('/photos/' + pin.id + '/rate', { method: 'POST', credentials: 'same-origin', body: body })
+      .then(function (r) { return r.json().catch(function () { return { ok: false }; }); })
+      .then(function (data) {
+        if (!data.ok) {
+          throw new Error('rate failed');
+        }
+        pin.rating = newRating;
+        renderLightboxActions(pin);
+      })
+      .catch(function () { window.alert(msgLightboxActionError); });
+  }
+
+  function deleteCurrentLightboxPhoto() {
+    if (lightboxIndex < 0) {
+      return;
+    }
+    var pin = lightboxPins[lightboxIndex];
+    if (!pin || !window.confirm(msgLightboxDeleteConfirm)) {
+      return;
+    }
+    var url = pin.kind === 'video' ? '/videos/' + pin.id + '/delete' : '/photos/' + pin.id + '/delete';
+    fetch(url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'X-Inline-Delete': '1' },
+      body: currentLightboxPhotoBody(),
+    })
+      .then(function (r) {
+        if (!r.ok) {
+          throw new Error('HTTP ' + r.status);
+        }
+        var key = pin.kind + ':' + pin.id;
+        var entry = lightboxMarkersByKey[key];
+        if (entry) {
+          entry.group.removeLayer(entry.marker);
+          delete lightboxMarkersByKey[key];
+        }
+        // lightboxPins IS the same array the caller (this file's own pins,
+        // or day-entry-detail-view.js's parsed set) is working with -
+        // splicing in place rather than filtering into a new array lets
+        // that caller's own copy of the list shrink too, not just this
+        // module's view of it.
+        var removedIndex = lightboxIndex;
+        lightboxPins.splice(removedIndex, 1);
+        window.dispatchEvent(new CustomEvent('trip-photo-deleted', { detail: { kind: pin.kind, id: pin.id } }));
+        if (lightboxPins.length === 0) {
+          closeLightbox();
+        } else {
+          openLightboxAt(lightboxPins, Math.min(removedIndex, lightboxPins.length - 1));
+        }
+      })
+      .catch(function () { window.alert(msgLightboxActionError); });
+  }
+
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
       closeLightbox();
+      return;
+    }
+    if (!lightbox || lightbox.hidden || !lightboxActions) {
+      return;
+    }
+    // Don't hijack these common letters while the user is typing anywhere
+    // else on the page (e.g. a trip description field).
+    var active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
+      return;
+    }
+    if (e.key === 'd') {
+      deleteCurrentLightboxPhoto();
+    } else if (e.key === 'l') {
+      rotateCurrentLightboxPhoto('l');
+    } else if (e.key === 'r') {
+      rotateCurrentLightboxPhoto('r');
     }
   });
 
@@ -382,6 +565,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var marker = L.marker([pin.lat, pin.lng], { icon: dotIcon(pin) });
         marker.on('click', function () { openLightboxAt(pins, pinIndex); });
         marker.addTo(photoGroup);
+        lightboxMarkersByKey[pin.kind + ':' + pin.id] = { marker: marker, group: photoGroup };
         markers.push({ marker: marker, pin: pin, dot: dotIcon(pin), thumb: thumbIcon(pin) });
         pinLatlngs.push([pin.lat, pin.lng]);
       });

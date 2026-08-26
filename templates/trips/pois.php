@@ -37,7 +37,9 @@ $wizardQs = $wizard ? '?wizard=1' : '';
      data-msg-empty="<?= e(t('trip.map.empty')) ?>"
      data-msg-pause="<?= e(t('trip.map.pause_label')) ?>"
      data-msg-poi-delete="<?= e(t('trip.map.poi_delete')) ?>"
-     data-msg-poi-delete-confirm="<?= e(t('trip.map.poi_delete_confirm')) ?>"></div>
+     data-msg-poi-delete-confirm="<?= e(t('trip.map.poi_delete_confirm')) ?>"
+     data-msg-lightbox-delete-confirm="<?= e(t('trip.map.lightbox_delete_confirm')) ?>"
+     data-msg-lightbox-action-error="<?= e(t('trip.map.lightbox_action_error')) ?>"></div>
 
 <div class="map-view__toggles">
   <label class="map-view__toggle">
@@ -69,6 +71,18 @@ $wizardQs = $wizard ? '?wizard=1' : '';
     <button type="button" class="map-lightbox__nav map-lightbox__nav--prev" data-map-lightbox-prev aria-label="<?= e(t('trip.map.lightbox_prev')) ?>">&#9664;</button>
     <button type="button" class="map-lightbox__nav map-lightbox__nav--next" data-map-lightbox-next aria-label="<?= e(t('trip.map.lightbox_next')) ?>">&#9654;</button>
     <div class="map-lightbox__body" data-map-lightbox-body></div>
+    <?php if ($canEdit): ?>
+      <div class="map-lightbox__actions" data-map-lightbox-actions>
+        <button type="button" class="btn btn-ghost btn-small" data-map-lightbox-rotate="l" title="<?= e(t('trip.map.lightbox_rotate_left')) ?>" aria-label="<?= e(t('trip.map.lightbox_rotate_left')) ?>">&#8634;</button>
+        <button type="button" class="btn btn-ghost btn-small" data-map-lightbox-rotate="r" title="<?= e(t('trip.map.lightbox_rotate_right')) ?>" aria-label="<?= e(t('trip.map.lightbox_rotate_right')) ?>">&#8635;</button>
+        <span class="map-lightbox__rating" data-map-lightbox-rating>
+          <?php for ($i = 1; $i <= 5; $i++): ?>
+            <button type="button" data-map-lightbox-star="<?= $i ?>" aria-label="<?= e(t('trip.map.lightbox_star', ['count' => $i])) ?>">&#9733;</button>
+          <?php endfor; ?>
+        </span>
+        <button type="button" class="btn btn-ghost btn-small map-lightbox__delete" data-map-lightbox-delete title="<?= e(t('trip.map.lightbox_delete')) ?>" aria-label="<?= e(t('trip.map.lightbox_delete')) ?>">&#128465;</button>
+      </div>
+    <?php endif; ?>
     <div class="map-lightbox__caption" data-map-lightbox-caption></div>
   </div>
 </div>

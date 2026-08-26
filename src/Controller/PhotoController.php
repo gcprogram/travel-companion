@@ -55,15 +55,8 @@ final class PhotoController
         // bytes live under the photo it duplicates.
         $storageId = $photo['source_photo_id'] !== null ? (int) $photo['source_photo_id'] : (int) $photo['id'];
 
-        $path = $this->storage->derivativePath($storageId, $variant);
-        $contentType = $variant === 'web' ? 'image/jpeg' : 'image/webp';
-        if (!is_file($path)) {
-            // Backward compat: photos processed before the 'web' variant
-            // switched from WebP to JPEG (see PhotoStorage::derivativePath).
-            $path = $this->storage->legacyDerivativePath($storageId, $variant);
-            $contentType = 'image/webp';
-        }
-        if (!is_file($path)) {
+        [$path, $contentType] = $this->resolveDerivative($storageId, $variant);
+        if ($path === null) {
             throw new HttpNotFoundException($request);
         }
 
@@ -140,6 +133,108 @@ final class PhotoController
         $this->photos->updateVisionCaption((int) $photo['id'], $caption);
 
         return $this->json($response, ['ok' => true, 'caption' => $caption], 200);
+    }
+
+    /**
+     * Lightbox rotate ("l"/"r" keyboard shortcuts, day-entry-detail-view.js).
+     * Rotates the stored derivatives' actual pixels rather than an EXIF
+     * orientation flag: PhotoProcessHandler already auto-orients and strips
+     * the original at upload time and deletes it right after, so there is
+     * no persisted file left whose orientation tag any viewer still reads -
+     * a flag-only rotation would be visually invisible everywhere. Acts on
+     * the storage id (like delete) since a reference (migration 0019)
+     * shares the same physical files - rotating one rotates the image for
+     * every trip/entry referencing it, which is correct, it's the same photo.
+     */
+    public function rotate(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $photo = $this->photos->findById((int) $args['id']);
+        if ($photo === null || $photo['status'] !== 'ready') {
+            throw new HttpNotFoundException($request);
+        }
+
+        $this->entryAccess->requireEditableEntry($request, (int) $photo['day_entry_id']);
+
+        $body = (array) $request->getParsedBody();
+        $direction = $body['direction'] ?? null;
+        if ($direction !== 'l' && $direction !== 'r') {
+            return $this->json($response, ['ok' => false], 400);
+        }
+        $degrees = $direction === 'r' ? 90 : -90;
+
+        $storageId = $photo['source_photo_id'] !== null ? (int) $photo['source_photo_id'] : (int) $photo['id'];
+        $canonical = $photo['source_photo_id'] !== null ? $this->photos->findById($storageId) : $photo;
+        if ($canonical === null) {
+            throw new HttpNotFoundException($request);
+        }
+
+        [$thumbPath] = $this->resolveDerivative($storageId, 'thumb');
+        [$webPath] = $this->resolveDerivative($storageId, 'web');
+        if ($thumbPath === null || $webPath === null
+            || !$this->rotateFile($thumbPath, $degrees) || !$this->rotateFile($webPath, $degrees)
+        ) {
+            return $this->json($response, ['ok' => false, 'error' => t('media.rotate_error')], 500);
+        }
+
+        if ($canonical['width'] !== null && $canonical['height'] !== null) {
+            $this->photos->updateDimensions($storageId, (int) $canonical['height'], (int) $canonical['width']);
+        }
+
+        return $this->json($response, ['ok' => true], 200);
+    }
+
+    /**
+     * Lightbox "Fav" stars (0-5, xmp:Rating convention) - per photo row,
+     * not per storage id, see migration 0037.
+     */
+    public function rate(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $photo = $this->photos->findById((int) $args['id']);
+        if ($photo === null) {
+            throw new HttpNotFoundException($request);
+        }
+
+        $this->entryAccess->requireEditableEntry($request, (int) $photo['day_entry_id']);
+
+        $body = (array) $request->getParsedBody();
+        $rating = filter_var($body['rating'] ?? null, FILTER_VALIDATE_INT);
+        if ($rating === false || $rating < 0 || $rating > 5) {
+            return $this->json($response, ['ok' => false], 400);
+        }
+
+        $this->photos->updateRating((int) $photo['id'], $rating);
+
+        return $this->json($response, ['ok' => true, 'rating' => $rating], 200);
+    }
+
+    /**
+     * @return array{0: ?string, 1: string} [path, contentType] - path is
+     *         null when neither the current nor legacy derivative exists.
+     */
+    private function resolveDerivative(int $storageId, string $variant): array
+    {
+        $path = $this->storage->derivativePath($storageId, $variant);
+        $contentType = $variant === 'web' ? 'image/jpeg' : 'image/webp';
+        if (!is_file($path)) {
+            // Backward compat: photos processed before the 'web' variant
+            // switched from WebP to JPEG (see PhotoStorage::derivativePath).
+            $path = $this->storage->legacyDerivativePath($storageId, $variant);
+            $contentType = 'image/webp';
+        }
+        return is_file($path) ? [$path, $contentType] : [null, $contentType];
+    }
+
+    private function rotateFile(string $path, int $degrees): bool
+    {
+        try {
+            $image = new \Imagick($path);
+            $image->rotateImage('#000000', $degrees);
+            $image->writeImage($path);
+            $image->destroy();
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /**

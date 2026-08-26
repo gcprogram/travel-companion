@@ -100,6 +100,7 @@ foreach ($entryPhotos as $photo) {
         'takenAt' => $photo['taken_at'] ?? $photo['created_at'],
         'address' => $photo['ai_address'] ?? null,
         'poiName' => isset($poiByPhoto[(int) $photo['id']]) ? $poiByPhoto[(int) $photo['id']]['name'] : null,
+        'rating' => (int) $photo['rating'],
     ];
 }
 ?>

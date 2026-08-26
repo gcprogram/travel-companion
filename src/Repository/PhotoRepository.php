@@ -193,6 +193,25 @@ final class PhotoRepository
     }
 
     /**
+     * Lightbox "Fav" stars (0-5). Per-row, not per underlying storage file -
+     * see migration 0037.
+     */
+    public function updateRating(int $id, int $rating): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE photos SET rating = ?, updated_at = ? WHERE id = ?');
+        $stmt->execute([$rating, gmdate('Y-m-d H:i:s'), $id]);
+    }
+
+    /**
+     * A 90/270-degree lightbox rotation swaps the stored dimensions.
+     */
+    public function updateDimensions(int $id, int $width, int $height): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE photos SET width = ?, height = ?, updated_at = ? WHERE id = ?');
+        $stmt->execute([$width, $height, gmdate('Y-m-d H:i:s'), $id]);
+    }
+
+    /**
      * @return list<int> ids of photos with no recorded byte size yet
      */
     public function findIdsWithoutBytes(): array

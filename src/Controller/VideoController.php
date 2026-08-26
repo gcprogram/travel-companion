@@ -80,6 +80,12 @@ final class VideoController
             $this->storage->deleteAll($storageId);
         }
 
+        // Lightbox delete button (trip-map.js) - same X-Inline-Delete
+        // convention as PhotoController::delete().
+        if ($request->getHeaderLine('X-Inline-Delete') === '1') {
+            return $response->withStatus(204);
+        }
+
         $this->flash->add('success', t('flash.video_deleted'));
         return $response->withHeader('Location', '/entries/' . $entry['id'] . '/edit')->withStatus(302);
     }

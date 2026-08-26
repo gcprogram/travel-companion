@@ -116,6 +116,39 @@ document.addEventListener('DOMContentLoaded', function () {
     window.openTripPhotoLightbox(photos, index);
   });
 
+  // The lightbox's own delete button/"d" shortcut (trip-map.js) removes the
+  // photo server-side and fires this event - trip-map.js can splice its own
+  // in-memory pins array, but has no idea this diary panel's gallery even
+  // exists, let alone which <li>/JSON entry to drop. Every currently-open
+  // day's gallery is checked since more than one panel can be expanded
+  // (multiple <ul data-lightbox-photos> in the list) and any of them might
+  // hold the deleted photo, or none - a no-op miss is fine.
+  window.addEventListener('trip-photo-deleted', function (event) {
+    if (event.detail.kind !== 'photo') {
+      return;
+    }
+    var photoId = event.detail.id;
+    list.querySelectorAll('[data-lightbox-photos]').forEach(function (gallery) {
+      var photos;
+      try {
+        photos = JSON.parse(gallery.dataset.lightboxPhotos || '[]');
+      } catch (e) {
+        return;
+      }
+      if (!photos.some(function (p) { return p.id === photoId; })) {
+        return;
+      }
+      gallery.dataset.lightboxPhotos = JSON.stringify(
+        photos.filter(function (p) { return p.id !== photoId; })
+      );
+      var link = gallery.querySelector('[data-lightbox-photo="' + photoId + '"]');
+      var item = link ? link.closest('.photo-gallery__item') : null;
+      if (item) {
+        item.remove();
+      }
+    });
+  });
+
   // Sight/geocache cards' small "area" map (Stefan's ask) - deliberately a
   // real, live Leaflet instance per card rather than a pre-rendered static
   // image: MapTiler's free tier has no static-image endpoint (Stefan's own
