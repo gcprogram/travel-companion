@@ -645,6 +645,7 @@ form.auth-form { max-width: 420px; }
   padding: 0;
 }
 .review-photos__item { flex: 0 0 auto; }
+.review-photos__item button { border: none; background: none; padding: 0; cursor: pointer; display: block; }
 .review-photos__item img {
   width: 56px;
   height: 56px;
