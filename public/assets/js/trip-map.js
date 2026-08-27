@@ -609,13 +609,32 @@ document.addEventListener('DOMContentLoaded', function () {
       closeLightbox();
       return;
     }
-    if (!lightbox || lightbox.hidden || !lightboxActions) {
+    if (!lightbox || lightbox.hidden) {
       return;
     }
-    // Don't hijack these common letters while the user is typing anywhere
-    // else on the page (e.g. a trip description field).
+    // Don't hijack these keys while the user is typing anywhere else on the
+    // page (e.g. a trip description field, or the slideshow's own seconds
+    // input) - INPUT/TEXTAREA/contentEditable all still want their normal
+    // left/right-arrow cursor movement.
     var active = document.activeElement;
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
+      return;
+    }
+    // Arrow-key navigation works for every viewer (prev/next themselves
+    // always have, canEdit or not) - stopping a running slideshow the
+    // moment someone steps manually (Stefan's ask) needs no canEdit check
+    // either, so this branch sits above the lightboxActions gate below.
+    if (e.key === 'ArrowLeft') {
+      stopSlideshow();
+      stepLightbox(-1);
+      return;
+    }
+    if (e.key === 'ArrowRight') {
+      stopSlideshow();
+      stepLightbox(1);
+      return;
+    }
+    if (!lightboxActions) {
       return;
     }
     if (e.key === 'd') {
