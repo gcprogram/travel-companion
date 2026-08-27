@@ -151,6 +151,18 @@ final class TripRepository
     }
 
     /**
+     * TripSuggestDescriptionHandler's write path - see migration 0038, same
+     * "suggest, never auto-write" convention as updateAiSuggestions() above.
+     */
+    public function updateAiDescriptionSuggestion(int $id, ?string $description): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE trips SET ai_description_suggestion = ?, updated_at = ? WHERE id = ?'
+        );
+        $stmt->execute([$description, gmdate('Y-m-d H:i:s'), $id]);
+    }
+
+    /**
      * TripMetadataAutoFillHandler's write path: fills country/date_start/
      * date_end from track/photo data. Plain UPDATE, no COALESCE - unlike
      * country (a single value, fine to set once and leave alone), the

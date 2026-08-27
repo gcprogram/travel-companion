@@ -16,6 +16,7 @@ use App\Job\PoiDiscoveryHandler;
 use App\Job\StorageBackfillHandler;
 use App\Job\TrackGapFillHandler;
 use App\Job\TripMetadataAutoFillHandler;
+use App\Job\TripSuggestDescriptionHandler;
 use App\Job\TripSuggestMetaHandler;
 use App\Job\UserDeleteHandler;
 use App\Job\VideoProcessHandler;
@@ -81,6 +82,7 @@ return [
         $worker->register('trip.metadata_refresh', $c->get(TripMetadataAutoFillHandler::class));
         $worker->register('day_entry.summarize', $c->get(DayEntrySummarizeHandler::class));
         $worker->register('trip.suggest_meta', $c->get(TripSuggestMetaHandler::class));
+        $worker->register('trip.suggest_description', $c->get(TripSuggestDescriptionHandler::class));
 
         return $worker;
     },
