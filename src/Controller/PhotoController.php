@@ -184,6 +184,58 @@ final class PhotoController
     }
 
     /**
+     * Lightbox crop: x/y/width/height as fractions (0-1) of the currently
+     * displayed image, computed client-side from where the user dragged a
+     * selection box over the (object-fit: contain, so possibly letterboxed)
+     * <img> - fractions apply identically to both derivatives despite their
+     * different absolute pixel sizes, since thumb/web are always resized
+     * from the same source preserving aspect ratio. Same storage-id
+     * semantics as rotate(): acts on the canonical file, so every
+     * reference (migration 0019) sees the crop too.
+     */
+    public function crop(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $photo = $this->photos->findById((int) $args['id']);
+        if ($photo === null || $photo['status'] !== 'ready') {
+            throw new HttpNotFoundException($request);
+        }
+
+        $this->entryAccess->requireEditableEntry($request, (int) $photo['day_entry_id']);
+
+        $body = (array) $request->getParsedBody();
+        $x = $body['x'] ?? null;
+        $y = $body['y'] ?? null;
+        $width = $body['width'] ?? null;
+        $height = $body['height'] ?? null;
+        if (!is_numeric($x) || !is_numeric($y) || !is_numeric($width) || !is_numeric($height)) {
+            return $this->json($response, ['ok' => false], 400);
+        }
+        $x = (float) $x;
+        $y = (float) $y;
+        $width = (float) $width;
+        $height = (float) $height;
+        // A sliver crop is almost certainly an accidental click-drag, not a
+        // deliberate edit - and would round to a 0px Imagick crop anyway.
+        if ($x < 0.0 || $y < 0.0 || $width < 0.03 || $height < 0.03 || $x + $width > 1.0001 || $y + $height > 1.0001) {
+            return $this->json($response, ['ok' => false], 422);
+        }
+
+        $storageId = $photo['source_photo_id'] !== null ? (int) $photo['source_photo_id'] : (int) $photo['id'];
+
+        [$thumbPath] = $this->resolveDerivative($storageId, 'thumb');
+        [$webPath] = $this->resolveDerivative($storageId, 'web');
+        $thumbDims = $thumbPath !== null ? $this->cropFile($thumbPath, $x, $y, $width, $height) : null;
+        $webDims = $webPath !== null ? $this->cropFile($webPath, $x, $y, $width, $height) : null;
+        if ($thumbDims === null || $webDims === null) {
+            return $this->json($response, ['ok' => false, 'error' => t('media.crop_error')], 500);
+        }
+
+        $this->photos->updateDimensions($storageId, $webDims['width'], $webDims['height']);
+
+        return $this->json($response, ['ok' => true], 200);
+    }
+
+    /**
      * Lightbox "Fav" stars (0-5, xmp:Rating convention) - per photo row,
      * not per storage id, see migration 0037.
      */
@@ -234,6 +286,44 @@ final class PhotoController
             return true;
         } catch (\Throwable) {
             return false;
+        }
+    }
+
+    /**
+     * @return array{width: int, height: int}|null the file's new pixel
+     *         dimensions after cropping, or null on failure
+     */
+    private function cropFile(string $path, float $xFrac, float $yFrac, float $wFrac, float $hFrac): ?array
+    {
+        try {
+            $image = new \Imagick($path);
+            $sourceWidth = $image->getImageWidth();
+            $sourceHeight = $image->getImageHeight();
+
+            $cropX = (int) round($xFrac * $sourceWidth);
+            $cropY = (int) round($yFrac * $sourceHeight);
+            // Rounding each edge independently can push the box 1px past
+            // the source (e.g. x=0.998 rounds up) - clamp rather than let
+            // Imagick reject/misbehave on an out-of-bounds crop.
+            $cropWidth = min((int) round($wFrac * $sourceWidth), $sourceWidth - $cropX);
+            $cropHeight = min((int) round($hFrac * $sourceHeight), $sourceHeight - $cropY);
+            if ($cropWidth < 1 || $cropHeight < 1) {
+                return null;
+            }
+
+            $image->cropImage($cropWidth, $cropHeight, $cropX, $cropY);
+            // Without this, the cropped image keeps its old canvas/page
+            // offset metadata - harmless for display but confusing for any
+            // tool that reads it (and for a second crop's own math, which
+            // assumes (0,0) is the current image's top-left).
+            $image->setImagePage(0, 0, 0, 0);
+            $image->writeImage($path);
+
+            $dims = ['width' => $image->getImageWidth(), 'height' => $image->getImageHeight()];
+            $image->destroy();
+            return $dims;
+        } catch (\Throwable) {
+            return null;
         }
     }
 

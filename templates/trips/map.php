@@ -75,6 +75,16 @@ $wizardQs = $wizard ? '?wizard=1' : '';
       <div class="map-lightbox__actions" data-map-lightbox-actions>
         <button type="button" class="btn btn-ghost btn-small" data-map-lightbox-rotate="l" title="<?= e(t('trip.map.lightbox_rotate_left')) ?>" aria-label="<?= e(t('trip.map.lightbox_rotate_left')) ?>">&#8634;</button>
         <button type="button" class="btn btn-ghost btn-small" data-map-lightbox-rotate="r" title="<?= e(t('trip.map.lightbox_rotate_right')) ?>" aria-label="<?= e(t('trip.map.lightbox_rotate_right')) ?>">&#8635;</button>
+        <button type="button" class="btn btn-ghost btn-small" data-map-lightbox-crop title="<?= e(t('trip.map.lightbox_crop')) ?>" aria-label="<?= e(t('trip.map.lightbox_crop')) ?>">&#9986;</button>
+        <button type="button" class="btn btn-ghost btn-small" data-map-lightbox-crop-apply hidden title="<?= e(t('trip.map.lightbox_crop_apply')) ?>" aria-label="<?= e(t('trip.map.lightbox_crop_apply')) ?>">&#10003;</button>
+        <button type="button" class="btn btn-ghost btn-small" data-map-lightbox-crop-cancel hidden title="<?= e(t('trip.map.lightbox_crop_cancel')) ?>" aria-label="<?= e(t('trip.map.lightbox_crop_cancel')) ?>">&#10005;</button>
+        <span class="map-lightbox__play-group">
+          <button type="button" class="btn btn-ghost btn-small" data-map-lightbox-play
+                  title="<?= e(t('trip.map.lightbox_play')) ?>" aria-label="<?= e(t('trip.map.lightbox_play')) ?>"
+                  data-pause-label="<?= e(t('trip.map.lightbox_pause')) ?>">&#9654;</button>
+          <input type="number" min="1" max="60" step="1" value="3" class="map-lightbox__play-seconds"
+                 data-map-lightbox-play-seconds aria-label="<?= e(t('trip.map.lightbox_play_seconds_label')) ?>">
+        </span>
         <span class="map-lightbox__rating" data-map-lightbox-rating>
           <?php for ($i = 1; $i <= 5; $i++): ?>
             <button type="button" data-map-lightbox-star="<?= $i ?>" aria-label="<?= e(t('trip.map.lightbox_star', ['count' => $i])) ?>">&#9733;</button>

@@ -105,6 +105,7 @@ return static function (App $app): void {
         $group->post('/photos/{id:[0-9]+}/delete', [PhotoController::class, 'delete']);
         $group->post('/photos/{id:[0-9]+}/caption', [PhotoController::class, 'caption']);
         $group->post('/photos/{id:[0-9]+}/rotate', [PhotoController::class, 'rotate']);
+        $group->post('/photos/{id:[0-9]+}/crop', [PhotoController::class, 'crop']);
         $group->post('/photos/{id:[0-9]+}/rate', [PhotoController::class, 'rate']);
 
         // Videos: same rule, plus a plain-form path for adding a YouTube link.
