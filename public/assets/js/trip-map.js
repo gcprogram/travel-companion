@@ -96,13 +96,18 @@ document.addEventListener('DOMContentLoaded', function () {
   var lightboxRotateButtons = lightboxActions
     ? Array.prototype.slice.call(lightboxActions.querySelectorAll('[data-map-lightbox-rotate]'))
     : [];
+  var lightboxCropBtn = lightboxActions ? lightboxActions.querySelector('[data-map-lightbox-crop]') : null;
 
   function renderLightboxActions(pin) {
+    exitCropMode();
     if (!lightboxActions) {
       return;
     }
     var isPhoto = pin.kind === 'photo';
     lightboxRotateButtons.forEach(function (btn) { btn.hidden = !isPhoto; });
+    if (lightboxCropBtn) {
+      lightboxCropBtn.hidden = !isPhoto;
+    }
     var ratingEl = lightboxActions.querySelector('[data-map-lightbox-rating]');
     if (ratingEl) {
       ratingEl.hidden = !isPhoto;
@@ -180,6 +185,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!lightbox || !lightboxBody) {
       return;
     }
+    stopSlideshow();
+    exitCropMode();
     lightbox.hidden = true;
     lightboxBody.innerHTML = '';
     lightboxIndex = -1;
@@ -200,6 +207,24 @@ document.addEventListener('DOMContentLoaded', function () {
     ).forEach(function (img) {
       img.src = img.src.split('?')[0] + '?t=' + Date.now();
     });
+  }
+
+  // cacheBustPhoto() alone only fixes whatever's in the DOM *right now* -
+  // stepping away and back (prev/next, or the slideshow) re-renders the
+  // lightbox <img> from pin.fullUrl again, and without this the browser's
+  // own HTTP cache (PhotoController::show() sends max-age=86400) would
+  // happily serve the pre-edit bytes right back, making the edit look like
+  // it silently reverted (Stefan hit this: rotate, step away and back,
+  // rotate again from what looked like the original -> actually a second
+  // rotation on top of the first, ending up upside down). Stamping the
+  // pin object's own URLs means every future render of THIS pin, from
+  // anywhere, is forced to re-fetch.
+  function bustPinUrls(pin) {
+    var bust = '?t=' + Date.now();
+    pin.fullUrl = pin.fullUrl.split('?')[0] + bust;
+    if (pin.thumbUrl) {
+      pin.thumbUrl = pin.thumbUrl.split('?')[0] + bust;
+    }
   }
 
   function currentLightboxPhotoBody() {
@@ -231,6 +256,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!pin || pin.kind !== 'photo') {
       return;
     }
+    exitCropMode(); // a crop selection drawn before rotating no longer matches anything afterwards
     var body = currentLightboxPhotoBody();
     body.set('direction', direction);
     fetch('/photos/' + pin.id + '/rotate', { method: 'POST', credentials: 'same-origin', body: body })
@@ -244,6 +270,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // every other visible copy of this photo on the page - no need to
         // rebuild the lightbox body itself.
         cacheBustPhoto(pin.id);
+        bustPinUrls(pin);
       })
       .catch(function () { window.alert(msgLightboxActionError); });
   }
@@ -313,6 +340,268 @@ document.addEventListener('DOMContentLoaded', function () {
         }
       })
       .catch(function () { window.alert(msgLightboxActionError); });
+  }
+
+  // --- Crop (Stefan's ask): drag a rectangle over the currently displayed
+  // photo, then apply/cancel. The <img> is sized via max-width/max-height
+  // with object-fit: contain, so for a photo whose aspect ratio doesn't
+  // match the available box there's letterboxing INSIDE the element's own
+  // box - getRenderedImageRect() finds the actual visible picture area so
+  // dragging near an edge doesn't select empty padding. Sends fractions
+  // (0-1) of that area rather than pixels, since the server only knows the
+  // stored derivatives' own pixel sizes, not this rendered box's.
+  var lightboxCropApplyBtn = lightboxActions ? lightboxActions.querySelector('[data-map-lightbox-crop-apply]') : null;
+  var lightboxCropCancelBtn = lightboxActions ? lightboxActions.querySelector('[data-map-lightbox-crop-cancel]') : null;
+  var cropActive = false;
+  var cropRectFrac = null;
+  var cropDragStart = null;
+  var cropBoxEl = null;
+
+  function getRenderedImageRect(img) {
+    var box = img.getBoundingClientRect();
+    if (!img.naturalWidth || !img.naturalHeight) {
+      return box;
+    }
+    var boxRatio = box.width / box.height;
+    var imgRatio = img.naturalWidth / img.naturalHeight;
+    var renderWidth, renderHeight, offsetX, offsetY;
+    if (imgRatio > boxRatio) {
+      renderWidth = box.width;
+      renderHeight = box.width / imgRatio;
+      offsetX = 0;
+      offsetY = (box.height - renderHeight) / 2;
+    } else {
+      renderHeight = box.height;
+      renderWidth = box.height * imgRatio;
+      offsetY = 0;
+      offsetX = (box.width - renderWidth) / 2;
+    }
+    return { left: box.left + offsetX, top: box.top + offsetY, width: renderWidth, height: renderHeight };
+  }
+
+  function ensureCropBoxEl() {
+    if (!cropBoxEl) {
+      cropBoxEl = document.createElement('div');
+      cropBoxEl.className = 'map-lightbox__crop-box';
+      document.body.appendChild(cropBoxEl);
+    }
+    return cropBoxEl;
+  }
+
+  function updateCropButtons() {
+    if (lightboxCropApplyBtn) {
+      lightboxCropApplyBtn.hidden = !cropActive || !cropRectFrac;
+    }
+    if (lightboxCropCancelBtn) {
+      lightboxCropCancelBtn.hidden = !cropActive;
+    }
+    if (lightboxCropBtn) {
+      lightboxCropBtn.classList.toggle('is-active', cropActive);
+    }
+  }
+
+  function onCropPointerMove(e) {
+    if (!cropDragStart) {
+      return;
+    }
+    var box = ensureCropBoxEl();
+    var left = Math.min(cropDragStart.x, e.clientX);
+    var top = Math.min(cropDragStart.y, e.clientY);
+    var width = Math.abs(e.clientX - cropDragStart.x);
+    var height = Math.abs(e.clientY - cropDragStart.y);
+    box.style.left = left + 'px';
+    box.style.top = top + 'px';
+    box.style.width = width + 'px';
+    box.style.height = height + 'px';
+  }
+
+  function onCropPointerUp() {
+    document.removeEventListener('mousemove', onCropPointerMove);
+    document.removeEventListener('mouseup', onCropPointerUp);
+    if (!cropDragStart) {
+      return;
+    }
+    var rect = cropDragStart.imageRect;
+    var box = ensureCropBoxEl();
+    var boxRect = box.getBoundingClientRect();
+    cropDragStart = null;
+
+    var left = Math.max(boxRect.left, rect.left);
+    var top = Math.max(boxRect.top, rect.top);
+    var right = Math.min(boxRect.left + boxRect.width, rect.left + rect.width);
+    var bottom = Math.min(boxRect.top + boxRect.height, rect.top + rect.height);
+    var width = right - left;
+    var height = bottom - top;
+    // A tiny/negative box is just a stray click, not a deliberate drag.
+    if (width < rect.width * 0.03 || height < rect.height * 0.03) {
+      box.classList.remove('is-active');
+      cropRectFrac = null;
+      updateCropButtons();
+      return;
+    }
+
+    cropRectFrac = {
+      x: (left - rect.left) / rect.width,
+      y: (top - rect.top) / rect.height,
+      width: width / rect.width,
+      height: height / rect.height,
+    };
+    box.style.left = left + 'px';
+    box.style.top = top + 'px';
+    box.style.width = width + 'px';
+    box.style.height = height + 'px';
+    updateCropButtons();
+  }
+
+  function onCropPointerDown(e) {
+    if (!cropActive) {
+      return;
+    }
+    var img = lightboxBody.querySelector('img');
+    if (!img) {
+      return;
+    }
+    cropDragStart = { x: e.clientX, y: e.clientY, imageRect: getRenderedImageRect(img) };
+    var box = ensureCropBoxEl();
+    box.classList.add('is-active');
+    box.style.left = e.clientX + 'px';
+    box.style.top = e.clientY + 'px';
+    box.style.width = '0px';
+    box.style.height = '0px';
+    cropRectFrac = null;
+    updateCropButtons();
+    document.addEventListener('mousemove', onCropPointerMove);
+    document.addEventListener('mouseup', onCropPointerUp);
+    e.preventDefault();
+  }
+
+  function exitCropMode() {
+    cropActive = false;
+    cropRectFrac = null;
+    cropDragStart = null;
+    if (cropBoxEl) {
+      cropBoxEl.classList.remove('is-active');
+    }
+    var img = lightboxBody ? lightboxBody.querySelector('img') : null;
+    if (img) {
+      img.removeEventListener('mousedown', onCropPointerDown);
+    }
+    updateCropButtons();
+  }
+
+  function enterCropMode() {
+    if (lightboxIndex < 0) {
+      return;
+    }
+    var pin = lightboxPins[lightboxIndex];
+    if (!pin || pin.kind !== 'photo') {
+      return;
+    }
+    cropActive = true;
+    cropRectFrac = null;
+    updateCropButtons();
+    var img = lightboxBody.querySelector('img');
+    if (img) {
+      img.addEventListener('mousedown', onCropPointerDown);
+    }
+  }
+
+  function applyCrop() {
+    if (lightboxIndex < 0 || !cropRectFrac) {
+      return;
+    }
+    var pin = lightboxPins[lightboxIndex];
+    if (!pin) {
+      return;
+    }
+    var body = currentLightboxPhotoBody();
+    body.set('x', String(cropRectFrac.x));
+    body.set('y', String(cropRectFrac.y));
+    body.set('width', String(cropRectFrac.width));
+    body.set('height', String(cropRectFrac.height));
+    fetch('/photos/' + pin.id + '/crop', { method: 'POST', credentials: 'same-origin', body: body })
+      .then(function (r) { return r.json().catch(function () { return { ok: false }; }); })
+      .then(function (data) {
+        if (!data.ok) {
+          throw new Error('crop failed');
+        }
+        exitCropMode();
+        cacheBustPhoto(pin.id);
+        bustPinUrls(pin);
+      })
+      .catch(function () { window.alert(msgLightboxActionError); });
+  }
+
+  if (lightboxCropBtn) {
+    lightboxCropBtn.addEventListener('click', function () {
+      if (cropActive) {
+        exitCropMode();
+      } else {
+        enterCropMode();
+      }
+    });
+  }
+  if (lightboxCropCancelBtn) {
+    lightboxCropCancelBtn.addEventListener('click', exitCropMode);
+  }
+  if (lightboxCropApplyBtn) {
+    lightboxCropApplyBtn.addEventListener('click', applyCrop);
+  }
+
+  // --- Play/slideshow (Stefan's ask): step forward automatically every N
+  // seconds, starting from whichever photo is already open. Stops itself
+  // at the end of the current set (mirrors stepLightbox()'s own bounds
+  // check) rather than looping - closing the lightbox stops it too
+  // (closeLightbox() above).
+  var lightboxPlayBtn = lightboxActions ? lightboxActions.querySelector('[data-map-lightbox-play]') : null;
+  var lightboxPlaySecondsInput = lightboxActions ? lightboxActions.querySelector('[data-map-lightbox-play-seconds]') : null;
+  var slideshowTimer = null;
+
+  function stopSlideshow() {
+    if (slideshowTimer) {
+      clearInterval(slideshowTimer);
+      slideshowTimer = null;
+    }
+    if (lightboxPlayBtn) {
+      lightboxPlayBtn.classList.remove('is-active');
+      lightboxPlayBtn.innerHTML = '&#9654;';
+      lightboxPlayBtn.title = lightboxPlayBtn.dataset.playLabel || lightboxPlayBtn.title;
+      lightboxPlayBtn.setAttribute('aria-label', lightboxPlayBtn.dataset.playLabel || lightboxPlayBtn.getAttribute('aria-label'));
+    }
+  }
+
+  function startSlideshow() {
+    if (!lightboxPlayBtn) {
+      return;
+    }
+    var seconds = lightboxPlaySecondsInput ? parseFloat(lightboxPlaySecondsInput.value) : 3;
+    if (!seconds || seconds <= 0) {
+      seconds = 3;
+    }
+    lightboxPlayBtn.classList.add('is-active');
+    lightboxPlayBtn.innerHTML = '&#9208;';
+    lightboxPlayBtn.dataset.playLabel = lightboxPlayBtn.dataset.playLabel || lightboxPlayBtn.title;
+    if (lightboxPlayBtn.dataset.pauseLabel) {
+      lightboxPlayBtn.title = lightboxPlayBtn.dataset.pauseLabel;
+      lightboxPlayBtn.setAttribute('aria-label', lightboxPlayBtn.dataset.pauseLabel);
+    }
+    slideshowTimer = setInterval(function () {
+      if (lightboxIndex < 0 || lightboxIndex >= lightboxPins.length - 1) {
+        stopSlideshow();
+        return;
+      }
+      stepLightbox(1);
+    }, seconds * 1000);
+  }
+
+  if (lightboxPlayBtn) {
+    lightboxPlayBtn.addEventListener('click', function () {
+      if (slideshowTimer) {
+        stopSlideshow();
+      } else {
+        startSlideshow();
+      }
+    });
   }
 
   document.addEventListener('keydown', function (e) {

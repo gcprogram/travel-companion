@@ -1023,7 +1023,11 @@ img {
 .map-lightbox__panel {
   position: relative;
   z-index: 1;
-  max-width: 530px;
+  /* A fixed 530px cap made portrait photos look right (height-constrained
+     well before that width) but left landscape photos tiny on a real
+     monitor, stuck at 530px wide while 80vh of vertical room went unused
+     (Stefan's screenshot) - scale with the viewport instead. */
+  max-width: min(1100px, 92vw);
   min-width: 280px;
   max-height: 92vh;
   background: var(--color-surface);
@@ -1053,10 +1057,12 @@ img {
    a video pin via [hidden] set from renderLightboxActions() in trip-map.js. */
 .map-lightbox__actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.4rem;
   padding: 0.4rem 0.2rem 0;
 }
+.map-lightbox__actions .btn.is-active { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
 .map-lightbox__rating { display: flex; gap: 0.1rem; margin-left: auto; }
 .map-lightbox__rating button {
   border: none;
@@ -1069,6 +1075,23 @@ img {
 }
 .map-lightbox__rating button.is-filled { color: #d9a441; }
 .map-lightbox__delete { color: var(--color-danger); }
+
+/* Crop (Stefan's ask): a single fixed-position div doubles as both the
+   dashed selection outline AND the dark mask around it, via a giant
+   spread box-shadow that only "cuts out" the box's own rect - simpler
+   than four separate overlay panels. */
+.map-lightbox__crop-box {
+  position: fixed;
+  display: none;
+  border: 2px dashed #fff;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  z-index: 1001;
+}
+.map-lightbox__crop-box.is-active { display: block; }
+
+.map-lightbox__play-group { display: inline-flex; align-items: center; gap: 0.3rem; }
+.map-lightbox__play-seconds { width: 3.2rem; font: inherit; padding: 0.15rem 0.3rem; border: 1px solid var(--color-line); border-radius: calc(var(--radius) - 4px); }
 
 /* Prev/next through the current lightbox's photo set (trip-map.js: all of
    the trip's geotagged pins in time order; day-entry-detail-view.js: just
