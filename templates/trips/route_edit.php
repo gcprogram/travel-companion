@@ -34,19 +34,31 @@
        data-csrf-token="<?= e($csrf->token()) ?>"
        data-delete-url="/trips/<?= (int) $trip['id'] ?>/track/points/__ID__/delete"
        data-insert-url="/trips/<?= (int) $trip['id'] ?>/track/points/insert"
+       data-move-url="/trips/<?= (int) $trip['id'] ?>/track/points/__ID__/move"
        data-msg-delete-confirm="<?= e(t('trip.route_edit.delete_confirm')) ?>"
        data-msg-select-adjacent="<?= e(t('trip.route_edit.add_mode_hint')) ?>"
        data-msg-place-point="<?= e(t('trip.route_edit.place_point_hint')) ?>"
+       data-msg-move-select="<?= e(t('trip.route_edit.move_mode_hint')) ?>"
+       data-msg-move-place="<?= e(t('trip.route_edit.move_place_hint')) ?>"
        data-msg-not-adjacent="<?= e(t('trip.route_edit.select_adjacent_error')) ?>"
+       data-msg-no-points="<?= e(t('trip.route_edit.no_points')) ?>"
        data-msg-error="<?= e(t('trip.review.error')) ?>"></div>
 
   <div class="route-edit__toolbar">
-    <button type="button" class="btn btn-ghost route-edit__mode-btn" data-route-edit-mode="delete">
-      <?= e(t('trip.route_edit.delete_mode')) ?>
-    </button>
-    <button type="button" class="btn btn-ghost route-edit__mode-btn" data-route-edit-mode="add">
-      <?= e(t('trip.route_edit.add_mode')) ?>
-    </button>
+    <span class="route-edit__toolbar-label"><?= e(t('trip.route_edit.trackpoint_label')) ?></span>
+    <button type="button" class="route-edit__icon-btn" data-route-edit-delete
+            title="<?= e(t('trip.route_edit.delete_mode')) ?>" aria-label="<?= e(t('trip.route_edit.delete_mode')) ?>">&#128465;</button>
+    <button type="button" class="route-edit__icon-btn route-edit__mode-btn" data-route-edit-mode="add"
+            title="<?= e(t('trip.route_edit.add_mode')) ?>" aria-label="<?= e(t('trip.route_edit.add_mode')) ?>">&#10133;</button>
+    <button type="button" class="route-edit__icon-btn route-edit__mode-btn" data-route-edit-mode="move"
+            title="<?= e(t('trip.route_edit.move_mode')) ?>" aria-label="<?= e(t('trip.route_edit.move_mode')) ?>">&#10021;</button>
+    <button type="button" class="route-edit__nav-btn" data-route-edit-prev
+            aria-label="<?= e(t('trip.route_edit.prev_point')) ?>">&#9664;</button>
+    <input type="date" class="route-edit__current-date" data-route-edit-current-date hidden>
+    <input type="time" step="1" class="route-edit__current-time" data-route-edit-current-time
+           aria-label="<?= e(t('trip.route_edit.current_time_label')) ?>">
+    <button type="button" class="route-edit__nav-btn" data-route-edit-next
+            aria-label="<?= e(t('trip.route_edit.next_point')) ?>">&#9654;</button>
     <form method="post" action="/trips/<?= (int) $trip['id'] ?>/track/undo">
       <?= $csrf->field() ?>
       <button type="submit" class="btn btn-ghost"><?= e(t('trip.route_edit.undo')) ?></button>

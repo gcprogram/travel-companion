@@ -747,7 +747,32 @@ form.auth-form { max-width: 420px; }
 
 .route-edit__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin: var(--space-2) 0; }
 .route-edit__toolbar form { margin: 0; }
+.route-edit__toolbar-label { font-weight: 600; margin-right: 0.2rem; }
+.route-edit__icon-btn {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-size: 1rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
 .route-edit__mode-btn.is-active { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
+.route-edit__nav-btn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.route-edit__current-date, .route-edit__current-time { font: inherit; padding: 0.2rem 0.3rem; border: 1px solid var(--color-line); border-radius: calc(var(--radius) - 4px); }
 
 .map-view__track-tools { display: flex; flex-direction: column; gap: 0.5rem; margin: var(--space-2) 0; }
 .map-view__track-tools h2 { margin-bottom: 0.2rem; }
