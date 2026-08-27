@@ -199,6 +199,26 @@ final class TripController
     }
 
     /**
+     * Dispatches the trip.suggest_description job (see
+     * TripSuggestDescriptionHandler) - same async-via-queue reasoning as
+     * suggestMeta() above, a text-completion call that shouldn't block the
+     * request. $depth (Stefan's "Tiefe/Umfang wählbar" ask) comes from the
+     * form's select next to the button.
+     */
+    public function suggestDescription(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireEditable($request, (int) $args['id']);
+
+        $body = (array) $request->getParsedBody();
+        $depth = in_array($body['depth'] ?? null, ['short', 'medium', 'long'], true) ? $body['depth'] : 'medium';
+
+        $this->jobs->dispatch('trip.suggest_description', ['trip_id' => (int) $trip['id'], 'depth' => $depth]);
+
+        $this->flash->add('success', t('trip.form.ai_suggest_started'));
+        return $response->withHeader('Location', '/trips/' . (int) $trip['id'] . '/edit')->withStatus(302);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function requireEditable(ServerRequestInterface $request, int $tripId): array

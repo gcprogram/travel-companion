@@ -65,6 +65,31 @@ $action = $isEdit ? '/trips/' . (int) $trip['id'] : '/trips';
         <p class="field-hint"><?= e(t('trip.form.ai_suggest_hint')) ?></p>
       </form>
     </div>
+
+    <?php if (!empty($trip['ai_description_suggestion'])): ?>
+      <div class="ai-summary">
+        <p class="ai-summary__label"><?= e(t('trip.form.ai_suggestion_label')) ?></p>
+        <p class="ai-summary__text">
+          <?= e(t('trip.form.ai_suggested_description')) ?>:
+          <span id="ai-description-text" class="ai-summary__multiline"><?= e($trip['ai_description_suggestion']) ?></span>
+          <button type="button" class="btn btn-ghost btn-small" data-ai-apply data-target="description"
+                  data-source="ai-description-text"><?= e(t('entry.form.ai_summary_apply')) ?></button>
+        </p>
+      </div>
+    <?php endif; ?>
+    <div class="field">
+      <form method="post" action="/trips/<?= (int) $trip['id'] ?>/suggest-description" class="ai-description-form">
+        <?= $csrf->field() ?>
+        <label for="ai-description-depth"><?= e(t('trip.form.ai_description_depth_label')) ?></label>
+        <select id="ai-description-depth" name="depth">
+          <option value="short"><?= e(t('trip.form.ai_description_depth_short')) ?></option>
+          <option value="medium" selected><?= e(t('trip.form.ai_description_depth_medium')) ?></option>
+          <option value="long"><?= e(t('trip.form.ai_description_depth_long')) ?></option>
+        </select>
+        <button type="submit" class="btn btn-ghost btn-small"><?= e(t('trip.form.ai_generate_description')) ?></button>
+        <p class="field-hint"><?= e(t('trip.form.ai_description_hint')) ?></p>
+      </form>
+    </div>
   <?php endif; ?>
 
   <div class="field">

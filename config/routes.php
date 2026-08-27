@@ -56,6 +56,7 @@ return static function (App $app): void {
         $group->get('/trips/{id:[0-9]+}/edit', [TripController::class, 'edit']);
         $group->post('/trips/{id:[0-9]+}', [TripController::class, 'update']);
         $group->post('/trips/{id:[0-9]+}/suggest-meta', [TripController::class, 'suggestMeta']);
+        $group->post('/trips/{id:[0-9]+}/suggest-description', [TripController::class, 'suggestDescription']);
         $group->post('/trips/{id:[0-9]+}/delete', [TripController::class, 'delete']);
 
         // Share tokens: owner/admin only, checked directly against the real
