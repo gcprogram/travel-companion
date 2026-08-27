@@ -31,6 +31,46 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  // Every edit is a full page reload (see file header) - which used to
+  // always re-fit the map to the whole track, throwing away whatever
+  // zoom/pan the user was at (Stefan's complaint: deleting/smoothing
+  // several nearby points in a row meant re-finding the same spot on the
+  // map after every single click). Stashing the current view in
+  // sessionStorage (per track, via the data URL - survives exactly this
+  // tab's reload, not a real navigation elsewhere) and consuming it once
+  // on the next load fixes that without needing to keep any client-side
+  // state in sync across the reload.
+  var viewStorageKey = 'routeEditView:' + (container.dataset.dataUrl || '');
+
+  function saveCurrentView() {
+    try {
+      var center = map.getCenter();
+      window.sessionStorage.setItem(viewStorageKey, JSON.stringify({
+        lat: center.lat, lng: center.lng, zoom: map.getZoom(),
+      }));
+    } catch (e) {
+      // Storage unavailable (private browsing, quota) - just falls back
+      // to the usual fit-to-track view on the next load, no big deal.
+    }
+  }
+
+  function takeSavedView() {
+    try {
+      var raw = window.sessionStorage.getItem(viewStorageKey);
+      if (!raw) {
+        return null;
+      }
+      window.sessionStorage.removeItem(viewStorageKey);
+      var parsed = JSON.parse(raw);
+      if (typeof parsed.lat === 'number' && typeof parsed.lng === 'number' && typeof parsed.zoom === 'number') {
+        return parsed;
+      }
+    } catch (e) {
+      // Ignore - falls back to the usual fit-to-track view.
+    }
+    return null;
+  }
+
   var map = L.map(container, { zoomControl: true });
   var tileKey = container.dataset.tileKey;
   if (tileKey) {
@@ -78,6 +118,7 @@ document.addEventListener('DOMContentLoaded', function () {
     body.set('_csrf', csrfToken);
     postJson(url, body).then(function (result) {
       if (result.data && result.data.ok) {
+        saveCurrentView();
         window.location.reload();
       } else {
         setStatus(container.dataset.msgError || '');
@@ -94,6 +135,7 @@ document.addEventListener('DOMContentLoaded', function () {
     body.set('lng', String(latlng.lng));
     postJson(insertUrl, body).then(function (result) {
       if (result.data && result.data.ok) {
+        saveCurrentView();
         window.location.reload();
       } else if (result.data && result.data.error === 'not_adjacent') {
         setStatus(container.dataset.msgNotAdjacent || '');
@@ -259,6 +301,12 @@ document.addEventListener('DOMContentLoaded', function () {
         L.polyline(points.map(function (p) { return [p.lat, p.lng]; }), {
           color: '#2f6f5e', weight: 3, opacity: 0.8, interactive: false,
         }).addTo(map);
+      }
+
+      var savedView = takeSavedView();
+      if (savedView) {
+        map.setView([savedView.lat, savedView.lng], savedView.zoom);
+      } else if (points.length > 1) {
         map.fitBounds(points.map(function (p) { return [p.lat, p.lng]; }));
       } else if (points.length === 1) {
         map.setView([points[0].lat, points[0].lng], 15);
