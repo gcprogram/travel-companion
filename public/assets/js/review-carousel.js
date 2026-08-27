@@ -57,6 +57,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var index = 0;
   var candidateMarker = null;
+  // Every photo pin from the context layer (kind 'photo', chronological,
+  // same shape TripMapController::data() gives trip-map.js's own map) -
+  // kept around so both the map pins AND the stay's own "nearby photos"
+  // strip below the map can open the SAME lightbox (window.
+  // openTripPhotoLightbox, set up by trip-map.js - loaded on this page
+  // now purely for that shared overlay, see its own file header comment)
+  // instead of the tiny hover-tooltip/new-tab-link this page used to have.
+  var contextPhotoPins = [];
 
   var map = L.map(container, { zoomControl: true });
   var tileKey = container.dataset.tileKey;
@@ -110,17 +118,25 @@ document.addEventListener('DOMContentLoaded', function () {
           }
         });
       }
-      (data.pins || []).forEach(function (pin) {
-        L.marker([pin.lat, pin.lng], {
+      contextPhotoPins = data.pins || [];
+      contextPhotoPins.forEach(function (pin, pinIndex) {
+        var marker = L.marker([pin.lat, pin.lng], {
           icon: L.divIcon({
             className: 'map-view__pin-dot'
               + (pin.kind === 'video' ? ' map-view__pin-dot--video' : '')
               + (pin.interpolated ? ' map-view__pin-dot--interpolated' : ''),
             iconSize: [14, 14],
           }),
-        })
-          .bindTooltip('<img src="' + pin.thumbUrl + '" alt="" width="88" loading="lazy">', { direction: 'top', offset: [0, -8] })
-          .addTo(photoGroup);
+        });
+        // Same full lightbox as the main map (trip-map.js) instead of a
+        // tiny hover tooltip - Stefan's ask, and there's no good reason
+        // for these pins to behave differently just because this page
+        // never shared the "fit everything" map itself (see file header).
+        marker.on('click', function () { window.openTripPhotoLightbox(contextPhotoPins, pinIndex); });
+        marker.addTo(photoGroup);
+        if (window.registerLightboxMarker) {
+          window.registerLightboxMarker(pin.kind + ':' + pin.id, marker, photoGroup);
+        }
       });
 
       var geocacheGroup = L.layerGroup();
@@ -186,10 +202,14 @@ document.addEventListener('DOMContentLoaded', function () {
     if (photosList) {
       var photoIds = candidate.kind === 'stay' ? (candidate.photoIds || []) : [];
       if (photoIds.length > 0) {
+        // Same lightbox as the map pins/main map (Stefan's ask for
+        // consistency) instead of a plain new-tab link - the photo's full
+        // pin data (for prev/next, caption, rotate/rate) already lives in
+        // contextPhotoPins from the context-layer fetch above.
         photosList.innerHTML = photoIds.map(function (id) {
           return '<li class="review-photos__item">'
-            + '<a href="/photos/' + id + '/web" target="_blank" rel="noopener">'
-            + '<img src="/photos/' + id + '/thumb" alt="" loading="lazy"></a></li>';
+            + '<button type="button" data-review-photo="' + id + '">'
+            + '<img src="/photos/' + id + '/thumb" alt="" loading="lazy"></button></li>';
         }).join('');
         photosList.hidden = false;
       } else {
@@ -247,6 +267,20 @@ document.addEventListener('DOMContentLoaded', function () {
       render();
     }
   });
+
+  if (photosList) {
+    photosList.addEventListener('click', function (event) {
+      var trigger = event.target.closest('[data-review-photo]');
+      if (!trigger || typeof window.openTripPhotoLightbox !== 'function') {
+        return;
+      }
+      var photoId = parseInt(trigger.dataset.reviewPhoto, 10);
+      var photoIndex = contextPhotoPins.findIndex(function (p) { return p.kind === 'photo' && p.id === photoId; });
+      if (photoIndex !== -1) {
+        window.openTripPhotoLightbox(contextPhotoPins, photoIndex);
+      }
+    });
+  }
 
   function acceptStay(stay) {
     var body = new URLSearchParams();
