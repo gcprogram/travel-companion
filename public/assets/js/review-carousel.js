@@ -67,6 +67,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var contextPhotoPins = [];
 
   var map = L.map(container, { zoomControl: true });
+  L.control.scale({ imperial: false }).addTo(map);
   var tileKey = container.dataset.tileKey;
   if (tileKey) {
     L.tileLayer('https://api.maptiler.com/maps/openstreetmap/256/{z}/{x}/{y}.jpg?key=' + tileKey, {
