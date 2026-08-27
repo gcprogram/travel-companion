@@ -71,6 +71,7 @@ return static function (App $app): void {
         $group->post('/trips/{id:[0-9]+}/track/delete', [TrackController::class, 'delete']);
         $group->post('/trips/{id:[0-9]+}/track/points/insert', [TrackEditController::class, 'insertPoint']);
         $group->post('/trips/{id:[0-9]+}/track/points/{pointId:[0-9]+}/delete', [TrackEditController::class, 'deletePoint']);
+        $group->post('/trips/{id:[0-9]+}/track/points/{pointId:[0-9]+}/move', [TrackEditController::class, 'movePoint']);
         $group->post('/trips/{id:[0-9]+}/track/undo', [TrackEditController::class, 'undo']);
         $group->post('/trips/{id:[0-9]+}/track/reset', [TrackEditController::class, 'reset']);
 

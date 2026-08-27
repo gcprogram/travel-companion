@@ -92,14 +92,66 @@ final class TrackEditController
             return $this->json($response, ['ok' => false, 'error' => 'invalid'], 422);
         }
 
+        // route-editor.js shows the two neighbours' midpoint time in its
+        // "current point" field once both are selected and lets Stefan edit
+        // it before placing the point - falls back to the server-computed
+        // midpoint (TrackEditService::insertPoint()) when absent/unparsable.
+        $recordedAt = $this->parseRecordedAt($body['recorded_at'] ?? null);
+
         $result = $this->trackEdit->insertPoint(
             (int) $trip['id'],
             $pointIdA,
             $pointIdB,
             round((float) $lat, 6),
             round((float) $lng, 6),
+            $recordedAt,
         );
         return $this->json($response, $result, $result['ok'] ? 200 : 422);
+    }
+
+    /**
+     * "Move" mode (Stefan's ask): relocate an existing point rather than
+     * delete+insert - keeps its time/seq, only lat/lng change.
+     */
+    public function movePoint(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireEditableById($request, (int) $args['id']);
+        $body = (array) $request->getParsedBody();
+
+        $lat = $body['lat'] ?? null;
+        $lng = $body['lng'] ?? null;
+        if (!is_numeric($lat) || !is_numeric($lng)
+            || (float) $lat < -90.0 || (float) $lat > 90.0 || (float) $lng < -180.0 || (float) $lng > 180.0
+        ) {
+            return $this->json($response, ['ok' => false, 'error' => 'invalid'], 422);
+        }
+
+        $result = $this->trackEdit->movePoint(
+            (int) $trip['id'],
+            (int) $args['pointId'],
+            round((float) $lat, 6),
+            round((float) $lng, 6),
+        );
+        return $this->json($response, $result, $result['ok'] ? 200 : 422);
+    }
+
+    /**
+     * Accepts the same 'Y-m-d H:i:s' shape the client already builds from
+     * its date+time fields (see route-editor.js's toUtcDateTimeString()) -
+     * anything else is treated as absent rather than rejecting the whole
+     * request, since the server-computed midpoint is a perfectly good
+     * fallback.
+     */
+    private function parseRecordedAt(mixed $value): ?string
+    {
+        if (!is_string($value) || $value === '') {
+            return null;
+        }
+        try {
+            return (new \DateTimeImmutable($value, new \DateTimeZone('UTC')))->format('Y-m-d H:i:s');
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     public function undo(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface

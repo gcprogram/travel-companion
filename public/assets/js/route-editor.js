@@ -1,14 +1,31 @@
 /**
- * "Route editieren": trackpoint surgery on top of a plain Leaflet map -
- * delete a point (click + confirm) or insert one between two existing,
- * adjacent points (click both, then click the map where the new point
- * should sit - time/elevation get interpolated server-side, see
- * TrackEditService::insertPoint). Every action is a real server round-trip
+ * "Route editieren": trackpoint surgery on top of a plain Leaflet map.
+ * Every action (delete/insert/move a point) is a real server round-trip
  * (TrackEditController) followed by a full page reload rather than trying
  * to keep the client-side point list, markers, AND the trim slider's
  * server-rendered seq bounds all in sync after a mutation - simpler and
  * safer than partial re-rendering for what's an occasional, deliberate
- * editing action, not a high-frequency interaction.
+ * editing action, not a high-frequency interaction. The current map
+ * view (center/zoom) survives that reload via sessionStorage (Stefan's
+ * ask - smoothing several neighbouring points shouldn't mean re-finding
+ * the same spot on the map after every single edit).
+ *
+ * Compact toolbar (Stefan's ask, replacing separate "Trackpunkt löschen"/
+ * "Trackpunkt hinzufügen" buttons): one "current trackpoint" cursor,
+ * shown as an editable time (plus date, only when the track spans more
+ * than one day - otherwise the date would just be redundant noise) with
+ * </> to step to the previous/next point. Three mode icons act on that
+ * cursor or start a two-click gesture:
+ *   - Delete: removes whichever point the cursor currently points at
+ *     (selected by clicking its marker, by </>, or by typing/picking a
+ *     time that matches it) - a plain action, not a toggle mode.
+ *   - Add: click two adjacent points, then click the map to place a new
+ *     one between them - the time field shows their midpoint and can be
+ *     edited before that placement click; whatever it holds is sent as
+ *     the new point's time instead of the server's own midpoint.
+ *   - Move: click a point, then click the map to relocate it there -
+ *     keeps its time/seq, only its position changes (fixes a single GPS
+ *     outlier without disturbing the track's timeline).
  *
  * Also owns the trim-slider live preview, ported from trip-map.js's
  * initTrimSliders() (this page no longer includes trip-map.js - it has its
@@ -23,6 +40,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var statusEl = document.querySelector('[data-route-edit-status]');
   var deleteUrlTemplate = container.dataset.deleteUrl;
   var insertUrl = container.dataset.insertUrl;
+  var moveUrlTemplate = container.dataset.moveUrl;
   var csrfToken = container.dataset.csrfToken;
 
   function setStatus(text) {
@@ -33,13 +51,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Every edit is a full page reload (see file header) - which used to
   // always re-fit the map to the whole track, throwing away whatever
-  // zoom/pan the user was at (Stefan's complaint: deleting/smoothing
-  // several nearby points in a row meant re-finding the same spot on the
-  // map after every single click). Stashing the current view in
-  // sessionStorage (per track, via the data URL - survives exactly this
-  // tab's reload, not a real navigation elsewhere) and consuming it once
-  // on the next load fixes that without needing to keep any client-side
-  // state in sync across the reload.
+  // zoom/pan the user was at. Stashing the current view in sessionStorage
+  // (per track, via the data URL - survives exactly this tab's reload,
+  // not a real navigation elsewhere) and consuming it once on the next
+  // load fixes that without needing to keep any client-side state in
+  // sync across the reload.
   var viewStorageKey = 'routeEditView:' + (container.dataset.dataUrl || '');
 
   function saveCurrentView() {
@@ -82,18 +98,40 @@ document.addEventListener('DOMContentLoaded', function () {
     }).addTo(map);
   }
 
-  var mode = 'view'; // 'view' | 'delete' | 'add'
+  var mode = 'view'; // 'view' | 'add' | 'move'
   var addSelection = []; // up to two selected points while mode === 'add'
+  var moveSelection = null; // the point picked up while mode === 'move'
   var modeButtons = document.querySelectorAll('[data-route-edit-mode]');
+  var deleteBtn = document.querySelector('[data-route-edit-delete]');
+  var prevBtn = document.querySelector('[data-route-edit-prev]');
+  var nextBtn = document.querySelector('[data-route-edit-next]');
+  var dateInput = document.querySelector('[data-route-edit-current-date]');
+  var timeInput = document.querySelector('[data-route-edit-current-time]');
+
+  function resetSelections() {
+    addSelection.forEach(function (p) { p.marker.setStyle({ color: '#2f6f5e', fillColor: '#2f6f5e' }); });
+    addSelection = [];
+    if (moveSelection) {
+      moveSelection.marker.setStyle({ color: '#2f6f5e', fillColor: '#2f6f5e' });
+      moveSelection = null;
+    }
+  }
 
   function setMode(next) {
     mode = mode === next ? 'view' : next;
-    addSelection.forEach(function (p) { p.marker.setStyle({ color: '#2f6f5e', fillColor: '#2f6f5e' }); });
-    addSelection = [];
+    resetSelections();
+    pendingInsertTime = null;
+    renderTimeFields();
     modeButtons.forEach(function (btn) {
       btn.classList.toggle('is-active', btn.dataset.routeEditMode === mode);
     });
-    setStatus(mode === 'add' ? (container.dataset.msgSelectAdjacent || '') : '');
+    if (mode === 'add') {
+      setStatus(container.dataset.msgSelectAdjacent || '');
+    } else if (mode === 'move') {
+      setStatus(container.dataset.msgMoveSelect || '');
+    } else {
+      setStatus('');
+    }
   }
 
   modeButtons.forEach(function (btn) {
@@ -109,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }).then(function (r) { return r.json().then(function (data) { return { status: r.status, data: data }; }); });
   }
 
-  function deletePoint(point) {
+  function deletePointRequest(point) {
     if (!window.confirm(container.dataset.msgDeleteConfirm || '')) {
       return;
     }
@@ -126,13 +164,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }).catch(function () { setStatus(container.dataset.msgError || ''); });
   }
 
-  function insertPoint(pointA, pointB, latlng) {
+  function insertPointRequest(pointA, pointB, latlng) {
     var body = new URLSearchParams();
     body.set('_csrf', csrfToken);
     body.set('point_id_a', String(pointA.id));
     body.set('point_id_b', String(pointB.id));
     body.set('lat', String(latlng.lat));
     body.set('lng', String(latlng.lng));
+    if (pendingInsertTime) {
+      body.set('recorded_at', toUtcDateTimeString(pendingInsertTime));
+    }
     postJson(insertUrl, body).then(function (result) {
       if (result.data && result.data.ok) {
         saveCurrentView();
@@ -145,11 +186,178 @@ document.addEventListener('DOMContentLoaded', function () {
     }).catch(function () { setStatus(container.dataset.msgError || ''); });
   }
 
-  function onMarkerClick(point, marker) {
-    if (mode === 'delete') {
-      deletePoint(point);
+  function movePointRequest(point, latlng) {
+    var url = moveUrlTemplate.replace('__ID__', String(point.id));
+    var body = new URLSearchParams();
+    body.set('_csrf', csrfToken);
+    body.set('lat', String(latlng.lat));
+    body.set('lng', String(latlng.lng));
+    postJson(url, body).then(function (result) {
+      if (result.data && result.data.ok) {
+        saveCurrentView();
+        window.location.reload();
+      } else {
+        setStatus(container.dataset.msgError || '');
+      }
+    }).catch(function () { setStatus(container.dataset.msgError || ''); });
+  }
+
+  // --- "Current trackpoint" cursor: the point </>, marker clicks, and the
+  // editable time field all act on (delete/move act on it directly; add
+  // just uses it as the initial two clicks, unrelated to navigation). ---
+  var points = [];
+  var currentIndex = -1;
+  var pendingInsertTime = null; // Date, only set while add-mode has 2 points selected
+  var markersById = {};
+  var highlightedMarker = null;
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function parseUtc(recordedAt) {
+    if (!recordedAt) {
+      return null;
+    }
+    var d = new Date(recordedAt.replace(' ', 'T') + 'Z');
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function toLocalDateValue(date) {
+    return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+  }
+
+  function toLocalTimeValue(date) {
+    return pad2(date.getHours()) + ':' + pad2(date.getMinutes()) + ':' + pad2(date.getSeconds());
+  }
+
+  function toUtcDateTimeString(date) {
+    return date.getUTCFullYear() + '-' + pad2(date.getUTCMonth() + 1) + '-' + pad2(date.getUTCDate())
+      + ' ' + pad2(date.getUTCHours()) + ':' + pad2(date.getUTCMinutes()) + ':' + pad2(date.getUTCSeconds());
+  }
+
+  function currentDisplayDate() {
+    if (pendingInsertTime) {
+      return pendingInsertTime;
+    }
+    var p = currentIndex >= 0 ? points[currentIndex] : null;
+    return p ? parseUtc(p.recordedAt) : null;
+  }
+
+  function renderTimeFields() {
+    var date = currentDisplayDate();
+    if (dateInput) {
+      dateInput.value = date ? toLocalDateValue(date) : '';
+    }
+    if (timeInput) {
+      timeInput.value = date ? toLocalTimeValue(date) : '';
+    }
+  }
+
+  function updateNavButtons() {
+    if (prevBtn) {
+      prevBtn.disabled = currentIndex <= 0;
+    }
+    if (nextBtn) {
+      nextBtn.disabled = currentIndex < 0 || currentIndex >= points.length - 1;
+    }
+    if (deleteBtn) {
+      deleteBtn.disabled = currentIndex < 0;
+    }
+  }
+
+  function setHighlightedMarker(marker) {
+    if (highlightedMarker && highlightedMarker !== marker) {
+      highlightedMarker.setStyle({ radius: 5, color: '#2f6f5e', fillColor: '#2f6f5e', weight: 2 });
+    }
+    if (marker) {
+      marker.setStyle({ radius: 8, color: '#1d4a3c', fillColor: '#1d4a3c', weight: 3 });
+    }
+    highlightedMarker = marker;
+  }
+
+  function focusPoint(index) {
+    if (index < 0 || index >= points.length) {
       return;
     }
+    currentIndex = index;
+    pendingInsertTime = null;
+    renderTimeFields();
+    updateNavButtons();
+    var p = points[index];
+    map.setView([p.lat, p.lng], Math.max(map.getZoom(), 15));
+    setHighlightedMarker(markersById[p.id] || null);
+  }
+
+  function nearestIndexForDate(target) {
+    var targetMs = target.getTime();
+    var bestIndex = -1;
+    var bestDiff = Infinity;
+    points.forEach(function (p, i) {
+      var d = parseUtc(p.recordedAt);
+      if (!d) {
+        return;
+      }
+      var diff = Math.abs(d.getTime() - targetMs);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestIndex = i;
+      }
+    });
+    return bestIndex;
+  }
+
+  function fieldsToDate() {
+    if (!dateInput || !timeInput || !dateInput.value || !timeInput.value) {
+      return null;
+    }
+    var d = new Date(dateInput.value + 'T' + timeInput.value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function onTimeFieldChange() {
+    var date = fieldsToDate();
+    if (!date) {
+      return;
+    }
+    if (pendingInsertTime) {
+      pendingInsertTime = date;
+      return;
+    }
+    var idx = nearestIndexForDate(date);
+    if (idx !== -1) {
+      focusPoint(idx);
+    }
+  }
+
+  if (dateInput) {
+    dateInput.addEventListener('change', onTimeFieldChange);
+  }
+  if (timeInput) {
+    timeInput.addEventListener('change', onTimeFieldChange);
+  }
+  if (prevBtn) {
+    prevBtn.addEventListener('click', function () { focusPoint(currentIndex - 1); });
+  }
+  if (nextBtn) {
+    nextBtn.addEventListener('click', function () { focusPoint(currentIndex + 1); });
+  }
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', function () {
+      if (currentIndex >= 0) {
+        deletePointRequest(points[currentIndex]);
+      }
+    });
+  }
+
+  function midpointDate(pointA, pointB) {
+    var ta = parseUtc(pointA.recordedAt);
+    var tb = parseUtc(pointB.recordedAt);
+    if (!ta || !tb) {
+      return null;
+    }
+    return new Date(Math.round((ta.getTime() + tb.getTime()) / 2));
+  }
+
+  function onMarkerClick(point, marker, index) {
     if (mode === 'add') {
       if (addSelection.length > 0 && addSelection[0].point.id === point.id) {
         return; // Same point clicked twice - ignore, still waiting for a second one.
@@ -161,24 +369,39 @@ document.addEventListener('DOMContentLoaded', function () {
       } else if (addSelection.length === 2) {
         var pointA = addSelection[0].point;
         var pointB = addSelection[1].point;
+        pendingInsertTime = midpointDate(pointA, pointB);
+        renderTimeFields();
         setStatus(container.dataset.msgPlacePoint || '');
         map.once('click', function (e) {
-          insertPoint(pointA, pointB, e.latlng);
+          insertPointRequest(pointA, pointB, e.latlng);
         });
       }
+      return;
     }
+
+    if (mode === 'move') {
+      if (moveSelection) {
+        return; // Already have a point to move - waiting for the map click.
+      }
+      marker.setStyle({ color: '#c56a3c', fillColor: '#c56a3c' });
+      moveSelection = { point: point, marker: marker };
+      focusPoint(index);
+      setStatus(container.dataset.msgMovePlace || '');
+      map.once('click', function (e) {
+        movePointRequest(moveSelection.point, e.latlng);
+      });
+      return;
+    }
+
+    focusPoint(index);
   }
 
   function formatTooltip(recordedAt) {
-    if (!recordedAt) {
+    var d = parseUtc(recordedAt);
+    if (!d) {
       return '';
     }
-    var d = new Date(recordedAt.replace(' ', 'T') + 'Z');
-    if (isNaN(d.getTime())) {
-      return '';
-    }
-    var pad = function (n) { return String(n).padStart(2, '0'); };
-    return pad(d.getHours()) + ':' + pad(d.getMinutes());
+    return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
   }
 
   // --- Trim slider live preview, ported from trip-map.js's initTrimSliders() ---
@@ -296,7 +519,7 @@ document.addEventListener('DOMContentLoaded', function () {
   fetch(container.dataset.dataUrl)
     .then(function (r) { return r.json(); })
     .then(function (data) {
-      var points = data.points || [];
+      points = data.points || [];
       if (points.length > 1) {
         L.polyline(points.map(function (p) { return [p.lat, p.lng]; }), {
           color: '#2f6f5e', weight: 3, opacity: 0.8, interactive: false,
@@ -312,7 +535,7 @@ document.addEventListener('DOMContentLoaded', function () {
         map.setView([points[0].lat, points[0].lng], 15);
       }
 
-      points.forEach(function (point) {
+      points.forEach(function (point, index) {
         var marker = L.circleMarker([point.lat, point.lng], {
           radius: 5,
           color: '#2f6f5e',
@@ -324,8 +547,29 @@ document.addEventListener('DOMContentLoaded', function () {
         if (tooltip) {
           marker.bindTooltip(tooltip);
         }
-        marker.on('click', function () { onMarkerClick(point, marker); });
+        marker.on('click', function () { onMarkerClick(point, marker, index); });
+        markersById[point.id] = marker;
       });
+
+      // Only one calendar day in the whole track -> the date is implied,
+      // showing it in the field would just be redundant noise (Stefan's ask).
+      var distinctDates = {};
+      points.forEach(function (p) {
+        var d = parseUtc(p.recordedAt);
+        if (d) {
+          distinctDates[toLocalDateValue(d)] = true;
+        }
+      });
+      if (dateInput) {
+        dateInput.hidden = Object.keys(distinctDates).length <= 1;
+      }
+
+      currentIndex = points.length > 0 ? 0 : -1;
+      renderTimeFields();
+      updateNavButtons();
+      if (points.length === 0) {
+        setStatus(container.dataset.msgNoPoints || '');
+      }
 
       initTrimSlider(points);
     })

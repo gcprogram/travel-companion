@@ -238,6 +238,17 @@ final class TrackRepository
     }
 
     /**
+     * "Move" mode (TrackEditService::movePoint): relocates a point without
+     * touching its seq/time - unlike delete+insert, this keeps it the "same"
+     * point (same id), just fixing a GPS outlier's position.
+     */
+    public function updatePointPosition(int $pointId, float $lat, float $lng): void
+    {
+        $this->pdo->prepare('UPDATE trip_track_points SET lat = ?, lng = ? WHERE id = ?')
+            ->execute([$lat, $lng, $pointId]);
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     public function findPointById(int $pointId): ?array

@@ -48,13 +48,15 @@ final class TrackEditService
      * Inserts a point between two existing, adjacent points - which one the
      * caller calls "after"/"before" doesn't matter, only that they're
      * neighbours (consecutive seq); a user clicking two map markers has no
-     * reason to click them in track order. Time/elevation are interpolated
-     * from the two neighbours so the new point fits believably into the
-     * track's own timeline rather than carrying no time at all.
+     * reason to click them in track order. Elevation is always interpolated
+     * from the two neighbours; the time defaults to their midpoint too, but
+     * route-editor.js shows that default in its "current point" time field
+     * and lets Stefan edit it before placing the point (his own ask) - if
+     * given, $recordedAt overrides the computed midpoint.
      *
      * @return array{ok: bool, error?: string}
      */
-    public function insertPoint(int $tripId, int $pointIdA, int $pointIdB, float $lat, float $lng): array
+    public function insertPoint(int $tripId, int $pointIdA, int $pointIdB, float $lat, float $lng, ?string $recordedAt = null): array
     {
         $trackId = $this->trackIdForTrip($tripId);
         if ($trackId === null) {
@@ -78,12 +80,44 @@ final class TrackEditService
 
         $this->snapshotIfFirstEdit($trackId);
 
-        $recordedAt = $this->interpolateTime($earlier['recorded_at'], $later['recorded_at']);
+        $recordedAt ??= $this->interpolateTime($earlier['recorded_at'], $later['recorded_at']);
         $elevation = $this->interpolateElevation($earlier['elevation_m'], $later['elevation_m']);
 
         $newId = $this->tracks->insertPointAt($trackId, (int) $earlier['seq'], $lat, $lng, $elevation, $recordedAt);
 
         $this->undo->set($trackId, ['type' => 'insert', 'pointId' => $newId]);
+        return ['ok' => true];
+    }
+
+    /**
+     * "Move" mode (Stefan's ask): relocates an existing point rather than
+     * deleting and re-inserting it - keeps its id/seq/time, only lat/lng
+     * change. Used to fix a single GPS outlier without disturbing the
+     * track's timeline.
+     *
+     * @return array{ok: bool, error?: string}
+     */
+    public function movePoint(int $tripId, int $pointId, float $lat, float $lng): array
+    {
+        $trackId = $this->trackIdForTrip($tripId);
+        if ($trackId === null) {
+            return ['ok' => false, 'error' => 'no_track'];
+        }
+
+        $point = $this->tracks->findPointById($pointId);
+        if ($point === null || (int) $point['track_id'] !== $trackId) {
+            return ['ok' => false, 'error' => 'not_found'];
+        }
+
+        $this->snapshotIfFirstEdit($trackId);
+        $this->tracks->updatePointPosition($pointId, $lat, $lng);
+
+        $this->undo->set($trackId, [
+            'type' => 'move',
+            'pointId' => $pointId,
+            'previousLat' => (float) $point['lat'],
+            'previousLng' => (float) $point['lng'],
+        ]);
         return ['ok' => true];
     }
 
@@ -120,6 +154,15 @@ final class TrackEditService
 
         if ($operation['type'] === 'insert') {
             $this->tracks->deletePoint($trackId, (int) $operation['pointId']);
+            return true;
+        }
+
+        if ($operation['type'] === 'move') {
+            $this->tracks->updatePointPosition(
+                (int) $operation['pointId'],
+                (float) $operation['previousLat'],
+                (float) $operation['previousLng'],
+            );
             return true;
         }
 
