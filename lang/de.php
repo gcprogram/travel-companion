@@ -108,6 +108,7 @@ return [
     'trip.form.tags_label' => 'Tags',
     'trip.form.tags_placeholder' => 'z. B. wandern, städtereise, mit kindern',
     'trip.form.tags_hint' => 'Kommagetrennt, optional.',
+    'trip.form.storage_label' => 'Speicherverbrauch dieser Reise',
     'trip.form.ai_suggestion_label' => '🤖 KI-Vorschlag',
     'trip.form.ai_suggested_title' => 'Titel',
     'trip.form.ai_suggested_tags' => 'Tags',

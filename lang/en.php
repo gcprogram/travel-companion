@@ -108,6 +108,7 @@ return [
     'trip.form.tags_label' => 'Tags',
     'trip.form.tags_placeholder' => 'e.g. hiking, city trip, with kids',
     'trip.form.tags_hint' => 'Comma-separated, optional.',
+    'trip.form.storage_label' => 'Storage used by this trip',
     'trip.form.ai_suggestion_label' => '🤖 AI suggestion',
     'trip.form.ai_suggested_title' => 'Title',
     'trip.form.ai_suggested_tags' => 'Tags',

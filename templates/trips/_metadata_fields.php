@@ -4,10 +4,15 @@
  * standalone create/edit page (form.php) and the "Metadaten" accordion
  * section on the unified edit page (manage.php) - expects $trip, $errors,
  * $csrf (global), same as form.php's own controller (TripController).
+ * $tripStorageBytes: this trip's own photo/video storage footprint, only
+ * ever set for the trip's OWNER (null for everyone else, including an
+ * admin/manager editing someone else's trip - see StorageQuotaService).
  */
 /** @var array<string, mixed>|null $trip */
 /** @var list<string> $errors */
+/** @var int|null $tripStorageBytes */
 $errors ??= [];
+$tripStorageBytes ??= null;
 $isEdit = $trip !== null && isset($trip['id']);
 $action = $isEdit ? '/trips/' . (int) $trip['id'] : '/trips';
 ?>
@@ -63,6 +68,13 @@ $action = $isEdit ? '/trips/' . (int) $trip['id'] : '/trips';
       </p>
     <?php endif; ?>
   </div>
+
+  <?php if ($tripStorageBytes !== null): ?>
+    <div class="field">
+      <label><?= e(t('trip.form.storage_label')) ?></label>
+      <p class="field-hint"><?= e(format_bytes($tripStorageBytes)) ?></p>
+    </div>
+  <?php endif; ?>
 
   <?php if (!$isEdit): ?>
     <p class="field-hint"><?= e(t('trip.form.auto_metadata_hint')) ?></p>
