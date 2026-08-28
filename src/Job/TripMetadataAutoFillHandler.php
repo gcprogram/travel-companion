@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Job;
 
+use App\Repository\DayEntryRepository;
 use App\Repository\GeocodeCacheRepository;
 use App\Repository\PhotoRepository;
 use App\Repository\TrackRepository;
@@ -46,6 +47,7 @@ final class TripMetadataAutoFillHandler implements JobHandlerInterface
         private readonly TripRepository $trips,
         private readonly TrackRepository $tracks,
         private readonly PhotoRepository $photos,
+        private readonly DayEntryRepository $entries,
         private readonly GeocodeCacheRepository $geocodeCache,
         private readonly ReverseGeocodingService $geocoding,
     ) {
@@ -71,6 +73,32 @@ final class TripMetadataAutoFillHandler implements JobHandlerInterface
 
         $dateStart = substr($points[0]['at'], 0, 10);
         $dateEnd = substr($points[count($points) - 1]['at'], 0, 10);
+
+        // The GPS track is trip-wide and keeps no notion of "which days
+        // actually belong to the trip" - it can genuinely start recording
+        // at home the evening before departure, or keep running on the
+        // drive home, stretching date_start/date_end past what's actually
+        // documented (Stefan's report: trip showed the 19th as day one
+        // while every photo/diary entry started on the 20th). Diary
+        // entries are the one thing a person deliberately created for a
+        // specific day, so once any exist they're the trustworthier
+        // signal - clip the track-derived range to theirs rather than
+        // the other way round. A geotagged photo can't derive a date
+        // outside this range anyway (it belongs to one of these entries),
+        // so only the track's own contribution is ever actually clipped.
+        $entryRange = $this->entries->dateRange($tripId);
+        if ($entryRange !== null) {
+            $clippedStart = max($dateStart, $entryRange['start']);
+            $clippedEnd = min($dateEnd, $entryRange['end']);
+            // Only apply the clip if it still leaves a valid (non-inverted)
+            // range - the track/photos should always overlap the diary's
+            // own days in practice, but a broken/inverted result here is
+            // worse than not clipping at all.
+            if ($clippedStart <= $clippedEnd) {
+                $dateStart = $clippedStart;
+                $dateEnd = $clippedEnd;
+            }
+        }
 
         $country = $trip['country'] ?? $this->resolveCountry($tripId, $points[0]['lat'], $points[0]['lng']);
 

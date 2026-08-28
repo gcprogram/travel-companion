@@ -23,7 +23,12 @@ final class AiTripDescriptionService
 {
     private const DEPTHS = [
         'short' => ['instruction' => 'Schreibe einen kurzen Absatz (ca. 60-100 Wörter).', 'maxTokens' => 220],
-        'medium' => ['instruction' => 'Schreibe 2-3 Absätze (ca. 200-300 Wörter).', 'maxTokens' => 500],
+        // 500 was tight enough that a verbose model ran out of budget
+        // mid-sentence rather than actually finishing at ~300 words
+        // (Stefan's report: the medium option cut off mid-list) - German
+        // text also tokenizes less efficiently than English, needing more
+        // headroom than a word-count alone suggests.
+        'medium' => ['instruction' => 'Schreibe 2-3 Absätze (ca. 200-300 Wörter).', 'maxTokens' => 750],
         'long' => ['instruction' => 'Schreibe eine ausführliche Beschreibung mit mehreren Absätzen (ca. 400-600 Wörter).', 'maxTokens' => 950],
     ];
 

@@ -25,6 +25,24 @@ final class DayEntryRepository
     }
 
     /**
+     * TripMetadataAutoFillHandler's clamp: a GPS track can genuinely span
+     * days with no diary content at all (recording started at home before
+     * departure, or kept running on the drive home) - this is the
+     * "actually documented" range to clip the track's own date span
+     * against, so those undocumented days don't stretch the trip's
+     * displayed dates (Stefan's report).
+     *
+     * @return array{start: string, end: string}|null null if the trip has no day entries yet
+     */
+    public function dateRange(int $tripId): ?array
+    {
+        $stmt = $this->pdo->prepare('SELECT MIN(entry_date) AS start, MAX(entry_date) AS end FROM day_entries WHERE trip_id = ?');
+        $stmt->execute([$tripId]);
+        $row = $stmt->fetch();
+        return ($row !== false && $row['start'] !== null) ? ['start' => $row['start'], 'end' => $row['end']] : null;
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     public function findById(int $id): ?array

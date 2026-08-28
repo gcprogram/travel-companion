@@ -135,6 +135,17 @@ final class TripSuggestDescriptionHandler implements JobHandlerInterface
                 if (count($stays) >= self::MAX_STAYS) {
                     continue;
                 }
+                // A detected "stay" isn't bound to a day entry the way a
+                // photo is - a GPS track can produce one for home, the
+                // evening before departure, or for a stop on the drive
+                // home, outside the trip's actual (day-entry-clipped,
+                // see TripMetadataAutoFillHandler) date range. Left in,
+                // that pre-/post-trip stay dominated the description
+                // (Stefan's report: it opened with the drive to the
+                // airport instead of the actual destination).
+                if ($this->isOutsideTripRange((string) ($poi['visit_date'] ?? ''), $trip)) {
+                    continue;
+                }
                 $bits = [(string) $poi['name']];
                 if (!empty($poi['notes'])) {
                     $bits[] = mb_substr((string) $poi['notes'], 0, self::MAX_TEXT_LENGTH);
@@ -207,5 +218,16 @@ final class TripSuggestDescriptionHandler implements JobHandlerInterface
         $dLng = deg2rad($lng2 - $lng1);
         $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
         return 6371000.0 * 2 * atan2(sqrt($a), sqrt(1 - $a));
+    }
+
+    /**
+     * @param array<string, mixed> $trip
+     */
+    private function isOutsideTripRange(string $date, array $trip): bool
+    {
+        if ($date === '' || $trip['date_start'] === null || $trip['date_end'] === null) {
+            return false; // Nothing to compare against - don't drop it over a guess.
+        }
+        return $date < $trip['date_start'] || $date > $trip['date_end'];
     }
 }
