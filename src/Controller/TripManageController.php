@@ -10,6 +10,7 @@ use App\Repository\TripRepository;
 use App\Service\PoiApproachService;
 use App\Service\PoiDiscoveryService;
 use App\Service\Settings;
+use App\Service\StorageQuotaService;
 use App\Service\TripAccess;
 use App\Service\TripRouteSummaryService;
 use App\Support\View;
@@ -44,12 +45,15 @@ final class TripManageController
         private readonly Settings $settings,
         private readonly TripAccess $access,
         private readonly TripRouteSummaryService $routeSummary,
+        private readonly StorageQuotaService $storage,
     ) {
     }
 
     public function show(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         $trip = $this->requireEditable($request, (string) $args['slug']);
+        $user = $request->getAttribute('user');
+        $isOwner = $user !== null && (int) $trip['user_id'] === (int) $user['id'];
 
         $pois = $this->pois->findByTrip((int) $trip['id']);
         $poiMedia = [];
@@ -65,6 +69,8 @@ final class TripManageController
             'trip' => $trip,
             'errors' => [],
             'canEdit' => true, // requireEditable() below already gated this
+            // Only the owner sees this (Stefan's ask) - see TripController::edit().
+            'tripStorageBytes' => $isOwner ? $this->storage->tripBytes((int) $trip['id']) : null,
             'wizardQs' => '', // this page is never part of the creation wizard
             'track' => $this->routeSummary->trackSummary((int) $trip['id']),
             'stays' => $this->routeSummary->detectStays((int) $trip['id'], $pois),

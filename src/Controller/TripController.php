@@ -13,6 +13,7 @@ use App\Repository\StationRepository;
 use App\Repository\TripRepository;
 use App\Service\MediaCleanupService;
 use App\Service\Slugger;
+use App\Service\StorageQuotaService;
 use App\Service\TripAccess;
 use App\Support\Env;
 use App\Support\Flash;
@@ -36,6 +37,7 @@ final class TripController
         private readonly Slugger $slugger,
         private readonly TripAccess $access,
         private readonly MediaCleanupService $mediaCleanup,
+        private readonly StorageQuotaService $storage,
         private readonly Flash $flash,
     ) {
     }
@@ -133,9 +135,15 @@ final class TripController
     public function edit(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         $trip = $this->requireEditable($request, (int) $args['id']);
+        $user = $request->getAttribute('user');
+        $isOwner = $user !== null && (int) $trip['user_id'] === (int) $user['id'];
 
         return $this->view->render($response, 'trips/form', [
             'trip' => $trip,
+            // Only the owner sees this (Stefan's ask) - an admin/manager
+            // editing someone else's trip isn't who the storage counts
+            // against, so it'd be a confusing number to show them here.
+            'tripStorageBytes' => $isOwner ? $this->storage->tripBytes((int) $trip['id']) : null,
         ]);
     }
 

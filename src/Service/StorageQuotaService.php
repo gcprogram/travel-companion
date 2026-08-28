@@ -40,6 +40,27 @@ final class StorageQuotaService
     }
 
     /**
+     * Storage footprint of a single trip (Stefan's ask: a per-trip display
+     * for the owner, next to the account-wide total this class already
+     * tracks) - same photos.bytes/videos.bytes sum as usedBytes(), just
+     * scoped to one trip's day_entries instead of all of an owner's trips.
+     */
+    public function tripBytes(int $tripId): int
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT
+                COALESCE((SELECT SUM(p.bytes) FROM photos p
+                    JOIN day_entries e ON e.id = p.day_entry_id
+                    WHERE e.trip_id = ?), 0)
+              + COALESCE((SELECT SUM(v.bytes) FROM videos v
+                    JOIN day_entries e ON e.id = v.day_entry_id
+                    WHERE e.trip_id = ?), 0)'
+        );
+        $stmt->execute([$tripId, $tripId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
      * Whether adding $addedBytes to the owner's usage would break their
      * quota. Unlimited (admin / no quota) never exceeds.
      */
