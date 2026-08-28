@@ -98,6 +98,7 @@ return static function (App $app): void {
         $group->get('/entries/{id:[0-9]+}/media-status', [DayEntryController::class, 'mediaStatus']);
         $group->post('/entries/{id:[0-9]+}', [DayEntryController::class, 'update']);
         $group->post('/entries/{id:[0-9]+}/summarize', [DayEntryController::class, 'summarize']);
+        $group->post('/entries/{id:[0-9]+}/suggest-description', [DayEntryController::class, 'suggestDescription']);
         $group->post('/entries/{id:[0-9]+}/delete', [DayEntryController::class, 'delete']);
 
         // Photos: uploading/deleting requires edit rights on the parent entry's trip.

@@ -183,6 +183,13 @@
     <p class="field-hint"><?= e(t('admin.settings_ai_slot_translate_hint')) ?></p>
   </div>
 
+  <div class="field">
+    <label for="ai_description_max_tokens"><?= e(t('admin.settings_ai_max_tokens_label')) ?></label>
+    <input type="number" id="ai_description_max_tokens" name="ai_description_max_tokens" min="200" max="100000" step="100"
+           value="<?= e($values['ai.description_max_tokens']) ?>">
+    <p class="field-hint"><?= e(t('admin.settings_ai_max_tokens_hint')) ?></p>
+  </div>
+
   <button type="submit" class="btn btn-primary"><?= e(t('admin.save')) ?></button>
 </form>
 

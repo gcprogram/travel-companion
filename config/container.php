@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Controller\ServiceWorkerController;
 use App\Database\Connection;
 use App\Job\AdminNotifyHandler;
+use App\Job\DayEntrySuggestDescriptionHandler;
 use App\Job\DayEntrySummarizeHandler;
 use App\Job\EntryLocateHandler;
 use App\Job\GeocodeResolveHandler;
@@ -81,6 +82,7 @@ return [
         $worker->register('geocode.resolve', $c->get(GeocodeResolveHandler::class));
         $worker->register('trip.metadata_refresh', $c->get(TripMetadataAutoFillHandler::class));
         $worker->register('day_entry.summarize', $c->get(DayEntrySummarizeHandler::class));
+        $worker->register('day_entry.suggest_description', $c->get(DayEntrySuggestDescriptionHandler::class));
         $worker->register('trip.suggest_meta', $c->get(TripSuggestMetaHandler::class));
         $worker->register('trip.suggest_description', $c->get(TripSuggestDescriptionHandler::class));
 
