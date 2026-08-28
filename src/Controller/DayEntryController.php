@@ -212,6 +212,27 @@ final class DayEntryController
     }
 
     /**
+     * Dispatches the day_entry.suggest_description job (see
+     * DayEntrySuggestDescriptionHandler) - same async-via-queue reasoning as
+     * summarize() above. Unlike summarize(), this generates a full day
+     * description from photos/videos/sights/weather even without existing
+     * text; $depth (Stefan's "Tagesbeschreibung ... in die Tiefe gehen"
+     * ask) comes from the form's select next to the button.
+     */
+    public function suggestDescription(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        [, $entry] = $this->access->requireEditableEntry($request, (int) $args['id']);
+
+        $body = (array) $request->getParsedBody();
+        $depth = in_array($body['depth'] ?? null, ['short', 'medium', 'long'], true) ? $body['depth'] : 'medium';
+
+        $this->jobs->dispatch('day_entry.suggest_description', ['day_entry_id' => (int) $entry['id'], 'depth' => $depth]);
+
+        $this->flash->add('success', t('entry.form.ai_description_started'));
+        return $response->withHeader('Location', '/entries/' . (int) $entry['id'] . '/edit')->withStatus(302);
+    }
+
+    /**
      * Tiny poke for day-entry-form.js's "processing" placeholders: used to
      * be a blind location.reload() every few seconds while anything was
      * still pending, which on a gallery with two dozen photos meant

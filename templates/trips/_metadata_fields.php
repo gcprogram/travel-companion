@@ -131,12 +131,6 @@ $action = $isEdit ? '/trips/' . (int) $trip['id'] : '/trips';
   <div class="field">
     <form method="post" action="/trips/<?= (int) $trip['id'] ?>/suggest-description" class="ai-description-form">
       <?= $csrf->field() ?>
-      <label for="ai-description-depth"><?= e(t('trip.form.ai_description_depth_label')) ?></label>
-      <select id="ai-description-depth" name="depth">
-        <option value="short"><?= e(t('trip.form.ai_description_depth_short')) ?></option>
-        <option value="medium" selected><?= e(t('trip.form.ai_description_depth_medium')) ?></option>
-        <option value="long"><?= e(t('trip.form.ai_description_depth_long')) ?></option>
-      </select>
       <button type="submit" class="btn btn-ghost btn-small"><?= e(t('trip.form.ai_generate_description')) ?></button>
       <p class="field-hint"><?= e(t('trip.form.ai_description_hint')) ?></p>
     </form>

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 /**
- * "Generiere Beschreibung" (Stefan's ask): a full trip narrative from
+ * "Generiere Beschreibung" (Stefan's ask): a trip-level narrative from
  * everything the trip already knows about itself - far richer input than
  * AiTripMetaService's title/tags suggestion (weather, stays, per-photo
  * captions/addresses/persons/POIs/geocaches, video captions/transcripts,
@@ -15,37 +15,33 @@ namespace App\Service;
  * AiSummaryService/AiTripMetaService (AiProviderResolver, same chain/retry
  * across saved provider profiles).
  *
- * $depth controls the OUTPUT's length/detail (Stefan's "Tiefe/Umfang
- * wählbar" ask) - the gathered INPUT context is the same regardless, only
- * the system prompt's instruction and max_tokens change.
+ * Deliberately a fixed short OVERVIEW only (visited cities/places) - no
+ * depth choice here anymore (Stefan's call): the day-by-day depth belongs
+ * to AiDayDescriptionService instead, so this text stays a quick summary
+ * rather than duplicating what the day descriptions already say in detail.
  */
 final class AiTripDescriptionService
 {
-    private const DEPTHS = [
-        'short' => ['instruction' => 'Schreibe einen kurzen Absatz (ca. 60-100 Wörter).', 'maxTokens' => 220],
-        // 500 was tight enough that a verbose model ran out of budget
-        // mid-sentence rather than actually finishing at ~300 words
-        // (Stefan's report: the medium option cut off mid-list) - German
-        // text also tokenizes less efficiently than English, needing more
-        // headroom than a word-count alone suggests.
-        'medium' => ['instruction' => 'Schreibe 2-3 Absätze (ca. 200-300 Wörter).', 'maxTokens' => 750],
-        'long' => ['instruction' => 'Schreibe eine ausführliche Beschreibung mit mehreren Absätzen (ca. 400-600 Wörter).', 'maxTokens' => 950],
-    ];
+    private const INSTRUCTION = 'Schreibe einen KURZEN Überblick (ca. 80-150 Wörter) über die Reise: '
+        . 'wohin gereist wurde, welche Städte/Orte/Regionen besucht wurden. Keine Details zu einzelnen '
+        . 'Ereignissen, Sehenswürdigkeiten oder Tagesabläufen - das steht in den separaten Tagesbeschreibungen.';
 
-    public function __construct(private readonly AiProviderResolver $resolver)
-    {
+    public function __construct(
+        private readonly AiProviderResolver $resolver,
+        private readonly Settings $settings,
+    ) {
     }
 
     /**
      * @param array<string, mixed> $context see TripSuggestDescriptionHandler::handle()
      */
-    public function suggest(array $context, string $depth): ?string
+    public function suggest(array $context): ?string
     {
-        $depthConfig = self::DEPTHS[$depth] ?? self::DEPTHS['medium'];
         $prompt = $this->buildPrompt($context);
+        $maxTokens = $this->settings->getInt('ai.description_max_tokens');
 
         foreach ($this->resolver->resolveChain('main') as $provider) {
-            $result = $this->callProvider($provider, $prompt, $depthConfig);
+            $result = $this->callProvider($provider, $prompt, $maxTokens);
             if ($result !== null) {
                 return $result;
             }
@@ -56,9 +52,8 @@ final class AiTripDescriptionService
 
     /**
      * @param array{baseUrl: string, model: string, apiKey: string} $provider
-     * @param array{instruction: string, maxTokens: int} $depthConfig
      */
-    private function callProvider(array $provider, string $prompt, array $depthConfig): ?string
+    private function callProvider(array $provider, string $prompt, int $maxTokens): ?string
     {
         $ch = curl_init($provider['baseUrl'] . '/chat/completions');
         curl_setopt_array($ch, [
@@ -79,10 +74,10 @@ final class AiTripDescriptionService
                         . 'schon ein von einem Menschen geschriebener Text vorliegt, dessen Ton/Inhalt '
                         . 'aufgreifen und sinnvoll erweitern statt ihn zu ignorieren. Fließtext, keine '
                         . 'Überschrift, keine Aufzählung, keine Anführungszeichen. '
-                        . $depthConfig['instruction']],
+                        . self::INSTRUCTION],
                     ['role' => 'user', 'content' => $prompt],
                 ],
-                'max_tokens' => $depthConfig['maxTokens'],
+                'max_tokens' => $maxTokens,
                 'temperature' => 0.75,
             ], JSON_THROW_ON_ERROR),
         ]);
@@ -105,7 +100,7 @@ final class AiTripDescriptionService
             return null;
         }
 
-        return mb_substr(trim($content), 0, 6000);
+        return mb_substr(trim($content), 0, 20000);
     }
 
     /**

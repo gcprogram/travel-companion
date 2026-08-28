@@ -155,6 +155,17 @@ final class DayEntryRepository
         $stmt->execute([$summary, gmdate('Y-m-d H:i:s'), $id]);
     }
 
+    /**
+     * Distinct from updateAiSummary(): that one condenses an already-written
+     * body; this one holds a full day narrative generated FROM photos/
+     * videos/POIs/weather even when body is empty (DayEntrySuggestDescriptionHandler).
+     */
+    public function updateAiDescriptionSuggestion(int $id, string $suggestion): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE day_entries SET ai_description_suggestion = ?, updated_at = ? WHERE id = ?');
+        $stmt->execute([$suggestion, gmdate('Y-m-d H:i:s'), $id]);
+    }
+
     public function delete(int $id): void
     {
         $this->pdo->prepare('DELETE FROM day_entries WHERE id = ?')->execute([$id]);

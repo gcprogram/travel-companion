@@ -118,6 +118,8 @@ final class AdminSettingsController
             $this->settings->set('ai.slot.translate', (string) $slotTranslate);
         }
 
+        $this->setIntIfValid($body, 'ai_description_max_tokens', 'ai.description_max_tokens', min: 200);
+
         $this->flash->add('success', t('admin.settings_saved'));
         return $response->withHeader('Location', '/admin/settings')->withStatus(302);
     }

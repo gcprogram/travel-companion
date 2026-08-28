@@ -46,22 +46,6 @@ $lng = $entry['lng'] ?? null;
     <textarea id="body" name="body" required><?= e($entry['body'] ?? '') ?></textarea>
   </div>
 
-  <?php if ($isEdit): ?>
-    <div class="ai-summary">
-      <?php if (!empty($entry['ai_summary'])): ?>
-        <p class="ai-summary__label"><?= e(t('entry.form.ai_summary_label')) ?></p>
-        <p class="ai-summary__text" data-ai-summary-text><?= nl2br(e($entry['ai_summary'])) ?></p>
-        <button type="button" class="btn btn-ghost btn-small" data-ai-summary-apply
-                data-target="body"><?= e(t('entry.form.ai_summary_apply')) ?></button>
-      <?php endif; ?>
-      <form method="post" action="/entries/<?= (int) $entry['id'] ?>/summarize">
-        <?= $csrf->field() ?>
-        <button type="submit" class="btn btn-ghost btn-small"><?= e(t('entry.form.ai_summary_generate')) ?></button>
-        <p class="field-hint"><?= e(t('entry.form.ai_summary_hint')) ?></p>
-      </form>
-    </div>
-  <?php endif; ?>
-
   <div class="field">
     <label><?= e(t('entry.form.mood_label')) ?></label>
     <div class="field-radio-group field-radio-group--mood">
@@ -102,6 +86,55 @@ $lng = $entry['lng'] ?? null;
     <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>"><?= e(t('entry.form.cancel')) ?></a>
   </div>
 </form>
+
+<?php /*
+ * These AI-suggestion mini-forms must NOT sit inside the <form> above -
+ * nested <form> elements are invalid HTML, and browsers resolve it by
+ * dropping the inner <form> tag entirely while still processing its
+ * </form> as closing whichever form is currently open. That silently
+ * truncates the OUTER form right after the first nested form's content -
+ * everything after it (mood/location/Speichern) ends up outside any
+ * <form> at all and does nothing on click. Same bug, same fix as
+ * templates/trips/_metadata_fields.php (HANDOVER Teil 10 Nachtrag 30) -
+ * these two independent sibling forms sit after the real one instead.
+ */ ?>
+<?php if ($isEdit): ?>
+  <div class="ai-summary">
+    <?php if (!empty($entry['ai_summary'])): ?>
+      <p class="ai-summary__label"><?= e(t('entry.form.ai_summary_label')) ?></p>
+      <p class="ai-summary__text" data-ai-summary-text><?= nl2br(e($entry['ai_summary'])) ?></p>
+      <button type="button" class="btn btn-ghost btn-small" data-ai-summary-apply
+              data-target="body"><?= e(t('entry.form.ai_summary_apply')) ?></button>
+    <?php endif; ?>
+    <form method="post" action="/entries/<?= (int) $entry['id'] ?>/summarize">
+      <?= $csrf->field() ?>
+      <button type="submit" class="btn btn-ghost btn-small"><?= e(t('entry.form.ai_summary_generate')) ?></button>
+      <p class="field-hint"><?= e(t('entry.form.ai_summary_hint')) ?></p>
+    </form>
+  </div>
+
+  <?php if (!empty($entry['ai_description_suggestion'])): ?>
+    <div class="ai-summary">
+      <p class="ai-summary__label"><?= e(t('entry.form.ai_description_label')) ?></p>
+      <p class="ai-summary__text ai-summary__multiline" id="ai-day-description-text"><?= nl2br(e($entry['ai_description_suggestion'])) ?></p>
+      <button type="button" class="btn btn-ghost btn-small" data-ai-apply data-target="body"
+              data-source="ai-day-description-text"><?= e(t('entry.form.ai_description_apply')) ?></button>
+    </div>
+  <?php endif; ?>
+  <div class="field">
+    <form method="post" action="/entries/<?= (int) $entry['id'] ?>/suggest-description">
+      <?= $csrf->field() ?>
+      <label for="entry-ai-description-depth"><?= e(t('entry.form.ai_description_depth_label')) ?></label>
+      <select id="entry-ai-description-depth" name="depth">
+        <option value="short"><?= e(t('entry.form.ai_description_depth_short')) ?></option>
+        <option value="medium" selected><?= e(t('entry.form.ai_description_depth_medium')) ?></option>
+        <option value="long"><?= e(t('entry.form.ai_description_depth_long')) ?></option>
+      </select>
+      <button type="submit" class="btn btn-ghost btn-small"><?= e(t('entry.form.ai_generate_description')) ?></button>
+      <p class="field-hint"><?= e(t('entry.form.ai_description_hint')) ?></p>
+    </form>
+  </div>
+<?php endif; ?>
 
 <?php if ($isEdit): ?>
   <div class="sync-status" data-sync-status hidden
@@ -242,4 +275,5 @@ $lng = $entry['lng'] ?? null;
   <script src="/assets/js/video-upload.js"></script>
 <?php endif; ?>
 
+<script src="/assets/js/trip-metadata-ai.js"></script>
 <script src="/assets/js/day-entry-form.js"></script>

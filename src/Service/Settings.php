@@ -94,6 +94,14 @@ final class Settings
         // (Stefan) - deliberately its own slot so a cheap/fast model can be
         // picked here without affecting 'main'.
         'ai.slot.translate' => '0',
+        // Output token ceiling for the trip-overview and day-description
+        // generators (AiTripDescriptionService/AiDayDescriptionService).
+        // Was hardcoded per depth (220-950) and kept cutting a "complete"
+        // description off mid-sentence (Stefan's report) - a single
+        // generous admin-configurable ceiling instead, since a higher
+        // budget only costs money when the model actually uses it, never
+        // hurts a short reply.
+        'ai.description_max_tokens' => '16000',
     ];
 
     /** @var array<string, string>|null */

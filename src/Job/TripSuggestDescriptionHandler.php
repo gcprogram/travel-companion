@@ -14,14 +14,16 @@ use App\Repository\VideoRepository;
 use App\Service\AiTripDescriptionService;
 
 /**
- * Job type "trip.suggest_description". Payload: {"trip_id": int, "depth":
- * "short"|"medium"|"long"}. Dispatched by TripController::suggestDescription()
- * - a text-completion call, so it goes through the queue like
- * TripSuggestMetaHandler rather than running synchronously inside a
- * request. Gathers everything Stefan asked for (existing description,
- * per-day weather, stays, per-photo captions/addresses/persons/assigned
- * POI, video captions/transcripts, GPS route distance) into a bounded
- * context, then hands it to AiTripDescriptionService to turn into a prompt.
+ * Job type "trip.suggest_description". Payload: {"trip_id": int}. Dispatched
+ * by TripController::suggestDescription() - a text-completion call, so it
+ * goes through the queue like TripSuggestMetaHandler rather than running
+ * synchronously inside a request. Gathers everything Stefan asked for
+ * (existing description, per-day weather, stays, per-photo captions/
+ * addresses/persons/assigned POI, video captions/transcripts, GPS route
+ * distance) into a bounded context, then hands it to
+ * AiTripDescriptionService to turn into a prompt for a short trip-level
+ * overview (the day-by-day depth lives in DayEntrySuggestDescriptionHandler
+ * instead).
  */
 final class TripSuggestDescriptionHandler implements JobHandlerInterface
 {
@@ -51,9 +53,6 @@ final class TripSuggestDescriptionHandler implements JobHandlerInterface
             return;
         }
         $id = (int) $id;
-        $depth = in_array($payload['depth'] ?? null, ['short', 'medium', 'long'], true)
-            ? $payload['depth']
-            : 'medium';
 
         $trip = $this->trips->findById($id);
         if ($trip === null) {
@@ -178,7 +177,7 @@ final class TripSuggestDescriptionHandler implements JobHandlerInterface
             'sights' => $sights,
             'photoNotes' => $photoNotes,
             'videoNotes' => $videoNotes,
-        ], $depth);
+        ]);
 
         if ($suggestion === null) {
             return;
