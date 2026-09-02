@@ -133,7 +133,11 @@
       } catch (e) {
         zoom = map.getZoom();
       }
-      return Math.max(3, Math.min(18, zoom));
+      // Stefan's ask: the tight-fit zoom made playback feel like it was
+      // jumping too hard between points - two levels back (~1:4 the
+      // apparent scale, since each Leaflet zoom level doubles it) gives
+      // more visual context around the moving point.
+      return Math.max(3, Math.min(18, zoom - 2));
     }
 
     function updateTime() {
@@ -168,6 +172,33 @@
       poiCard.hidden = false;
     }
 
+    // Reads the SAME "seconds per photo" field the lightbox's own slideshow
+    // uses (Stefan's ask) - only rendered for canEdit viewers, so a plain
+    // viewer (no edit rights, but the player is public - see PLAN.md) just
+    // gets the 3-second default.
+    function photoHoldSeconds() {
+      var input = document.querySelector('[data-map-lightbox-play-seconds]');
+      var value = input ? parseFloat(input.value) : NaN;
+      return value > 0 ? value : 3;
+    }
+
+    function closeLightboxIfOpen() {
+      var lightbox = document.querySelector('[data-map-lightbox]');
+      var body = document.querySelector('[data-map-lightbox-body]');
+      if (lightbox && !lightbox.hidden) {
+        lightbox.hidden = true;
+        if (body) {
+          body.innerHTML = '';
+        }
+      }
+    }
+
+    /**
+     * @return 'pin'|'poi'|null - 'pin' auto-continues after photoHoldSeconds()
+     * (Stefan's ask: like the slideshow, not a hard stop - the pause button
+     * still works to actually halt it), 'poi' is a hard pause (no natural
+     * "how long" for a sight/geocache card), null means nothing nearby.
+     */
     function checkProximityPause() {
       var here = points[currentIndex];
       var hit = null;
@@ -194,7 +225,7 @@
       }
 
       if (!hit) {
-        return false;
+        return null;
       }
       if (hit.type === 'pin') {
         shownPinIds[hit.data.kind + ':' + hit.data.id] = true;
@@ -202,14 +233,14 @@
         if (openLightboxAt && idx >= 0) {
           openLightboxAt(pins, idx);
         }
-      } else {
-        shownPoiIds[hit.data.poi.id] = true;
-        if (hit.data.marker.openTooltip) {
-          hit.data.marker.openTooltip();
-        }
-        nearestPoiCard();
+        return 'pin';
       }
-      return true;
+      shownPoiIds[hit.data.poi.id] = true;
+      if (hit.data.marker.openTooltip) {
+        hit.data.marker.openTooltip();
+      }
+      nearestPoiCard();
+      return 'poi';
     }
 
     function goToIndex(index, flyDurationSeconds) {
@@ -270,10 +301,19 @@
       goToIndex(currentIndex + 1, durationMs / 1000);
       rebuildPlayedLineUpTo(currentIndex);
       timer = setTimeout(function () {
-        if (!checkProximityPause()) {
-          scheduleNext();
-        } else {
+        var hit = checkProximityPause();
+        if (hit === 'pin') {
+          // Auto-continues like the lightbox's own slideshow - stays
+          // "playing" (same timer var pause() already clears) so the
+          // pause button is what actually halts it, per Stefan's ask.
+          timer = setTimeout(function () {
+            closeLightboxIfOpen();
+            scheduleNext();
+          }, photoHoldSeconds() * 1000);
+        } else if (hit === 'poi') {
           setPlayingUi(false);
+        } else {
+          scheduleNext();
         }
       }, durationMs);
     }
