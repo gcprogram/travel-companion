@@ -202,6 +202,26 @@ form.auth-form { max-width: 420px; }
   margin-bottom: var(--space-2);
 }
 
+.home-promo {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.home-promo__heading { font-family: var(--font-display); margin: 0 0 var(--space-1); }
+.home-promo__intro { margin: 0 0 var(--space-2); color: var(--color-muted); }
+.home-promo__features { display: grid; gap: var(--space-2); grid-template-columns: 1fr; list-style: none; margin: 0; padding: 0; }
+.home-promo__feature { display: flex; flex-direction: column; gap: 0.2rem; }
+.home-promo__feature strong { color: var(--color-ink); }
+.home-promo__feature span { color: var(--color-muted); font-size: 0.92rem; }
+@media (min-width: 640px) {
+  .home-promo__features { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 960px) {
+  .home-promo__features { grid-template-columns: repeat(3, 1fr); }
+}
+
 .trip-list { display: grid; gap: var(--space-2); grid-template-columns: 1fr; }
 
 .trip-card { display: block; text-decoration: none; color: inherit; }

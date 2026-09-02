@@ -9,9 +9,26 @@ foreach ($trips as $trip) {
         break;
     }
 }
+$promoFeatures = ['diary', 'map', 'geocaching', 'ai', 'sharing', 'mobile'];
 ?>
 
-<h1><?= e($title ?? t('home.title')) ?></h1>
+<?php if (empty($currentUser)): ?>
+  <section class="home-promo">
+    <h1 class="home-promo__heading"><?= e(t('home.promo_heading')) ?></h1>
+    <p class="home-promo__intro"><?= e(t('home.promo_intro')) ?></p>
+    <ul class="home-promo__features">
+      <?php foreach ($promoFeatures as $feature): ?>
+        <li class="home-promo__feature">
+          <strong><?= e(t('home.promo_feature_' . $feature . '_label')) ?></strong>
+          <span><?= e(t('home.promo_feature_' . $feature)) ?></span>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  </section>
+  <h2><?= e(t('home.promo_public_heading')) ?></h2>
+<?php else: ?>
+  <h1><?= e($title ?? t('home.title')) ?></h1>
+<?php endif; ?>
 
 <?php if ($trips === []): ?>
   <div class="empty-state">
