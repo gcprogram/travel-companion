@@ -33,6 +33,74 @@ X Nachtrag Y"), nicht hier.
 
 ## Ideen-Backlog (noch nicht angefangen)
 
+- **Track-Player.** Ein Play-Button unter der Karte, der die Route/den
+  Track zeitlich abspielt, in sinnvoller Geschwindigkeit.
+
+  *Machbarkeits-Check (2026-08-28):* grundsätzlich machbar, aber drei
+  Bausteine fehlen komplett im Code und müssten neu gebaut werden -
+  sanftes Kamera-Folgen (`flyTo`, gibt's aktuell nirgends, Route-editieren
+  springt nur hart), eine performante Animationsschleife (die Hauptkarte
+  lädt aktuell ALLE Rohpunkte ohne serverseitige Reduzierung - bei
+  mehrtägigen Reisen leicht mehrere Tausend Punkte, ein Marker pro Punkt
+  wäre zu langsam) und eine eigene "abgelaufen"-Trackfarbe. Das Cursor-
+  Konzept (aktueller Punkt, </>-Navigation, Zeitanzeige) aus
+  Route-editieren (Nachtrag 26) ist als PATTERN übertragbar, aber nicht
+  als Code, da die Route-Edit-Karte keine Fotos/POIs/Lightbox kennt - die
+  Umsetzung müsste in trip-map.js passieren, wo das alles schon existiert
+  (Layer-Checkboxen, geteilte Lightbox `window.openTripPhotoLightbox`).
+
+  **Geschwindigkeit/Zeitraffer** (nach Rückfrage geklärt): Trackpunkte
+  werden mit ca. 1:60 abgespielt (1 min real = 1 sec Abspielzeit).
+  - Punktabstand < 1 min: direkt zum nächsten Punkt springen (kein
+    sanftes Interpolieren nötig, die Punkte liegen eh schon nah genug
+    beieinander).
+  - Punktabstand 1-29 min: 1 sec auf dem Punkt verharren.
+  - Punktabstand ≥ 30 min (z. B. Flug mit nur Start-/Zielpunkt): über
+    diese Lücke sanft interpolieren/animieren (`flyTo`) - hier macht die
+    Kamerafahrt tatsächlich Sinn, weil sonst ein harter Sprung entstünde.
+    Die Dichte der interpolierten Zwischenschritte muss sich an die
+    gerade laufende Abspielgeschwindigkeit anpassen: bei geraffter Zeit
+    (viel reale Zeit in 1 sec Abspielzeit) weniger Zwischenschritte pro
+    Zeiteinheit als bei normalem Tempo, sonst wirkt die Animation entweder
+    ruckelig oder unnötig fein aufgelöst.
+  - Alle drei Sekunden-/Minuten-Schwellen im Admin-Bereich konfigurierbar
+    (gleiches Muster wie das kürzlich gebaute `ai.description_max_tokens`
+    -Setting). Zoom passt sich an die Schrittgröße an.
+  - Aufenthalte ohne Fotos sowie offensichtliche Übernachtungen auch
+    schnell überspringen (wie ≥30-min-Lücken), unabhängig von der reinen
+    Punktdichte.
+
+  **Farben** (nach Rückfrage geklärt): der bereits abgelaufene Track-Teil
+  bekommt eine eigene Farbe (z. B. Orange), der noch bevorstehende Teil
+  bleibt in der normalen Trackfarbe (Grün) - beide Farben im
+  Admin-Bereich wählbar (2 Farbwähler). WICHTIG dabei gleich mit
+  korrigieren: die Tagesansicht (aufgeklappter Tagebucheintrag) rendert
+  den Tages-Track aktuell fälschlich in genau diesem Orange
+  (`dayRouteLine`, trip-map.js) - das ist kein Wahrnehmungsfehler,
+  sondern eine echte Doppelbelegung der Farbe. Die Tagesansicht soll
+  stattdessen dieselbe Farbe wie der Gesamttrack benutzen, damit Orange
+  im Track-Player wirklich nur "schon abgespielt" bedeutet.
+
+  **Noch offene Rückfragen vor einer Umsetzung:**
+  - Exit-Verhalten: der letzte Trackpoint bleibt als "Trackpoint for
+    Edit" markiert. Soll das eine echte Verlinkung zur
+    Route-editieren-Seite sein (direkt dorthin springen können), oder nur
+    eine interne Merkposition, damit ein erneutes Play an der Stelle
+    fortsetzt?
+  - Wo taucht der Play-Button auf - nur auf der Hauptkarte (`/map` bzw.
+    die Route-Sektion auf `/manage`) für den Besitzer, oder auch auf der
+    öffentlichen/geteilten Ansicht für Betrachter?
+
+- **Optionale Zusatzidee zum Track-Player: Tageslicht-Farbverlauf.**
+  Statt einer einzelnen "abgelaufen"-Farbe könnte der Track sich mit dem
+  Tageslicht einfärben - heller/kräftiger zum Sonnenhöchststand, dunkler
+  Richtung Sonnenauf-/-untergang. Damit wären z. B. 90-Minuten-
+  Mittagspausen an einer auffälligen Farbnuance im Track erkennbar. Erst
+  mal zurückgestellt (Stefans Einschätzung: unklar, ob die Farbnuancen in
+  der Praxis überhaupt sichtbar genug sind) - bei Gefallen als spätere
+  Erweiterung der einfachen Zwei-Farben-Lösung oben denkbar, kein Teil
+  einer ersten Umsetzung.
+
 *(Hier neue Ideen eintragen, sobald welche kommen.)*
 
 ## Format-Vorschlag für neue Einträge
