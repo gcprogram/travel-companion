@@ -81,15 +81,20 @@ X Nachtrag Y"), nicht hier.
   stattdessen dieselbe Farbe wie der Gesamttrack benutzen, damit Orange
   im Track-Player wirklich nur "schon abgespielt" bedeutet.
 
-  **Noch offene Rückfragen vor einer Umsetzung:**
-  - Exit-Verhalten: der letzte Trackpoint bleibt als "Trackpoint for
-    Edit" markiert. Soll das eine echte Verlinkung zur
-    Route-editieren-Seite sein (direkt dorthin springen können), oder nur
-    eine interne Merkposition, damit ein erneutes Play an der Stelle
-    fortsetzt?
-  - Wo taucht der Play-Button auf - nur auf der Hauptkarte (`/map` bzw.
-    die Route-Sektion auf `/manage`) für den Besitzer, oder auch auf der
-    öffentlichen/geteilten Ansicht für Betrachter?
+  **Exit-Verhalten** (nach Rückfrage geklärt): echte Verlinkung zur
+  Route-editieren-Seite, nicht nur eine interne Merkposition - im
+  Schritt-Modus fallen Fehler/Ungenauigkeiten im Track auf, die man dann
+  direkt editieren können soll. Da Route-editieren Bearbeitungsrechte
+  braucht, aber der Player selbst laut nächstem Punkt auch für
+  Betrachter ohne Bearbeitungsrechte sichtbar ist, muss dieser
+  "zum Editieren springen"-Button/Link nur erscheinen, wenn der aktuelle
+  Betrachter die Reise auch bearbeiten darf (gleiche Prüfung wie sonst
+  auf der Karte, z. B. die vorhandenen `canEdit`-Gates).
+
+  **Sichtbarkeit** (nach Rückfrage geklärt): auch auf der
+  öffentlichen/geteilten Ansicht, nicht nur für den Besitzer - jeder
+  Betrachter kann die Reise abspielen, nur der "zum Editieren
+  springen"-Teil bleibt bearbeitungsrechte-gebunden (siehe oben).
 
 - **Optionale Zusatzidee zum Track-Player: Tageslicht-Farbverlauf.**
   Statt einer einzelnen "abgelaufen"-Farbe könnte der Track sich mit dem
