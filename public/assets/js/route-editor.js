@@ -527,6 +527,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }).addTo(map);
       }
 
+      // Deep link from the Track-Player's Exit button (Stefan's ask): "the
+      // trackpoint you were just looking at" carries over as the point to
+      // fix, instead of always landing on index 0.
+      var focusTimeParam = new URLSearchParams(window.location.search).get('focus_time');
+      var focusTarget = focusTimeParam ? parseUtc(focusTimeParam) : null;
+
       var savedView = takeSavedView();
       if (savedView) {
         map.setView([savedView.lat, savedView.lng], savedView.zoom);
@@ -570,6 +576,8 @@ document.addEventListener('DOMContentLoaded', function () {
       updateNavButtons();
       if (points.length === 0) {
         setStatus(container.dataset.msgNoPoints || '');
+      } else if (focusTarget && !savedView) {
+        focusPoint(nearestIndexForDate(focusTarget));
       }
 
       initTrimSlider(points);

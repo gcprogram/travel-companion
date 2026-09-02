@@ -190,6 +190,43 @@
     <p class="field-hint"><?= e(t('admin.settings_ai_max_tokens_hint')) ?></p>
   </div>
 
+  <h2><?= e(t('admin.settings_trackplayer_heading')) ?></h2>
+  <p class="field-hint"><?= e(t('admin.settings_trackplayer_hint')) ?></p>
+
+  <div class="field">
+    <label for="trackplayer_seconds_per_real_minute"><?= e(t('admin.settings_trackplayer_ratio_label')) ?></label>
+    <input type="number" id="trackplayer_seconds_per_real_minute" name="trackplayer_seconds_per_real_minute"
+           min="0.01" max="60" step="0.1" value="<?= e($values['trackplayer.seconds_per_real_minute']) ?>">
+    <p class="field-hint"><?= e(t('admin.settings_trackplayer_ratio_hint')) ?></p>
+  </div>
+
+  <div class="field">
+    <label for="trackplayer_hold_seconds_per_point"><?= e(t('admin.settings_trackplayer_hold_label')) ?></label>
+    <input type="number" id="trackplayer_hold_seconds_per_point" name="trackplayer_hold_seconds_per_point"
+           min="0" max="60" step="0.1" value="<?= e($values['trackplayer.hold_seconds_per_point']) ?>">
+    <p class="field-hint"><?= e(t('admin.settings_trackplayer_hold_hint')) ?></p>
+  </div>
+
+  <div class="field">
+    <label for="trackplayer_long_gap_seconds"><?= e(t('admin.settings_trackplayer_gap_label')) ?></label>
+    <input type="number" id="trackplayer_long_gap_seconds" name="trackplayer_long_gap_seconds"
+           min="0.1" max="60" step="0.1" value="<?= e($values['trackplayer.long_gap_seconds']) ?>">
+    <p class="field-hint"><?= e(t('admin.settings_trackplayer_gap_hint')) ?></p>
+  </div>
+
+  <div class="field">
+    <label for="trackplayer_color_played"><?= e(t('admin.settings_trackplayer_color_played_label')) ?></label>
+    <input type="color" id="trackplayer_color_played" name="trackplayer_color_played"
+           value="<?= e($values['trackplayer.color_played']) ?>">
+  </div>
+
+  <div class="field">
+    <label for="trackplayer_color_upcoming"><?= e(t('admin.settings_trackplayer_color_upcoming_label')) ?></label>
+    <input type="color" id="trackplayer_color_upcoming" name="trackplayer_color_upcoming"
+           value="<?= e($values['trackplayer.color_upcoming']) ?>">
+    <p class="field-hint"><?= e(t('admin.settings_trackplayer_color_hint')) ?></p>
+  </div>
+
   <button type="submit" class="btn btn-primary"><?= e(t('admin.save')) ?></button>
 </form>
 

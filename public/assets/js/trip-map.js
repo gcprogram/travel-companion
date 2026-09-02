@@ -27,6 +27,20 @@ document.addEventListener('DOMContentLoaded', function () {
   var routeToggle = document.querySelector('[data-map-route-toggle]');
   var photoToggle = document.querySelector('[data-map-photo-toggle]');
   var geocacheToggle = document.querySelector('[data-map-geocache-toggle]');
+  // Track-Player's admin-configurable "upcoming" color doubles as the
+  // map's normal (non-playing) track color, so the day-filtered view
+  // below and the Track-Player's own "not yet played" segment always
+  // agree with the full track - see Settings.php's trackplayer.* keys.
+  var trackPlayerEl = document.querySelector('[data-track-player]');
+  var trackPlayerConfig = {};
+  if (trackPlayerEl) {
+    try {
+      trackPlayerConfig = JSON.parse(trackPlayerEl.dataset.config || '{}') || {};
+    } catch (e) {
+      trackPlayerConfig = {};
+    }
+  }
+  var routeColor = trackPlayerConfig.colorUpcoming || '#2f6f5e';
   var lightbox = document.querySelector('[data-map-lightbox]');
   var lightboxBody = document.querySelector('[data-map-lightbox-body]');
   var lightboxActions = document.querySelector('[data-map-lightbox-actions]');
@@ -664,7 +678,10 @@ document.addEventListener('DOMContentLoaded', function () {
   var dayMarkers = [];
   var dayTrackPoints = [];
   var fullRouteGroup = null;
-  var dayRouteLine = L.polyline([], { color: '#c56a3c', weight: 4, opacity: 0.9 });
+  // Was hardcoded orange - collided with the Track-Player's own "already
+  // played" color and made a single expanded day look like it had already
+  // been played back (Stefan's bug report). Matches the full track now.
+  var dayRouteLine = L.polyline([], { color: routeColor, weight: 4, opacity: 0.9 });
   var fullFitLatLngs = [];
 
   function localDateOf(isoUtc) {
@@ -907,7 +924,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var routeLatlngs = trackLatlngs.length > 0 ? trackLatlngs : pinLatlngs;
       if (routeLatlngs.length > 1) {
         var routeGroup = L.layerGroup();
-        L.polyline(routeLatlngs, { color: '#2f6f5e', weight: 3, opacity: 0.8 }).addTo(routeGroup);
+        L.polyline(routeLatlngs, { color: routeColor, weight: 3, opacity: 0.8 }).addTo(routeGroup);
 
         // Timestamp/pause tooltips only make sense on a real track's
         // vertices (chronological photo pins already show their date on
@@ -922,8 +939,8 @@ document.addEventListener('DOMContentLoaded', function () {
               : formatTime(p.recordedAt);
             var vertex = L.circleMarker([p.lat, p.lng], {
               radius: p.isPause ? 6 : 2,
-              color: p.isPause ? '#c56a3c' : '#2f6f5e',
-              fillColor: p.isPause ? '#c56a3c' : '#2f6f5e',
+              color: p.isPause ? '#c56a3c' : routeColor,
+              fillColor: p.isPause ? '#c56a3c' : routeColor,
               fillOpacity: 0.9,
               weight: 1,
             }).bindTooltip(label, { sticky: true });
@@ -967,6 +984,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       var poiLatlngs = [];
+      var poiMarkers = [];
       pois.forEach(function (poi) {
         // Geocaches (see PoiController::importGpx()) get their real
         // cache_type SVG icon instead of the generic coloured dot, and go
@@ -990,6 +1008,7 @@ document.addEventListener('DOMContentLoaded', function () {
           marker.bindPopup(buildPoiPopup(poi));
         }
         poiLatlngs.push([poi.lat, poi.lng]);
+        poiMarkers.push({ marker: marker, poi: poi });
       });
 
       map.on('zoomend', applyIconsForZoom);
@@ -1002,6 +1021,21 @@ document.addEventListener('DOMContentLoaded', function () {
       fullRouteGroup = routeGroup || null;
       mapDataLoaded = true;
       applyDayFilter();
+
+      if (trackPlayerEl && window.TrackPlayer && track && track.points && track.points.length > 1) {
+        window.TrackPlayer.init({
+          el: trackPlayerEl,
+          map: map,
+          points: track.points,
+          pins: pins,
+          pois: poiMarkers,
+          routeToggle: routeToggle,
+          photoToggle: photoToggle,
+          geocacheToggle: geocacheToggle,
+          openLightboxAt: openLightboxAt,
+          config: trackPlayerConfig,
+        });
+      }
     })
     .catch(function (err) {
       console.error('Trip map data fetch failed:', err);

@@ -102,6 +102,29 @@ final class Settings
         // budget only costs money when the model actually uses it, never
         // hurts a short reply.
         'ai.description_max_tokens' => '16000',
+        // Track-Player (Stefan's idea, PLAN.md): playback speed thresholds,
+        // all read client-side only (trip-map.js/track-player.js) - the
+        // server never animates anything, it just hands these numbers to
+        // the page like any other config. Real time -> playback time:
+        // - gap < 1 min: seconds of playback per real minute (a ratio, not
+        //   a flat pause - dense points already look fine "jumping"
+        //   straight to the next one at this pace, Stefan confirmed no
+        //   extra smoothing is needed there).
+        // - gap 1-29 min: flat seconds held on the point.
+        // - gap >= 30 min (flights, ferry crossings) or a detected
+        //   stationary dwell (TrackSmoothingService's isPause) without a
+        //   photo in it: flat seconds to fly across the WHOLE gap,
+        //   regardless of how long it really was.
+        'trackplayer.seconds_per_real_minute' => '1',
+        'trackplayer.hold_seconds_per_point' => '1',
+        'trackplayer.long_gap_seconds' => '1',
+        // Elapsed vs. still-upcoming track color during playback -
+        // separate from the always-green full/day track line elsewhere on
+        // the map (Stefan's ask: those two concepts must not share a
+        // color, unlike the pre-existing day-view bug this feature fixed
+        // in passing).
+        'trackplayer.color_played' => '#c56a3c',
+        'trackplayer.color_upcoming' => '#2f6f5e',
     ];
 
     /** @var array<string, string>|null */
@@ -120,6 +143,11 @@ final class Settings
     public function getInt(string $key): int
     {
         return (int) $this->get($key);
+    }
+
+    public function getFloat(string $key): float
+    {
+        return (float) $this->get($key);
     }
 
     /**

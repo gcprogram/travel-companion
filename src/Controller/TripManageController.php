@@ -11,6 +11,7 @@ use App\Service\PoiApproachService;
 use App\Service\PoiDiscoveryService;
 use App\Service\Settings;
 use App\Service\StorageQuotaService;
+use App\Service\TrackPlayerConfig;
 use App\Service\TripAccess;
 use App\Service\TripRouteSummaryService;
 use App\Support\View;
@@ -46,6 +47,7 @@ final class TripManageController
         private readonly TripAccess $access,
         private readonly TripRouteSummaryService $routeSummary,
         private readonly StorageQuotaService $storage,
+        private readonly TrackPlayerConfig $trackPlayerConfig,
     ) {
     }
 
@@ -71,6 +73,7 @@ final class TripManageController
             'canEdit' => true, // requireEditable() below already gated this
             // Only the owner sees this (Stefan's ask) - see TripController::edit().
             'tripStorageBytes' => $isOwner ? $this->storage->tripBytes((int) $trip['id']) : null,
+            'trackPlayerConfig' => $this->trackPlayerConfig->forTemplate(),
             'wizardQs' => '', // this page is never part of the creation wizard
             'track' => $this->routeSummary->trackSummary((int) $trip['id']),
             'stays' => $this->routeSummary->detectStays((int) $trip['id'], $pois),

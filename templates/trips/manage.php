@@ -51,6 +51,8 @@
   </label>
 </div>
 
+<?php include __DIR__ . '/_track_player.php'; ?>
+
 <?php if ($canEdit): ?>
   <p class="page-actions">
     <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/review"><?= e(t('trip.map.stays_review_link')) ?></a>
@@ -134,6 +136,7 @@
 
 <script src="/assets/js/vendor/leaflet.js"></script>
 <script src="/assets/js/trip-map.js"></script>
+<script src="/assets/js/track-player.js"></script>
 <script src="/assets/js/poi-rename.js"></script>
 <script src="/assets/js/exclusive-accordion.js"></script>
 <script src="/assets/js/photo-geotag.js"></script>

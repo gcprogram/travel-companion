@@ -12,6 +12,7 @@ use App\Repository\TrackRepository;
 use App\Repository\TripRepository;
 use App\Repository\VideoRepository;
 use App\Service\Settings;
+use App\Service\TrackPlayerConfig;
 use App\Service\TrackSmoothingService;
 use App\Service\TripAccess;
 use App\Service\TripRouteSummaryService;
@@ -37,6 +38,7 @@ final class TripMapController
         private readonly TripAccess $access,
         private readonly TripRouteSummaryService $routeSummary,
         private readonly Settings $settings,
+        private readonly TrackPlayerConfig $trackPlayerConfig,
     ) {
     }
 
@@ -58,6 +60,7 @@ final class TripMapController
             'stays' => $this->routeSummary->detectStays((int) $trip['id'], $pois),
             'wizard' => WizardNav::isActive($request),
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
+            'trackPlayerConfig' => $this->trackPlayerConfig->forTemplate(),
         ]);
     }
 
