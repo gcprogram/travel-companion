@@ -8,6 +8,7 @@
 /** @var bool $canManageSharing */
 /** @var list<array<string, mixed>> $shareTokens */
 /** @var string $shareBaseUrl */
+/** @var array<string, string> $trackPlayerConfig */
 ?>
 
 <h1>
@@ -54,6 +55,8 @@
     <?= e(t('trip.map.show_geocaches')) ?>
   </label>
 </div>
+
+<?php include __DIR__ . '/_track_player.php'; ?>
 
 <div class="map-lightbox" data-map-lightbox hidden>
   <div class="map-lightbox__backdrop" data-map-lightbox-close></div>
@@ -241,6 +244,7 @@
 
 <script src="/assets/js/vendor/leaflet.js"></script>
 <script src="/assets/js/trip-map.js"></script>
+<script src="/assets/js/track-player.js"></script>
 <script src="/assets/js/day-entry-accordion.js"></script>
 <script src="/assets/js/day-entry-detail-view.js"></script>
 <script src="/assets/js/day-entry-rating.js"></script>

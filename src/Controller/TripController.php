@@ -14,6 +14,7 @@ use App\Repository\TripRepository;
 use App\Service\MediaCleanupService;
 use App\Service\Slugger;
 use App\Service\StorageQuotaService;
+use App\Service\TrackPlayerConfig;
 use App\Service\TripAccess;
 use App\Support\Env;
 use App\Support\Flash;
@@ -38,6 +39,7 @@ final class TripController
         private readonly TripAccess $access,
         private readonly MediaCleanupService $mediaCleanup,
         private readonly StorageQuotaService $storage,
+        private readonly TrackPlayerConfig $trackPlayerConfig,
         private readonly Flash $flash,
     ) {
     }
@@ -89,6 +91,7 @@ final class TripController
             'shareTokens' => $canManageSharing ? $this->shareTokens->findByTrip((int) $trip['id']) : [],
             'shareBaseUrl' => rtrim((string) Env::get('APP_URL', ''), '/') . '/share/',
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
+            'trackPlayerConfig' => $this->trackPlayerConfig->forTemplate(),
         ]);
     }
 

@@ -120,6 +120,12 @@ final class AdminSettingsController
 
         $this->setIntIfValid($body, 'ai_description_max_tokens', 'ai.description_max_tokens', min: 200);
 
+        $this->setFloatIfValid($body, 'trackplayer_seconds_per_real_minute', 'trackplayer.seconds_per_real_minute', min: 0.01);
+        $this->setFloatIfValid($body, 'trackplayer_hold_seconds_per_point', 'trackplayer.hold_seconds_per_point', min: 0);
+        $this->setFloatIfValid($body, 'trackplayer_long_gap_seconds', 'trackplayer.long_gap_seconds', min: 0.1);
+        $this->setHexColorIfValid($body, 'trackplayer_color_played', 'trackplayer.color_played');
+        $this->setHexColorIfValid($body, 'trackplayer_color_upcoming', 'trackplayer.color_upcoming');
+
         $this->flash->add('success', t('admin.settings_saved'));
         return $response->withHeader('Location', '/admin/settings')->withStatus(302);
     }
@@ -174,6 +180,32 @@ final class AdminSettingsController
         $raw = trim((string) ($body[$field] ?? ''));
         if ($raw !== '' && is_numeric($raw) && (float) $raw >= 0) {
             $this->settings->set($settingKey, (string) (int) round((float) $raw * 1024 * 1024));
+        }
+    }
+
+    /**
+     * Same as setIntIfValid() but keeps fractional seconds (the
+     * Track-Player thresholds are deliberately not integer-only - e.g.
+     * "0.5 sec hold per point" is a reasonable speed-up to want).
+     *
+     * @param array<string, mixed> $body
+     */
+    private function setFloatIfValid(array $body, string $field, string $settingKey, float $min): void
+    {
+        $raw = trim((string) ($body[$field] ?? ''));
+        if ($raw !== '' && is_numeric($raw) && (float) $raw >= $min) {
+            $this->settings->set($settingKey, (string) (float) $raw);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $body
+     */
+    private function setHexColorIfValid(array $body, string $field, string $settingKey): void
+    {
+        $raw = trim((string) ($body[$field] ?? ''));
+        if (preg_match('/^#[0-9a-fA-F]{6}$/', $raw) === 1) {
+            $this->settings->set($settingKey, strtolower($raw));
         }
     }
 }
