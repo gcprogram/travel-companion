@@ -3,8 +3,47 @@
 Reisetagebuch & Reiseblog – mobile-first, mit KI-Unterstützung. Läuft auf
 Standard-Shared-Hosting (PHP 8.4, MySQL/MariaDB), bewusst ohne WordPress/Joomla.
 
-**Stand:** Phase 1 – Grundsystem mit Benutzerverwaltung und Reisen (siehe
-„Roadmap" unten).
+**Stand:** in aktivem Einsatz, laufend weiterentwickelt (siehe „Funktionsumfang“
+unten). Offene Ideen/Baustellen in `PLAN.md`.
+
+## Funktionsumfang
+
+- **Reisetagebuch**: ein Eintrag pro Tag mit Text, Stimmung, automatisch
+  abgerufenem Wetter (Tag/Nacht kompakt in der Übersicht), Bewertung durch
+  Betrachter.
+- **Fotos & Videos**: Chunked Upload, WebP-Ableitungen (Thumbnail/Web),
+  clientseitige Videokompression (WebCodecs) mit YouTube-Link als
+  Alternative für Browser ohne WebCodecs-Unterstützung. Lightbox mit
+  Zuschneiden, Drehen, Bewertung ("Fav"-Sterne), Diashow und Pfeiltasten-
+  Navigation. GPS-Geotags aus EXIF/Videocontainer überleben Kompression.
+- **Interaktive Karte** (Leaflet/OpenStreetMap über MapTiler): GPS-Track aus
+  GPX-Upload, Google-Timeline-Export oder automatisch aus geotaggten
+  Fotos/Videos, mit Glättung/Pause-Erkennung. Eigene Route-editieren-Seite
+  für Trackpunkt-Chirurgie (löschen/einfügen/verschieben, Undo/Reset).
+  **Track-Player**: spielt die Route zeitlich ab (konfigurierbares Tempo je
+  Punktdichte, automatische Kamerafahrt über große Lücken), hält
+  automatisch bei Fotos und Sehenswürdigkeiten/Geocaches an.
+- **Sehenswürdigkeiten & Geocaching**: automatische POI-Erkennung entlang
+  der Route (Overpass API), manuelles Hinzufügen per Kartenklick,
+  Geocaching-GPX-/Pocket-Query-Import (gefundene Caches und DNFs mit
+  echtem `cache_type`-Icon, Field-Notes-Abgleich), Übersetzung fremdsprachiger
+  Namen. Review-Karussell zum Bestätigen/Ablehnen erkannter Aufenthalte und
+  Sehenswürdigkeiten.
+- **KI-Funktionen** (austauschbare Provider-Profile: OpenAI-kompatibel,
+  Anthropic, Gemini, Ollama, …): Tages-Zusammenfassungen, Titel-/Tag-
+  Vorschläge, ganze Reise-Überblicke und ausführliche Tagesbeschreibungen,
+  Bildbeschreibungen per Vision-Modell, Übersetzungs-Fallback. Jeder
+  KI-Vorschlag muss aktiv übernommen werden, nie automatisches Überschreiben.
+- **Teilen & Zugriff**: privat / nur Mitglieder / öffentlich, dazu
+  widerrufbare Freigabe-Links ("Nur ansehen" oder "Bearbeiten") ohne
+  Login-Zwang für die eingeladene Person.
+- **Nutzerverwaltung**: Rollen (`admin`/`manager`/`ai_user`/`user`) mit
+  Speicher- und KI-Token-Kontingenten, gehärtete Selbstregistrierung
+  (E-Mail-Bestätigung, IP-Rate-Limits, optionale Admin-Freigabe),
+  Admin-Oberfläche mit Nutzungsstatistiken, Rollenwechsel, Reise-Transfer.
+- **Mobile & offline**: PWA (Homescreen-Installation, Service Worker),
+  Entwürfe werden offline zwischengespeichert und synchronisiert, sobald
+  wieder eine Verbindung besteht.
 
 ## Architektur in Kürze
 
@@ -47,13 +86,12 @@ composer run serve
 # -> http://127.0.0.1:8080
 ```
 
-**Smoke-Test-Checkliste** (das habe ich hier in der Sandbox nicht ausführen
-können, da externe Paket-Quellen wie Packagist dort gesperrt sind – jede
-Datei ist aber `php -l`-geprüft):
+**Smoke-Test-Checkliste** (Basis-Sanity-Check, kein vollständiger Test des
+mittlerweile deutlich gewachsenen Funktionsumfangs oben):
 
 1. `/register` → Konto anlegen (der erste registrierte Benutzer wird
    automatisch `admin`)
-2. `/trips/new` → Reise mit ein paar Routenstationen anlegen
+2. `/trips/new` → Reise anlegen
 3. Reise auf der Startseite und unter `/trip/<slug>` ansehen
 4. Bearbeiten und Löschen prüfen
 5. `/forgot-password` → mit `APP_ENV=development` landet die Mail nur im
@@ -70,30 +108,32 @@ Datei ist aber `php -l`-geprüft):
 9. Ein kurzes Video (< 2 Minuten) hochladen – läuft komplett im Browser
    (Kompression + Chunked Upload), sollte ohne Warten auf den Worker sofort
    abspielbar sein; danach `jobs:work` laufen lassen und prüfen, ob ein
-   Poster-Thumbnail erscheint (Imagick-Video-Unterstützung ist laut
-   `CLAUDE.md` auf dem Zielhosting ungetestet – falls kein Poster kommt, ist
-   das ein bekannter, tolerierter Ausfall, das Video bleibt trotzdem
-   abspielbar). Zusätzlich einen YouTube-Link hinzufügen und das Embed
-   prüfen. In einem Browser ohne WebCodecs (z.B. älteres Safari) sollte der
-   Datei-Upload deaktiviert sein und nur der YouTube-Link angeboten werden.
-10. Geotag-Erhalt: ein Foto/Video mit GPS-Metadaten (z.B. direkt vom Handy)
-    hochladen, danach in der DB `SELECT lat, lng FROM photos`/`videos`
-    prüfen – sollte befüllt sein. Auf der Kachel im Tagebucheintrag sollte
-    ein kleines 📍-Abzeichen erscheinen. Fotos ohne GPS (z.B. Screenshots)
-    oder Videos, deren Kamera-App keinen Ort in den Container schreibt,
-    bleiben bewusst NULL statt einen Fehler zu werfen.
+   Poster-Thumbnail erscheint. Zusätzlich einen YouTube-Link hinzufügen und
+   das Embed prüfen.
+10. Geotag-Erhalt: ein Foto/Video mit GPS-Metadaten hochladen, danach in der
+    DB `SELECT lat, lng FROM photos`/`videos` prüfen – sollte befüllt sein.
+11. Track & Karte: eine GPX-Datei hochladen (`/trip/<slug>/map`), Track sollte
+    erscheinen; Track-Player starten und prüfen, dass die Wiedergabe läuft
+    und bei einem geotaggten Foto automatisch anhält.
 
 ## Deployment auf Bitpalast (Shared Hosting)
 
 1. Composer **lokal** ausführen (`composer install --no-dev -o`) und den
    kompletten Ordner inkl. `vendor/` hochladen – auf vielen Shared-Hosting-
    Umgebungen ist ausgehendes Composer/Git nicht ohne Weiteres nutzbar.
+   Ein normaler `git pull` auf dem Server (Plesk-Git-Panel) reicht für alles
+   außer `vendor/` und Änderungen an `composer.json`/`composer.lock` – die
+   müssen weiterhin manuell per Zip hochgeladen werden.
 2. Docroot des vhosts auf `public/` zeigen lassen (bei Plesk/cPanel meist als
    „Document Root" einstellbar). Falls das nicht geht: Inhalt von `public/`
    ins Docroot kopieren und in dessen `index.php` den Pfad zu `vendor/`
    anpassen.
 3. `.env` auf dem Server anlegen (nicht committen!), `APP_ENV=production`,
-   echte DB-Zugangsdaten, `APP_URL=https://deine-domain.tld`.
+   echte DB-Zugangsdaten, `APP_URL=https://deine-domain.tld`, `APP_KEY`
+   (Secret-Verschlüsselung, siehe „Sicherheitsrelevantes“) sowie
+   `MAPTILER_KEY` (Kartenkacheln laufen bewusst über MapTiler statt direkt
+   über `tile.openstreetmap.org`, dessen Nutzungsbedingungen echte Apps mit
+   nennenswertem Traffic ausschließen).
 4. `php bin/console.php migrate` einmalig über SSH oder eine geschützte
    CLI-Konsole im Hosting-Panel ausführen.
 5. Scheduled Task/Cron einrichten:
@@ -109,16 +149,14 @@ Datei ist aber `php -l`-geprüft):
 - Session-Fixation: `session_regenerate_id()` bei Login/Logout.
 - Private Reisen sind für Fremde nicht von „existiert nicht" unterscheidbar
   (404 statt 403).
-- API-Keys für KI-Provider werden **nicht** im Klartext gespeichert (kommt in
-  Phase 5 mit `sodium`-Verschlüsselung).
+- API-Keys für KI-Provider werden nie im Klartext gespeichert – Verschlüsselung
+  bei Ablage in der `settings`-Tabelle über `sodium_crypto_secretbox`, Schlüssel
+  aus `APP_KEY` (`.env`, nie committen).
 
-## Roadmap
+## Weiterführende Dokumentation
 
-1. ✅ Grundsystem: Benutzerverwaltung, Reisen, Job-Queue-Infrastruktur
-2. Tagesblogs mit Bild-/Video-Upload (Chunked Upload wegen 20-MB-Limit)
-3. Mobile-Optimierung, PWA (Offline, Sync, Icon)
-4. Kartenansicht (Leaflet/OSM), EXIF-/GPS-Auswertung
-5. KI-Funktionen: Zusammenfassungen, Tags, Sehenswürdigkeiten-Zuordnung,
-   Routen-Extraktion aus hochgeladenen Reisebeschreibungen – über
-   austauschbare Provider (Anthropic, Gemini, OpenAI-kompatibel, Ollama, …)
-6. Erweiterte Suche, intelligente Fotoanalyse
+- `PLAN.md` – freies Sammelbecken für neue Ideen und noch offene Punkte
+  (Teil dieses Repos).
+- `HANDOVER.md` – chronologisches Protokoll bereits umgesetzter Features und
+  Bugfixes, laufend fortgeschrieben (lokal, bewusst nicht Teil dieses Repos
+  – `.gitignore`).
