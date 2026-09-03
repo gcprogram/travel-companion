@@ -31,6 +31,14 @@ final class CsrfMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
+        // The MCP endpoint is a bearer-token-authenticated JSON API (see
+        // McpAuthMiddleware), not a browser form - it never carries the
+        // session cookie CSRF actually protects, and its clients can't
+        // submit a _csrf field anyway.
+        if ($request->getUri()->getPath() === '/mcp') {
+            return $handler->handle($request);
+        }
+
         if (in_array($request->getMethod(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
             $body = $request->getParsedBody();
             $submitted = is_array($body) ? ($body['_csrf'] ?? null) : null;

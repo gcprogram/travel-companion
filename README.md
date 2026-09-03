@@ -44,6 +44,11 @@ unten). Offene Ideen/Baustellen in `PLAN.md`.
 - **Mobile & offline**: PWA (Homescreen-Installation, Service Worker),
   Entwürfe werden offline zwischengespeichert und synchronisiert, sobald
   wieder eine Verbindung besteht.
+- **MCP-Zugriff für den eigenen KI-Agenten** (`/mcp`, `/account/mcp-tokens`):
+  persönliches, widerrufbares API-Token für einen KI-Agenten, der eigene
+  Reisen lesen und Tagebuchtext/Fotos eintragen kann - z. B. einen
+  unterwegs diktierten Teilbericht in den bestehenden Tageseintrag
+  einfügen, statt ihn zu ersetzen.
 
 ## Architektur in Kürze
 

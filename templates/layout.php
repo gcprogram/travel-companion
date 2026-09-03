@@ -25,6 +25,7 @@
           <?php if ($currentUser['role'] === 'admin'): ?>
             <a href="/admin/users"><?= e(t('nav.admin')) ?></a>
           <?php endif; ?>
+          <a href="/account/mcp-tokens"><?= e(t('nav.mcp')) ?></a>
           <a href="/my-trips"><?= e($currentUser['name']) ?></a>
           <form method="post" action="/logout">
             <?= $csrf->field() ?>
