@@ -222,6 +222,12 @@ form.auth-form { max-width: 420px; }
   .home-promo__features { grid-template-columns: repeat(3, 1fr); }
 }
 
+.account-mcp__token { display: block; padding: var(--space-1); background: var(--color-paper); border-radius: var(--radius); overflow-wrap: break-word; user-select: all; }
+.account-mcp__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.account-mcp__item { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); padding: var(--space-2); background: var(--color-surface); border-radius: var(--radius); }
+.account-mcp__item--revoked { opacity: 0.6; }
+.account-mcp__item form { margin: 0; }
+
 .trip-list { display: grid; gap: var(--space-2); grid-template-columns: 1fr; }
 
 .trip-card { display: block; text-decoration: none; color: inherit; }

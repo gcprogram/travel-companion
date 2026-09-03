@@ -156,6 +156,34 @@ final class DayEntryRepository
     }
 
     /**
+     * Single-column update, unlike update() which requires/overwrites every
+     * field - needed by McpToolService's "append dictated text" tool, which
+     * must never clobber title/mood/location an entry already has just
+     * because the MCP call only ever supplies body text.
+     */
+    public function updateBody(int $id, string $body): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE day_entries SET body = ?, updated_at = ? WHERE id = ?');
+        $stmt->execute([$body, gmdate('Y-m-d H:i:s'), $id]);
+    }
+
+    /**
+     * Same idea for title/mood - only ever set by McpToolService when the
+     * entry doesn't already have one (never overwrites what's there).
+     */
+    public function updateTitle(int $id, string $title): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE day_entries SET title = ?, updated_at = ? WHERE id = ?');
+        $stmt->execute([$title, gmdate('Y-m-d H:i:s'), $id]);
+    }
+
+    public function updateMood(int $id, string $mood): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE day_entries SET mood = ?, updated_at = ? WHERE id = ?');
+        $stmt->execute([$mood, gmdate('Y-m-d H:i:s'), $id]);
+    }
+
+    /**
      * Distinct from updateAiSummary(): that one condenses an already-written
      * body; this one holds a full day narrative generated FROM photos/
      * videos/POIs/weather even when body is empty (DayEntrySuggestDescriptionHandler).
