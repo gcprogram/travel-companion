@@ -126,8 +126,15 @@ final class AiDayDescriptionService
 
         if ($context['sights'] !== []) {
             $lines[] = '';
-            $lines[] = 'Besuchte Sehenswürdigkeiten/Geocaches an diesem Tag:';
-            $lines[] = implode(', ', $context['sights']);
+            // Already ordered by time of closest approach where known
+            // (DayEntrySuggestDescriptionHandler) - a leading "HH:MM Uhr:"
+            // per line (not present for every entry) is a hint for WHERE in
+            // the day's narrative this belongs, not necessarily verbatim
+            // text to reproduce.
+            $lines[] = 'Besuchte Sehenswürdigkeiten/Geocaches an diesem Tag, zeitlich geordnet:';
+            foreach ($context['sights'] as $sight) {
+                $lines[] = '- ' . $sight;
+            }
         }
 
         if ($context['photoNotes'] !== []) {
