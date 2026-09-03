@@ -140,21 +140,74 @@ final class McpToolService
         if ($title !== null && trim((string) $entry['title']) === '') {
             $this->entries->updateTitle((int) $entry['id'], trim($title));
         }
-        if ($mood !== null) {
-            if (!in_array($mood, self::MOODS, true)) {
-                throw new McpToolException('mood must be one of: ' . implode(', ', self::MOODS));
-            }
-            if ($entry['mood'] === null) {
-                $this->entries->updateMood((int) $entry['id'], $mood);
-            }
+        if ($mood !== null && $entry['mood'] === null) {
+            $this->entries->updateMood((int) $entry['id'], $this->validMood($mood));
         }
 
-        $updated = $this->entries->findById((int) $entry['id']);
+        return $this->entrySummary((int) $entry['id'], $date);
+    }
+
+    /**
+     * Overwrites the day's diary entry outright (creating it if it doesn't
+     * exist yet) - for when a later dictation needs to weave a detail into
+     * something already written earlier in the day (Stefan's example: an
+     * afternoon account that also fills in "the monk we met at the temple
+     * this morning"), which append_day_entry_text can't do since it only
+     * ever adds a new paragraph at the end. The calling agent is expected
+     * to call get_day_entry first, merge the new detail into the existing
+     * text itself, and send the complete result here - unlike
+     * append_day_entry_text, title/mood ARE overwritten when given, since
+     * calling this tool is already an explicit "replace what's there".
+     *
+     * @param array<string, mixed> $user
+     * @return array<string, mixed>
+     */
+    public function replaceDayEntryText(
+        array $user,
+        string $tripRef,
+        string $date,
+        string $text,
+        ?string $title = null,
+        ?string $mood = null,
+    ): array {
+        $text = trim($text);
+        if ($text === '') {
+            throw new McpToolException('text must not be empty.');
+        }
+        $trip = $this->resolveTrip($user, $tripRef);
+        $date = $this->validDate($date);
+        $entry = $this->findOrCreateEntry((int) $trip['id'], $date);
+
+        $this->entries->updateBody((int) $entry['id'], $text);
+        if ($title !== null) {
+            $this->entries->updateTitle((int) $entry['id'], trim($title));
+        }
+        if ($mood !== null) {
+            $this->entries->updateMood((int) $entry['id'], $this->validMood($mood));
+        }
+
+        return $this->entrySummary((int) $entry['id'], $date);
+    }
+
+    private function validMood(string $mood): string
+    {
+        if (!in_array($mood, self::MOODS, true)) {
+            throw new McpToolException('mood must be one of: ' . implode(', ', self::MOODS));
+        }
+        return $mood;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function entrySummary(int $entryId, string $date): array
+    {
+        $entry = $this->entries->findById($entryId);
         return [
             'date' => $date,
-            'title' => $updated['title'],
-            'mood' => $updated['mood'],
-            'body' => $updated['body'],
+            'title' => $entry['title'],
+            'mood' => $entry['mood'],
+            'body' => $entry['body'],
         ];
     }
 

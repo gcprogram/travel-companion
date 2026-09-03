@@ -10,6 +10,7 @@ use App\Repository\PoiMediaRepository;
 use App\Repository\PoiRepository;
 use App\Repository\VideoRepository;
 use App\Service\AiDayDescriptionService;
+use App\Service\PoiApproachService;
 
 /**
  * Job type "day_entry.suggest_description". Payload: {"day_entry_id": int,
@@ -34,6 +35,7 @@ final class DayEntrySuggestDescriptionHandler implements JobHandlerInterface
         private readonly VideoRepository $videos,
         private readonly PoiRepository $pois,
         private readonly PoiMediaRepository $poiMedia,
+        private readonly PoiApproachService $poiApproach,
         private readonly AiDayDescriptionService $ai,
     ) {
     }
@@ -97,18 +99,42 @@ final class DayEntrySuggestDescriptionHandler implements JobHandlerInterface
             }
         }
 
-        $sights = [];
-        foreach ($this->pois->findByTrip((int) $entry['trip_id']) as $poi) {
-            if (!$poi['visited'] || $poi['category'] === 'other' || count($sights) >= self::MAX_SIGHTS) {
+        // Ordered by time of closest approach (PoiApproachService - the
+        // same "when did the track/a photo actually pass nearest to this
+        // place" computation already shown in the sightseeing list), not
+        // just trip order - trip_pois.visit_date has no time-of-day at
+        // all, so without this a geocache visited at 8am and one at 6pm
+        // would look interchangeable to the model. Stefan's ask: this lets
+        // the generated text place a sight/geocache at roughly the right
+        // point in the day's narrative instead of dumping them all in one
+        // undifferentiated bucket.
+        $allPois = $this->pois->findByTrip((int) $entry['trip_id']);
+        $approach = $this->poiApproach->computeForTrip((int) $entry['trip_id'], $allPois);
+
+        $sightItems = [];
+        foreach ($allPois as $poi) {
+            if (!$poi['visited'] || $poi['category'] === 'other') {
                 continue;
             }
             if ((string) ($poi['visit_date'] ?? '') !== (string) $entry['entry_date']) {
                 continue;
             }
-            $sights[] = $poi['category'] === 'geocache' && !empty($poi['gc_code'])
+            $label = $poi['category'] === 'geocache' && !empty($poi['gc_code'])
                 ? $poi['gc_code'] . ' ' . $poi['name']
                 : (string) $poi['name'];
+            $closestAt = $approach[(int) $poi['id']]['closestAt'] ?? null;
+            $sightItems[] = [
+                'sortKey' => $closestAt ?? (string) $entry['entry_date'] . ' 99:99:99',
+                'time' => $closestAt !== null ? substr($closestAt, 11, 5) : null,
+                'label' => $label,
+            ];
         }
+        usort($sightItems, static fn (array $a, array $b): int => $a['sortKey'] <=> $b['sortKey']);
+        $sightItems = array_slice($sightItems, 0, self::MAX_SIGHTS);
+        $sights = array_map(
+            static fn (array $s): string => $s['time'] !== null ? $s['time'] . ' Uhr: ' . $s['label'] : $s['label'],
+            $sightItems,
+        );
 
         if (trim((string) $entry['body']) === '' && $photoNotes === [] && $videoNotes === [] && $sights === []) {
             return; // Nothing at all to work with yet - no point calling the API.

@@ -99,6 +99,14 @@ final class McpController
                     is_string($args['title'] ?? null) ? $args['title'] : null,
                     is_string($args['mood'] ?? null) ? $args['mood'] : null,
                 ),
+                'replace_day_entry_text' => $this->tools->replaceDayEntryText(
+                    $user,
+                    $this->requiredString($args, 'trip'),
+                    $this->requiredString($args, 'date'),
+                    $this->requiredString($args, 'text'),
+                    is_string($args['title'] ?? null) ? $args['title'] : null,
+                    is_string($args['mood'] ?? null) ? $args['mood'] : null,
+                ),
                 'add_day_entry_photo' => $this->tools->addDayEntryPhoto(
                     $user,
                     $this->requiredString($args, 'trip'),
@@ -169,7 +177,10 @@ final class McpController
                 'name' => 'append_day_entry_text',
                 'description' => 'Append dictated diary text to a day (creates the day entry if it does not exist yet). '
                     . 'Never replaces existing text - the new text is added as a new paragraph after whatever is already '
-                    . "there. title/mood are only set if the entry doesn't already have one.",
+                    . 'there. title/mood are only set if the entry doesn\'t already have one. Use this for straightforward '
+                    . "additions; if the new dictation needs to change or weave into text you already wrote earlier that "
+                    . 'same day (e.g. "we also met a monk at the temple from this morning"), use get_day_entry to fetch '
+                    . 'the current text, merge it yourself, and call replace_day_entry_text with the full result instead.',
                 'inputSchema' => [
                     'type' => 'object',
                     'properties' => [
@@ -181,6 +192,29 @@ final class McpController
                             'type' => 'string',
                             'enum' => ['very_bad', 'bad', 'neutral', 'good', 'very_good'],
                             'description' => 'Optional mood, only used if the entry has none yet.',
+                        ],
+                    ],
+                    'required' => ['trip', 'date', 'text'],
+                ],
+            ],
+            [
+                'name' => 'replace_day_entry_text',
+                'description' => 'Overwrite a day\'s ENTIRE diary text (creates the day entry if it does not exist yet) - '
+                    . 'unlike append_day_entry_text, this replaces whatever was there and any title/mood given IS '
+                    . 'overwritten. Use this when a new dictation needs to revise, correct, or integrate a detail into '
+                    . 'text already written for that day: call get_day_entry first, merge the new information into the '
+                    . 'existing text yourself, then send the complete revised text here.',
+                'inputSchema' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'trip' => $tripProperty,
+                        'date' => $dateProperty,
+                        'text' => ['type' => 'string', 'description' => 'The complete, revised diary text for this day.'],
+                        'title' => ['type' => 'string', 'description' => 'Optional day title - overwrites any existing title.'],
+                        'mood' => [
+                            'type' => 'string',
+                            'enum' => ['very_bad', 'bad', 'neutral', 'good', 'very_good'],
+                            'description' => 'Optional mood - overwrites any existing mood.',
                         ],
                     ],
                     'required' => ['trip', 'date', 'text'],
