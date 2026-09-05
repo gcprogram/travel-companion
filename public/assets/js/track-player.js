@@ -5,23 +5,61 @@
  * rather than fetching anything itself, so it shares the exact same
  * points/pins/pois trip-map.js already parsed.
  *
- * Playback model: the track is split into point-to-point segments, each
- * given a duration (ms) by classifyGap() below (Stefan's three speed
- * bands). Advancing a segment calls map.flyTo() for a smooth camera pan
- * AND schedules the next segment via setTimeout matching that same
- * duration - decoupled from flyTo's own animation callback (Leaflet
- * doesn't expose one cleanly per-call), close enough for this purpose.
- * The "already played" polyline just grows by one point per completed
- * segment - far simpler than interpolating the line itself, and
- * invisible at normal point density anyway.
+ * Playback model (v2 - Stefan's "it doesn't glide" report on v1): a single
+ * requestAnimationFrame loop drives a continuous "elapsed ms" clock over
+ * precomputed point-to-point segments (durations from the three speed
+ * bands below). The marker/played-line position is LINEARLY INTERPOLATED
+ * every frame between the current segment's two points - it glides, it
+ * never teleports between v1's discrete per-segment jumps.
+ *
+ * The camera is a SEPARATE, independently-paced concern: v1 called
+ * map.flyTo() once per segment, which whiplashed the zoom on every single
+ * short segment and made a huge segment (a flight) look like a snap-zoom
+ * because the camera only "found out" about it at the exact moment it
+ * started. v2 instead looks AHEAD (lookaheadBounds()) at the next several
+ * seconds of upcoming playback, so the camera starts widening out for an
+ * upcoming flight WHILE still finishing the previous, denser segment, and
+ * commits a new flyTo only when the desired view has actually drifted
+ * (maybeRetargetCamera()), at a duration that scales with how much the
+ * zoom needs to change - a small pan gets a quick correction, a drastic
+ * zoom swing gets several seconds, per Stefan's own diagnosis ("man muss
+ * ihm mehr Zeit geben, wenn der Zoom sich sehr stark ändert").
  *
  * Pausing on photos/geocaches (Stefan's ask) is done by PROXIMITY, not by
  * matching timestamps: trip_pois.visit_date has no time-of-day at all
  * (DATE column), so exact time-based matching isn't possible for those -
  * photos do have a precise taken_at, but reusing the same distance check
- * for both keeps one simple mechanism instead of two.
+ * for both keeps one simple mechanism instead of two. Checked against the
+ * live interpolated position (not just at real track vertices), so a
+ * photo near the middle of a long segment is still found.
  */
 (function () {
+  // How far ahead (in upcoming PLAYBACK ms, not wall-clock ms) the camera
+  // looks when deciding its next target - long enough that an approaching
+  // flight is "seen" before it starts, short enough to stay cheap.
+  var LOOKAHEAD_MS = 6000;
+  var LOOKAHEAD_MAX_POINTS = 80;
+  // Camera re-targets are throttled to at most one per this many wall-clock
+  // ms - without this, a run of short segments would fight for the camera
+  // every few hundred ms and never let a flyTo finish.
+  var CAMERA_RETARGET_MIN_INTERVAL_MS = 1200;
+  // A retarget's own flyTo duration scales with how much the zoom needs to
+  // change (Stefan's diagnosis) - small correction: quick; a drastic
+  // zoom-out/in: several seconds, so it always reads as a deliberate pan
+  // rather than a snap.
+  var CAMERA_BASE_DURATION_S = 1.0;
+  var CAMERA_SECONDS_PER_ZOOM_LEVEL = 0.6;
+  var CAMERA_MIN_DURATION_S = 0.8;
+  var CAMERA_MAX_DURATION_S = 4.5;
+  // Below this combined change the camera just isn't retargeted at all -
+  // stops it fighting itself over noise-level wobbles.
+  var CAMERA_MIN_ZOOM_DELTA = 0.4;
+  var CAMERA_MIN_CENTER_DELTA_METERS = 40;
+  // Proximity (photo/geocache) checks are real work (haversine per pin/POI)
+  // - throttled to a few times a second of PLAYBACK time rather than every
+  // single animation frame.
+  var PROXIMITY_CHECK_INTERVAL_MS = 200;
+
   function haversineMeters(lat1, lng1, lat2, lng2) {
     var R = 6371000;
     var dLat = (lat2 - lat1) * Math.PI / 180;
@@ -105,7 +143,12 @@
       }
       var minutes = (tb.getTime() - ta.getTime()) / 60000;
       if (minutes < 1) {
-        return Math.max(minutes, 0) * 60 * secondsPerRealMinute * 1000 || 30;
+        // secondsPerRealMinute is "seconds of PLAYBACK per real minute" -
+        // a stray extra "* 60" here (carried over from v1) made every
+        // dense (< 1 min gap) segment play 60x slower than configured,
+        // which is almost certainly THE reason dense tracks felt endless
+        // enough that Stefan had to fall back to single-stepping.
+        return Math.max(minutes * secondsPerRealMinute * 1000, 30);
       }
       if (minutes < 30) {
         return Math.max(holdSecondsPerPoint, 0.05) * 1000;
@@ -113,36 +156,124 @@
       return Math.max(longGapSeconds, 0.1) * 1000;
     }
 
+    // --- Precomputed segments: [{from, to, duration, start}], "start" is
+    // the cumulative elapsed-ms at which this segment begins. ---
+    var segments = [];
+    (function buildSegments() {
+      var cum = 0;
+      for (var i = 0; i < points.length - 1; i++) {
+        var duration = segmentDurationMs(points[i], points[i + 1]);
+        segments.push({ from: i, to: i + 1, duration: duration, start: cum });
+        cum += duration;
+      }
+    })();
+    var totalDurationMs = segments.length > 0 ? segments[segments.length - 1].start + segments[segments.length - 1].duration : 0;
+
+    function segmentIndexAt(elapsedMs, hint) {
+      var i = (hint >= 0 && hint < segments.length) ? hint : 0;
+      while (i < segments.length - 1 && elapsedMs >= segments[i].start + segments[i].duration) {
+        i++;
+      }
+      while (i > 0 && elapsedMs < segments[i].start) {
+        i--;
+      }
+      return i;
+    }
+
+    function interpolate(segIndex, elapsedMs) {
+      var seg = segments[segIndex];
+      var t = seg.duration > 0 ? (elapsedMs - seg.start) / seg.duration : 1;
+      t = Math.max(0, Math.min(1, t));
+      var a = points[seg.from];
+      var b = points[seg.to];
+      return { lat: a.lat + (b.lat - a.lat) * t, lng: a.lng + (b.lng - a.lng) * t, t: t };
+    }
+
+    // Which real point's timestamp best represents the current moment -
+    // used for the time readout and for the route-edit deep link on Exit.
+    function nearestPointIndex(segIndex, elapsedMs) {
+      var seg = segments[segIndex];
+      var t = seg.duration > 0 ? (elapsedMs - seg.start) / seg.duration : 1;
+      return t >= 0.5 ? seg.to : seg.from;
+    }
+
     // --- State ---
-    var currentIndex = 0; // index into points[] of the last point "arrived at"
+    var elapsedMs = 0;
+    var lastSegIndex = 0;
     var playing = false;
-    var timer = null;
+    var rafId = null;
+    var lastFrameAt = null;
+    var lastProximityCheckMs = -Infinity;
     var shownPinIds = {};
     var shownPoiIds = {};
-    var playedLine = L.polyline([[points[0].lat, points[0].lng]], {
-      color: colorPlayed, weight: 4, opacity: 0.9,
-    });
+    var photoHoldTimer = null;
+
+    var playedLine = L.polyline([[points[0].lat, points[0].lng]], { color: colorPlayed, weight: 4, opacity: 0.9 });
+    var leadingEdgeLine = L.polyline([], { color: colorPlayed, weight: 4, opacity: 0.9 });
     var cursorMarker = L.circleMarker([points[0].lat, points[0].lng], {
       radius: 7, color: colorPlayed, fillColor: colorPlayed, fillOpacity: 1, weight: 2,
     });
 
-    function clampZoomForBounds(bounds) {
-      var zoom;
-      try {
-        zoom = map.getBoundsZoom(bounds, false, [60, 60]);
-      } catch (e) {
-        zoom = map.getZoom();
-      }
-      // Stefan's ask: the tight-fit zoom made playback feel like it was
-      // jumping too hard between points - two levels back (~1:4 the
-      // apparent scale, since each Leaflet zoom level doubles it) gives
-      // more visual context around the moving point.
-      return Math.max(3, Math.min(18, zoom - 2));
+    var lastCameraTargetAt = 0;
+    var lastCameraZoom = null;
+    var lastCameraCenter = null;
+
+    function clampZoom(z) {
+      return Math.max(3, Math.min(18, z));
     }
 
-    function updateTime() {
+    // Bounds of "where the camera should be looking" - the live position
+    // plus every point due to play within the next LOOKAHEAD_MS of
+    // playback time, so the camera can start widening for an approaching
+    // big jump before that segment even begins.
+    function lookaheadBounds(segIndex, elapsedMsNow) {
+      var here = interpolate(segIndex, elapsedMsNow);
+      var bounds = L.latLngBounds([[here.lat, here.lng]]);
+      var seg = segments[segIndex];
+      var remaining = LOOKAHEAD_MS - Math.max(seg.start + seg.duration - elapsedMsNow, 0);
+      bounds.extend([points[seg.to].lat, points[seg.to].lng]);
+      var idx = segIndex + 1;
+      var added = 0;
+      while (remaining > 0 && idx < segments.length && added < LOOKAHEAD_MAX_POINTS) {
+        var s = segments[idx];
+        bounds.extend([points[s.to].lat, points[s.to].lng]);
+        remaining -= s.duration;
+        added++;
+        idx++;
+      }
+      return bounds;
+    }
+
+    function maybeRetargetCamera(segIndex, elapsedMsNow, now, force) {
+      if (!force && now - lastCameraTargetAt < CAMERA_RETARGET_MIN_INTERVAL_MS) {
+        return;
+      }
+      var bounds = lookaheadBounds(segIndex, elapsedMsNow);
+      var desiredZoom;
+      try {
+        desiredZoom = clampZoom(map.getBoundsZoom(bounds, false, [70, 70]));
+      } catch (e) {
+        desiredZoom = map.getZoom();
+      }
+      var center = bounds.getCenter();
+      var zoomDelta = Math.abs(desiredZoom - (lastCameraZoom !== null ? lastCameraZoom : map.getZoom()));
+      var centerDelta = lastCameraCenter ? map.distance(center, lastCameraCenter) : Infinity;
+      if (!force && zoomDelta < CAMERA_MIN_ZOOM_DELTA && centerDelta < CAMERA_MIN_CENTER_DELTA_METERS) {
+        return;
+      }
+      var duration = Math.max(
+        CAMERA_MIN_DURATION_S,
+        Math.min(CAMERA_MAX_DURATION_S, CAMERA_BASE_DURATION_S + zoomDelta * CAMERA_SECONDS_PER_ZOOM_LEVEL),
+      );
+      map.flyTo(center, desiredZoom, { duration: duration, easeLinearity: 0.25 });
+      lastCameraTargetAt = now;
+      lastCameraZoom = desiredZoom;
+      lastCameraCenter = center;
+    }
+
+    function updateTime(segIndex, elapsedMsNow) {
       if (timeEl) {
-        timeEl.textContent = formatLocal(points[currentIndex].recordedAt);
+        timeEl.textContent = formatLocal(points[nearestPointIndex(segIndex, elapsedMsNow)].recordedAt);
       }
     }
 
@@ -154,7 +285,7 @@
         poiCard.hidden = true;
         return;
       }
-      var here = points[currentIndex];
+      var here = interpolate(lastSegIndex, elapsedMs);
       var best = null;
       var bestDist = Infinity;
       pois.forEach(function (entry) {
@@ -198,9 +329,10 @@
      * (Stefan's ask: like the slideshow, not a hard stop - the pause button
      * still works to actually halt it), 'poi' is a hard pause (no natural
      * "how long" for a sight/geocache card), null means nothing nearby.
+     * Checked against the live interpolated position, not just at real
+     * track vertices, so a photo mid-segment is still found.
      */
-    function checkProximityPause() {
-      var here = points[currentIndex];
+    function checkProximityPause(here) {
       var hit = null;
 
       if (!photoToggle || photoToggle.checked) {
@@ -243,30 +375,9 @@
       return 'poi';
     }
 
-    function goToIndex(index, flyDurationSeconds) {
-      currentIndex = Math.max(0, Math.min(index, points.length - 1));
-      var p = points[currentIndex];
-      var latlng = [p.lat, p.lng];
-      cursorMarker.setLatLng(latlng);
-      var bounds = L.latLngBounds([latlng]);
-      if (currentIndex + 1 < points.length) {
-        bounds.extend([points[currentIndex + 1].lat, points[currentIndex + 1].lng]);
-      } else if (currentIndex > 0) {
-        bounds.extend([points[currentIndex - 1].lat, points[currentIndex - 1].lng]);
-      }
-      map.flyTo(latlng, clampZoomForBounds(bounds), { duration: flyDurationSeconds });
-      updateTime();
-      if (prevBtn) {
-        prevBtn.disabled = currentIndex <= 0;
-      }
-      if (nextBtn) {
-        nextBtn.disabled = currentIndex >= points.length - 1;
-      }
-    }
-
-    function rebuildPlayedLineUpTo(index) {
+    function rebuildPlayedLineUpTo(segIndex) {
       var coords = [];
-      for (var i = 0; i <= index; i++) {
+      for (var i = 0; i <= segIndex; i++) {
         coords.push([points[i].lat, points[i].lng]);
       }
       playedLine.setLatLngs(coords);
@@ -282,68 +393,134 @@
           toggleBtn.setAttribute('aria-label', label);
         }
       }
-    }
-
-    function stopTimer() {
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
+      if (prevBtn) {
+        prevBtn.disabled = lastSegIndex <= 0 && elapsedMs <= 0;
+      }
+      if (nextBtn) {
+        nextBtn.disabled = elapsedMs >= totalDurationMs;
       }
     }
 
-    function scheduleNext() {
-      stopTimer();
-      if (currentIndex >= points.length - 1) {
+    function renderAt(segIndex, elapsedMsNow, now) {
+      var here = interpolate(segIndex, elapsedMsNow);
+      cursorMarker.setLatLng([here.lat, here.lng]);
+      leadingEdgeLine.setLatLngs([
+        [points[segments[segIndex].from].lat, points[segments[segIndex].from].lng],
+        [here.lat, here.lng],
+      ]);
+      updateTime(segIndex, elapsedMsNow);
+      maybeRetargetCamera(segIndex, elapsedMsNow, now, false);
+      return here;
+    }
+
+    function stopRaf() {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      lastFrameAt = null;
+    }
+
+    function frame(now) {
+      if (!playing) {
+        return;
+      }
+      if (lastFrameAt === null) {
+        lastFrameAt = now;
+      }
+      elapsedMs += now - lastFrameAt;
+      lastFrameAt = now;
+
+      if (elapsedMs >= totalDurationMs) {
+        elapsedMs = totalDurationMs;
+        lastSegIndex = segments.length - 1;
+        renderAt(lastSegIndex, elapsedMs, now);
+        rebuildPlayedLineUpTo(points.length - 1);
         setPlayingUi(false);
         return;
       }
-      var durationMs = segmentDurationMs(points[currentIndex], points[currentIndex + 1]);
-      goToIndex(currentIndex + 1, durationMs / 1000);
-      rebuildPlayedLineUpTo(currentIndex);
-      timer = setTimeout(function () {
-        var hit = checkProximityPause();
+
+      var segIndex = segmentIndexAt(elapsedMs, lastSegIndex);
+      if (segIndex !== lastSegIndex) {
+        rebuildPlayedLineUpTo(segIndex);
+        lastSegIndex = segIndex;
+      }
+      var here = renderAt(segIndex, elapsedMs, now);
+
+      if (elapsedMs - lastProximityCheckMs >= PROXIMITY_CHECK_INTERVAL_MS) {
+        lastProximityCheckMs = elapsedMs;
+        var hit = checkProximityPause(here);
         if (hit === 'pin') {
-          // Auto-continues like the lightbox's own slideshow - stays
-          // "playing" (same timer var pause() already clears) so the
-          // pause button is what actually halts it, per Stefan's ask.
-          timer = setTimeout(function () {
-            closeLightboxIfOpen();
-            scheduleNext();
-          }, photoHoldSeconds() * 1000);
-        } else if (hit === 'poi') {
-          setPlayingUi(false);
-        } else {
-          scheduleNext();
+          holdForPhoto();
+          return;
         }
-      }, durationMs);
+        if (hit === 'poi') {
+          setPlayingUi(false);
+          return;
+        }
+      }
+
+      rafId = requestAnimationFrame(frame);
+    }
+
+    function holdForPhoto() {
+      // Stays visually "playing" (Stefan's ask: like the lightbox's own
+      // slideshow, auto-continues) - the pause button still works because
+      // it clears this same timer.
+      photoHoldTimer = setTimeout(function () {
+        photoHoldTimer = null;
+        closeLightboxIfOpen();
+        rafId = requestAnimationFrame(frame);
+      }, photoHoldSeconds() * 1000);
     }
 
     function play() {
       setPlayingUi(true);
-      scheduleNext();
+      lastFrameAt = null;
+      maybeRetargetCamera(lastSegIndex, elapsedMs, performance.now(), true);
+      rafId = requestAnimationFrame(frame);
     }
 
     function pause() {
-      stopTimer();
+      playing = false;
+      stopRaf();
+      if (photoHoldTimer) {
+        clearTimeout(photoHoldTimer);
+        photoHoldTimer = null;
+      }
       setPlayingUi(false);
+    }
+
+    function seekToPointIndex(index, flyDurationSeconds) {
+      index = Math.max(0, Math.min(index, points.length - 1));
+      elapsedMs = index === 0 ? 0 : segments[index - 1].start + segments[index - 1].duration;
+      lastSegIndex = segmentIndexAt(elapsedMs, lastSegIndex);
+      rebuildPlayedLineUpTo(index);
+      leadingEdgeLine.setLatLngs([]);
+      cursorMarker.setLatLng([points[index].lat, points[index].lng]);
+      if (timeEl) {
+        timeEl.textContent = formatLocal(points[index].recordedAt);
+      }
+      map.flyTo([points[index].lat, points[index].lng], map.getZoom(), { duration: flyDurationSeconds });
+      lastCameraTargetAt = performance.now();
+      lastCameraCenter = L.latLng(points[index].lat, points[index].lng);
+      lastCameraZoom = map.getZoom();
+      setPlayingUi(playing);
     }
 
     function stepBy(delta) {
       pause();
+      var currentIndex = nearestPointIndex(lastSegIndex, elapsedMs);
       var target = currentIndex + delta;
       if (target < 0 || target >= points.length) {
         return;
       }
-      var durationMs = segmentDurationMs(points[Math.min(currentIndex, target)], points[Math.max(currentIndex, target)]);
-      goToIndex(target, Math.min(durationMs, 600) / 1000);
-      // Rebuilds either way, direction-agnostic: extends when stepping
-      // forward, truncates back when stepping backward (Stefan's ask -
-      // going back means "un-playing" that segment).
-      rebuildPlayedLineUpTo(currentIndex);
+      seekToPointIndex(target, 0.4);
     }
 
     function openPlayer() {
       playedLine.addTo(map);
+      leadingEdgeLine.addTo(map);
       cursorMarker.addTo(map);
       if (routeToggle) {
         routeToggle.checked = true;
@@ -353,15 +530,18 @@
       if (editHint) {
         editHint.hidden = false;
       }
-      goToIndex(currentIndex, 0.5);
-      rebuildPlayedLineUpTo(currentIndex);
+      elapsedMs = 0;
+      lastSegIndex = 0;
+      rebuildPlayedLineUpTo(0);
       play();
     }
 
     function closePlayer(jumpToEdit) {
       pause();
-      var lastPoint = points[currentIndex];
+      var lastPointIndex = nearestPointIndex(lastSegIndex, elapsedMs);
+      var lastPoint = points[lastPointIndex];
       map.removeLayer(playedLine);
+      map.removeLayer(leadingEdgeLine);
       map.removeLayer(cursorMarker);
       startBtn.hidden = false;
       toolbar.hidden = true;
@@ -371,7 +551,8 @@
       if (poiCard) {
         poiCard.hidden = true;
       }
-      currentIndex = 0;
+      elapsedMs = 0;
+      lastSegIndex = 0;
       shownPinIds = {};
       shownPoiIds = {};
       if (jumpToEdit && routeEditUrl && lastPoint.recordedAt) {
@@ -386,8 +567,9 @@
       toggleBtn.addEventListener('click', function () {
         if (playing) {
           pause();
-        } else if (currentIndex >= points.length - 1) {
-          currentIndex = 0;
+        } else if (elapsedMs >= totalDurationMs) {
+          elapsedMs = 0;
+          lastSegIndex = 0;
           rebuildPlayedLineUpTo(0);
           play();
         } else {

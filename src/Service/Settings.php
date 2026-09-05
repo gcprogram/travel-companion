@@ -117,7 +117,12 @@ final class Settings
         //   regardless of how long it really was.
         'trackplayer.seconds_per_real_minute' => '1',
         'trackplayer.hold_seconds_per_point' => '1',
-        'trackplayer.long_gap_seconds' => '1',
+        // Was 1 - too fast to actually watch a flight's track fill in
+        // between the two airports (Stefan's report on v1); the player's
+        // camera now also anticipates a long gap and starts widening out
+        // before it begins, so this has room to be slower without feeling
+        // like dead time.
+        'trackplayer.long_gap_seconds' => '4',
         // Elapsed vs. still-upcoming track color during playback -
         // separate from the always-green full/day track line elsewhere on
         // the map (Stefan's ask: those two concepts must not share a

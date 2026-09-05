@@ -33,6 +33,28 @@ X Nachtrag Y"), nicht hier.
 
 ## Ideen-Backlog (noch nicht angefangen)
 
+- **Track-Player: optionale, nicht-destruktive Track-Glättung für schlechten
+  Empfang (z. B. im Flughafengebäude).** Am echten Track der Moldau-Reise
+  (20.08., Frankfurt-Abflug) bestätigt: 09:06-09:11 Uhr springt der Track
+  15,6 km in 5,6 Min., 09:19-09:25 Uhr springt er 85,8 km in 5,6 Min. -
+  beides physikalisch unmöglich (920 km/h bzw. 167 km/h "zu Fuß am
+  Flughafen"), also eindeutig GPS-Ausreißer durch schlechten Empfang im
+  Gebäude, nicht echte Bewegung. Stefans Idee: eine Glättung, die die
+  ORIGINALDATEN nicht anfasst (kann man vorher nicht testen/rückgängig
+  machen), sondern nur eine VIRTUELLE, umschaltbare Ansicht glatt
+  darstellt - z. B. ein Toggle "geglättet anzeigen" auf der Karte/im
+  Track-Player, das Ausreißer-Punkte (unplausible Geschwindigkeit)
+  client- oder serverseitig für die Anzeige herausfiltert/interpoliert,
+  ohne `trip_track_points` zu verändern. Zusätzliche Idee: an genau
+  solchen Stellen könnte Google-Timeline-Daten (WLAN-Ortung drinnen)
+  zuverlässiger sein als der Handy-GPS-Tracker - eine Quellen-Priorisierung
+  oder ein Datenabgleich für exakt diese Lücken wäre denkbar, sobald
+  Vergleichsdaten für dasselbe Zeitfenster vorliegen. Noch nicht umgesetzt -
+  wartet auf eine Entscheidung, wie genau "virtuell glätten" bedient werden
+  soll (automatisch ab welcher Plausibilitätsschwelle vs. manuell markierte
+  Bereiche) und optional auf einen Timeline-Datenvergleich für denselben
+  Zeitraum.
+
 - **Optionale Zusatzidee zum Track-Player: Tageslicht-Farbverlauf.**
   Statt einer einzelnen "abgelaufen"-Farbe könnte der Track sich mit dem
   Tageslicht einfärben - heller/kräftiger zum Sonnenhöchststand, dunkler
