@@ -53,7 +53,14 @@ X Nachtrag Y"), nicht hier.
   wartet auf eine Entscheidung, wie genau "virtuell glätten" bedient werden
   soll (automatisch ab welcher Plausibilitätsschwelle vs. manuell markierte
   Bereiche) und optional auf einen Timeline-Datenvergleich für denselben
-  Zeitraum.
+  Zeitraum. **Update (Nachtrag 38)**: am echten importierten Track direkt
+  bestätigt - im Terminal-Bereich sind auch abseits der beiden oben
+  genannten Sprünge durchgehend scharfe Zickzack-Linien im Rohdaten-Track
+  sichtbar. Nebeneffekt ohne diese Glättung: die vorausschauende Kamera
+  des Track-Players pendelt in so einem dichten Rauschbereich zwischen
+  nah und weit, weil ihr Vorschau-Fenster (max. 80 Punkte) darin nicht
+  bis zum eigentlichen Abflug reicht - dürfte sich mit dieser Glättung
+  von selbst erledigen.
 
 - **Optionale Zusatzidee zum Track-Player: Tageslicht-Farbverlauf.**
   Statt einer einzelnen "abgelaufen"-Farbe könnte der Track sich mit dem
