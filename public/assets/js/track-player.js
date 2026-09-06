@@ -51,6 +51,21 @@
   var CAMERA_SECONDS_PER_ZOOM_LEVEL = 0.6;
   var CAMERA_MIN_DURATION_S = 0.8;
   var CAMERA_MAX_DURATION_S = 4.5;
+  // The very first camera commit (opening the player) can be a huge jump -
+  // e.g. a multi-country trip's overview fit is a low "world view" zoom,
+  // and the first real segment might need a much closer one. Giving that
+  // one-time transition extra room (Stefan's report: rushing it left the
+  // screen briefly filled with the current-position marker's flat color,
+  // "as if Leaflet hadn't redrawn") avoids capping it at the same duration
+  // an ordinary mid-playback correction gets.
+  var CAMERA_INITIAL_MAX_DURATION_S = 8;
+  // Stefan's ask: interpolating the marker's position between two points
+  // that are already this close together sometimes visibly cut across
+  // ground the recorded track never actually crossed - below this real
+  // distance, a segment just jumps straight to its end point instead of
+  // gliding, which looks identical at this scale anyway. Only a
+  // genuinely large hop (a flight, a ferry) is worth animating through.
+  var INTERPOLATE_MIN_METERS = 300;
   // Below this combined change the camera just isn't retargeted at all -
   // stops it fighting itself over noise-level wobbles.
   var CAMERA_MIN_ZOOM_DELTA = 0.4;
@@ -163,7 +178,8 @@
       var cum = 0;
       for (var i = 0; i < points.length - 1; i++) {
         var duration = segmentDurationMs(points[i], points[i + 1]);
-        segments.push({ from: i, to: i + 1, duration: duration, start: cum });
+        var distance = haversineMeters(points[i].lat, points[i].lng, points[i + 1].lat, points[i + 1].lng);
+        segments.push({ from: i, to: i + 1, duration: duration, start: cum, distanceMeters: distance });
         cum += duration;
       }
     })();
@@ -182,10 +198,15 @@
 
     function interpolate(segIndex, elapsedMs) {
       var seg = segments[segIndex];
+      var b = points[seg.to];
+      if (seg.distanceMeters < INTERPOLATE_MIN_METERS) {
+        // Short hop - jump straight to the endpoint rather than animating
+        // a position between two points this close together (Stefan's ask).
+        return { lat: b.lat, lng: b.lng, t: 1 };
+      }
       var t = seg.duration > 0 ? (elapsedMs - seg.start) / seg.duration : 1;
       t = Math.max(0, Math.min(1, t));
       var a = points[seg.from];
-      var b = points[seg.to];
       return { lat: a.lat + (b.lat - a.lat) * t, lng: a.lng + (b.lng - a.lng) * t, t: t };
     }
 
@@ -244,7 +265,7 @@
       return bounds;
     }
 
-    function maybeRetargetCamera(segIndex, elapsedMsNow, now, force) {
+    function maybeRetargetCamera(segIndex, elapsedMsNow, now, force, maxDurationOverride) {
       if (!force && now - lastCameraTargetAt < CAMERA_RETARGET_MIN_INTERVAL_MS) {
         return;
       }
@@ -261,9 +282,10 @@
       if (!force && zoomDelta < CAMERA_MIN_ZOOM_DELTA && centerDelta < CAMERA_MIN_CENTER_DELTA_METERS) {
         return;
       }
+      var maxDuration = maxDurationOverride || CAMERA_MAX_DURATION_S;
       var duration = Math.max(
         CAMERA_MIN_DURATION_S,
-        Math.min(CAMERA_MAX_DURATION_S, CAMERA_BASE_DURATION_S + zoomDelta * CAMERA_SECONDS_PER_ZOOM_LEVEL),
+        Math.min(maxDuration, CAMERA_BASE_DURATION_S + zoomDelta * CAMERA_SECONDS_PER_ZOOM_LEVEL),
       );
       map.flyTo(center, desiredZoom, { duration: duration, easeLinearity: 0.25 });
       lastCameraTargetAt = now;
@@ -477,7 +499,11 @@
     function play() {
       setPlayingUi(true);
       lastFrameAt = null;
-      maybeRetargetCamera(lastSegIndex, elapsedMs, performance.now(), true);
+      // Only the very first camera commit (camera not positioned yet) gets
+      // the generous initial duration - resuming after a manual pause
+      // mid-playback has the camera roughly in place already and should
+      // correct itself at the normal pace instead.
+      maybeRetargetCamera(lastSegIndex, elapsedMs, performance.now(), true, lastCameraZoom === null ? CAMERA_INITIAL_MAX_DURATION_S : undefined);
       rafId = requestAnimationFrame(frame);
     }
 
