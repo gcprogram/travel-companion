@@ -95,6 +95,13 @@
     <p class="field-hint"><?= e(t('admin.settings_geocache_import_radius_hint')) ?></p>
   </div>
 
+  <div class="field">
+    <label for="poi_geocache_import_date_fuzz"><?= e(t('admin.settings_geocache_import_date_fuzz')) ?></label>
+    <input type="number" id="poi_geocache_import_date_fuzz" name="poi_geocache_import_date_fuzz" min="0" max="30" step="1"
+           value="<?= e($values['poi.geocache_import_date_fuzz_days']) ?>">
+    <p class="field-hint"><?= e(t('admin.settings_geocache_import_date_fuzz_hint')) ?></p>
+  </div>
+
   <fieldset class="field">
     <legend><?= e(t('admin.settings_poi_categories')) ?></legend>
     <?php $enabled = array_map('trim', explode(',', $values['poi.categories'])); ?>

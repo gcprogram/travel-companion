@@ -113,6 +113,9 @@
             </label>
           </div>
           <p class="field-hint route-upload-table__hint"><?= e(t('trip.map.geocaching_gpx_hint')) ?></p>
+          <p class="field-hint route-upload-table__hint" id="geocaching-gpx-status" hidden
+             data-msg-uploading="<?= e(t('trip.map.geocaching_gpx_uploading')) ?>"
+             data-msg-error="<?= e(t('trip.map.geocaching_gpx_upload_failed')) ?>"></p>
         </div>
 
         <div class="route-upload-table__row">

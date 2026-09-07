@@ -62,6 +62,13 @@ final class Settings
         // poi.photo_match_meters on purpose: geocaches are found on foot
         // but a car may be parked well away from the exact GPS track line.
         'poi.geocache_import_radius_meters' => '2000',
+        // Slack (in both directions) around the trip's own date_start/
+        // date_end when deciding whether a GPX-imported found/DNF log (or a
+        // field-notes entry) belongs to this trip. Logging can lag the
+        // actual find by a day or two, timezones can shift a log onto the
+        // "wrong" calendar day, and the trip's own dates are themselves
+        // auto-filled/approximate.
+        'poi.geocache_import_date_fuzz_days' => '3',
         // Which categories discovery looks for, comma-separated. 'other'
         // is a manual-entry-only category, never searched for.
         'poi.categories' => 'museum,zoo,attraction,viewpoint,monument,sacred_building',
