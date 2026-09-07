@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Repository\DayEntryRepository;
+use App\Repository\JobRepository;
+use App\Repository\PhotoCaptionBatchRepository;
 use App\Repository\PhotoRepository;
 use App\Repository\TripRepository;
 use App\Service\AiVisionCaptionService;
@@ -14,6 +16,7 @@ use App\Service\TripAccess;
 use App\Support\Flash;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Slim\Exception\HttpForbiddenException;
 use Slim\Exception\HttpNotFoundException;
 
 final class PhotoController
@@ -28,6 +31,8 @@ final class PhotoController
         private readonly DayEntryAccess $entryAccess,
         private readonly PhotoStorage $storage,
         private readonly AiVisionCaptionService $visionCaption,
+        private readonly JobRepository $jobs,
+        private readonly PhotoCaptionBatchRepository $captionBatches,
         private readonly Flash $flash,
     ) {
     }
@@ -133,6 +138,94 @@ final class PhotoController
         $this->photos->updateVisionCaption((int) $photo['id'], $caption);
 
         return $this->json($response, ['ok' => true, 'caption' => $caption], 200);
+    }
+
+    /**
+     * "KI generiere Fotobeschreibung" for the whole trip at once (Stefan's
+     * ask): dispatches one photo.caption job per candidate photo instead
+     * of captioning synchronously - a trip can have far more photos than
+     * fit in one request, and the actual pacing/rate-limit handling lives
+     * in PhotoCaptionHandler via the existing minute-cron job queue, not
+     * here. `mode=missing` only targets photos with no caption yet,
+     * `mode=overwrite` targets every ready photo (re-captions everything,
+     * including EXIF-imported/previously vision-AI'd ones).
+     */
+    public function startCaptionBatch(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireEditableTrip($request, (int) $args['id']);
+
+        $body = (array) $request->getParsedBody();
+        $mode = ($body['mode'] ?? null) === 'overwrite' ? 'overwrite' : 'missing';
+
+        $photoIds = $mode === 'overwrite'
+            ? $this->photos->findReadyIdsByTrip((int) $trip['id'])
+            : $this->photos->findReadyIdsWithoutCaptionByTrip((int) $trip['id']);
+
+        $batchId = bin2hex(random_bytes(12));
+        $this->captionBatches->create($batchId, (int) $trip['id'], $mode, count($photoIds));
+        foreach ($photoIds as $photoId) {
+            $this->jobs->dispatch('photo.caption', ['photo_id' => $photoId, 'batch_id' => $batchId]);
+        }
+
+        return $this->json($response, ['ok' => true, 'batchId' => $batchId, 'total' => count($photoIds)], 200);
+    }
+
+    /**
+     * Polled by bulk-photo-caption.js (see startCaptionBatch()) - a small
+     * JSON ping rather than a page reload loop, same reasoning as
+     * DayEntryController::mediaStatus(). Looks up "this trip's most recent
+     * batch" from the DB rather than trusting anything the client
+     * remembers, so a reload/reconnect mid-batch just resumes watching it.
+     */
+    public function captionBatchStatus(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireEditableTrip($request, (int) $args['id']);
+
+        $batch = $this->captionBatches->findLatestByTrip((int) $trip['id']);
+        if ($batch === null) {
+            return $this->json($response, ['active' => false], 200);
+        }
+
+        $counts = $this->jobs->countByBatch($batch['id']);
+        $remaining = $counts['pending'] + $counts['running'];
+
+        // Bounded "recently finished" list so an open diary panel can show
+        // the caption as soon as it lands, without resending the whole
+        // batch's history on every poll (see JobRepository docblock).
+        $recent = [];
+        foreach ($this->jobs->recentDonePhotoIdsByBatch($batch['id']) as $photoId) {
+            $photo = $this->photos->findById($photoId);
+            if ($photo !== null && !empty($photo['caption'])) {
+                $recent[] = ['id' => $photoId, 'caption' => $photo['caption']];
+            }
+        }
+
+        return $this->json($response, [
+            'active' => $remaining > 0,
+            'mode' => $batch['mode'],
+            'total' => $batch['total'],
+            'done' => $counts['done'],
+            'failed' => $counts['failed'],
+            'remaining' => $remaining,
+            'recent' => $recent,
+        ], 200);
+    }
+
+    /**
+     * "Abbrechen": drops every not-yet-started job of the trip's current
+     * batch. Photos already captioned stay captioned.
+     */
+    public function cancelCaptionBatch(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireEditableTrip($request, (int) $args['id']);
+
+        $batch = $this->captionBatches->findLatestByTrip((int) $trip['id']);
+        if ($batch === null) {
+            return $this->json($response, ['ok' => true, 'cancelled' => 0], 200);
+        }
+
+        $cancelled = $this->jobs->cancelPendingByBatch($batch['id']);
+        return $this->json($response, ['ok' => true, 'cancelled' => $cancelled], 200);
     }
 
     /**
@@ -257,6 +350,21 @@ final class PhotoController
         $this->photos->updateRating((int) $photo['id'], $rating);
 
         return $this->json($response, ['ok' => true, 'rating' => $rating], 200);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function requireEditableTrip(ServerRequestInterface $request, int $tripId): array
+    {
+        $trip = $this->trips->findById($tripId);
+        if ($trip === null) {
+            throw new HttpNotFoundException($request);
+        }
+        if (!$this->tripAccess->canEdit($trip, $request->getAttribute('user'), $request)) {
+            throw new HttpForbiddenException($request);
+        }
+        return $trip;
     }
 
     /**

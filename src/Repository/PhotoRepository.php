@@ -248,6 +248,36 @@ final class PhotoRepository
     }
 
     /**
+     * Bulk-caption "nur fehlende ergänzen" mode.
+     *
+     * @return list<int>
+     */
+    public function findReadyIdsWithoutCaptionByTrip(int $tripId): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT p.id FROM photos p JOIN day_entries e ON e.id = p.day_entry_id
+             WHERE e.trip_id = ? AND p.status = 'ready' AND (p.caption IS NULL OR p.caption = '')"
+        );
+        $stmt->execute([$tripId]);
+        return array_map(intval(...), $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * Bulk-caption "alle überschreiben" mode.
+     *
+     * @return list<int>
+     */
+    public function findReadyIdsByTrip(int $tripId): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT p.id FROM photos p JOIN day_entries e ON e.id = p.day_entry_id
+             WHERE e.trip_id = ? AND p.status = 'ready'"
+        );
+        $stmt->execute([$tripId]);
+        return array_map(intval(...), $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+    /**
      * Every ready photo's capture time + position, for
      * TripMapController::review() to match against each detected stay by
      * temporal OR spatial proximity - a far easier way to identify an

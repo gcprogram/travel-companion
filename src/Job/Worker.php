@@ -55,6 +55,8 @@ final class Worker
                 $handler->handle($payload);
                 $this->jobs->markDone($id);
                 $this->logger->info('Job done', ['id' => $id, 'type' => $type]);
+            } catch (JobPostponedException $e) {
+                $this->jobs->postpone($id, $e->until);
             } catch (\Throwable $e) {
                 $this->jobs->markFailed(
                     $id,

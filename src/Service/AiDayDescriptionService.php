@@ -28,6 +28,7 @@ final class AiDayDescriptionService
     public function __construct(
         private readonly AiProviderResolver $resolver,
         private readonly Settings $settings,
+        private readonly GoogleGeminiClient $gemini,
     ) {
     }
 
@@ -51,10 +52,22 @@ final class AiDayDescriptionService
     }
 
     /**
-     * @param array{baseUrl: string, model: string, apiKey: string} $provider
+     * @param array{baseUrl: string, model: string, apiKey: string, provider?: string} $provider
      */
     private function callProvider(array $provider, string $prompt, string $instruction, int $maxTokens): ?string
     {
+        $systemPrompt = 'Du schreibst für ein privates Reisetagebuch die Beschreibung EINES Reisetages auf '
+            . 'Deutsch, basierend NUR auf den gegebenen Fakten - nichts erfinden, keine Orte/'
+            . 'Ereignisse hinzudichten, die nicht genannt sind. Falls schon ein von einem Menschen '
+            . 'geschriebener Text für diesen Tag vorliegt, dessen Ton/Inhalt aufgreifen und '
+            . 'sinnvoll erweitern statt ihn zu ignorieren. Fließtext, keine Überschrift, keine '
+            . 'Aufzählung, keine Anführungszeichen. ' . $instruction;
+
+        if (($provider['provider'] ?? '') === 'google') {
+            $result = $this->gemini->generateText($provider['baseUrl'], $provider['model'], $provider['apiKey'], $systemPrompt, $prompt, 0.75, $maxTokens);
+            return $result !== null ? mb_substr($result, 0, 20000) : null;
+        }
+
         $ch = curl_init($provider['baseUrl'] . '/chat/completions');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -67,13 +80,7 @@ final class AiDayDescriptionService
             CURLOPT_POSTFIELDS => json_encode([
                 'model' => $provider['model'],
                 'messages' => [
-                    ['role' => 'system', 'content' =>
-                        'Du schreibst für ein privates Reisetagebuch die Beschreibung EINES Reisetages auf '
-                        . 'Deutsch, basierend NUR auf den gegebenen Fakten - nichts erfinden, keine Orte/'
-                        . 'Ereignisse hinzudichten, die nicht genannt sind. Falls schon ein von einem Menschen '
-                        . 'geschriebener Text für diesen Tag vorliegt, dessen Ton/Inhalt aufgreifen und '
-                        . 'sinnvoll erweitern statt ihn zu ignorieren. Fließtext, keine Überschrift, keine '
-                        . 'Aufzählung, keine Anführungszeichen. ' . $instruction],
+                    ['role' => 'system', 'content' => $systemPrompt],
                     ['role' => 'user', 'content' => $prompt],
                 ],
                 'max_tokens' => $maxTokens,

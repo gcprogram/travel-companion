@@ -118,6 +118,36 @@
 
 <h2><?= e(t('trip.show.diary_heading')) ?></h2>
 
+<?php if ($entries !== [] && $canEdit): ?>
+  <div class="caption-batch" data-caption-batch
+       data-trip-id="<?= (int) $trip['id'] ?>"
+       data-csrf-token="<?= e($csrf->token()) ?>"
+       data-msg-progress="<?= e(t('trip.show.caption_batch_progress')) ?>"
+       data-msg-done="<?= e(t('trip.show.caption_batch_done')) ?>"
+       data-msg-none="<?= e(t('trip.show.caption_batch_none')) ?>"
+       data-msg-error="<?= e(t('trip.show.caption_batch_error')) ?>">
+    <form data-caption-batch-start-form>
+      <fieldset>
+        <legend><?= e(t('trip.show.caption_batch_heading')) ?></legend>
+        <label>
+          <input type="radio" name="mode" value="missing" checked>
+          <?= e(t('trip.show.caption_batch_mode_missing')) ?>
+        </label>
+        <label>
+          <input type="radio" name="mode" value="overwrite">
+          <?= e(t('trip.show.caption_batch_mode_overwrite')) ?>
+        </label>
+        <button type="submit" class="btn btn-ghost btn-small"><?= e(t('trip.show.caption_batch_start')) ?></button>
+      </fieldset>
+    </form>
+    <div data-caption-batch-status hidden>
+      <p data-caption-batch-status-text></p>
+      <progress data-caption-batch-progress max="100" value="0"></progress>
+      <button type="button" class="btn btn-ghost btn-small" data-caption-batch-cancel><?= e(t('trip.show.caption_batch_cancel')) ?></button>
+    </div>
+  </div>
+<?php endif; ?>
+
 <?php if ($entries !== []): ?>
   <label class="day-entry-detail-toggle">
     <input type="checkbox" data-day-entry-detail-toggle>
@@ -248,3 +278,4 @@
 <script src="/assets/js/day-entry-accordion.js"></script>
 <script src="/assets/js/day-entry-detail-view.js"></script>
 <script src="/assets/js/day-entry-rating.js"></script>
+<script src="/assets/js/bulk-photo-caption.js"></script>

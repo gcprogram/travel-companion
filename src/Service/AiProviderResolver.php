@@ -37,7 +37,7 @@ final class AiProviderResolver
     }
 
     /**
-     * @return array{baseUrl: string, model: string, apiKey: string}|null
+     * @return array{baseUrl: string, model: string, apiKey: string, provider: string}|null
      */
     public function resolve(string $slot): ?array
     {
@@ -57,7 +57,7 @@ final class AiProviderResolver
      * want to retry a different model/provider on a rate limit or error
      * (Stefan's ask) instead of giving up after a single failed call.
      *
-     * @return list<array{id: int, baseUrl: string, model: string, apiKey: string}>
+     * @return list<array{id: int, baseUrl: string, model: string, apiKey: string, provider: string}>
      */
     public function resolveChain(string $slot): array
     {
@@ -85,7 +85,7 @@ final class AiProviderResolver
     }
 
     /**
-     * @return array{baseUrl: string, model: string, apiKey: string}|null
+     * @return array{baseUrl: string, model: string, apiKey: string, provider: string}|null
      */
     private function toCandidate(int $configId): ?array
     {
@@ -103,6 +103,7 @@ final class AiProviderResolver
             'baseUrl' => rtrim((string) $config['base_url'], '/'),
             'model' => (string) $config['model'],
             'apiKey' => $apiKey,
+            'provider' => (string) $config['provider'],
         ];
     }
 }
