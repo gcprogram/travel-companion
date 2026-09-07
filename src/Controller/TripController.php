@@ -258,6 +258,7 @@ final class TripController
             'title' => trim((string) ($body['title'] ?? '')),
             'description' => $this->nullable($body['description'] ?? null),
             'tags' => $this->nullable($body['tags'] ?? null),
+            'people_notes' => $this->nullable($body['people_notes'] ?? null),
             'visibility' => in_array($body['visibility'] ?? null, ['public', 'member_only'], true)
                 ? $body['visibility']
                 : 'private',

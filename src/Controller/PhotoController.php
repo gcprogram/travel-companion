@@ -117,7 +117,7 @@ final class PhotoController
             throw new HttpNotFoundException($request);
         }
 
-        $this->entryAccess->requireEditableEntry($request, (int) $photo['day_entry_id']);
+        [$trip] = $this->entryAccess->requireEditableEntry($request, (int) $photo['day_entry_id']);
 
         $storageId = $photo['source_photo_id'] !== null ? (int) $photo['source_photo_id'] : (int) $photo['id'];
         $path = $this->storage->derivativePath($storageId, 'web');
@@ -125,7 +125,7 @@ final class PhotoController
             return $this->json($response, ['ok' => false, 'error' => t('media.caption_error')], 404);
         }
 
-        $caption = $this->visionCaption->describe((string) file_get_contents($path), 'image/jpeg');
+        $caption = $this->visionCaption->describe((string) file_get_contents($path), 'image/jpeg', $trip['people_notes']);
         if ($caption === null) {
             return $this->json($response, ['ok' => false, 'error' => t('media.caption_error')], 502);
         }

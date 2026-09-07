@@ -86,9 +86,9 @@ final class TripRepository
     {
         $now = gmdate('Y-m-d H:i:s');
         $stmt = $this->pdo->prepare(
-            'INSERT INTO trips (user_id, title, slug, country, operator, description, tags,
+            'INSERT INTO trips (user_id, title, slug, country, operator, description, tags, people_notes,
                                 date_start, date_end, visibility, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $userId,
@@ -98,6 +98,7 @@ final class TripRepository
             $data['operator'],
             $data['description'],
             $data['tags'],
+            $data['people_notes'],
             $data['date_start'],
             $data['date_end'],
             $data['visibility'],
@@ -113,7 +114,7 @@ final class TripRepository
     public function update(int $id, array $data): void
     {
         $stmt = $this->pdo->prepare(
-            'UPDATE trips SET title = ?, slug = ?, country = ?, operator = ?, description = ?, tags = ?,
+            'UPDATE trips SET title = ?, slug = ?, country = ?, operator = ?, description = ?, tags = ?, people_notes = ?,
                     date_start = ?, date_end = ?, visibility = ?, updated_at = ?
              WHERE id = ?'
         );
@@ -124,6 +125,7 @@ final class TripRepository
             $data['operator'],
             $data['description'],
             $data['tags'],
+            $data['people_notes'],
             $data['date_start'],
             $data['date_end'],
             $data['visibility'],

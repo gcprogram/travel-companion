@@ -44,6 +44,13 @@ $action = $isEdit ? '/trips/' . (int) $trip['id'] : '/trips';
   </div>
 
   <div class="field">
+    <label for="people_notes"><?= e(t('trip.form.people_notes_label')) ?></label>
+    <textarea id="people_notes" name="people_notes" rows="4"
+              placeholder="<?= e(t('trip.form.people_notes_placeholder')) ?>"><?= e($trip['people_notes'] ?? '') ?></textarea>
+    <p class="field-hint"><?= e(t('trip.form.people_notes_hint')) ?></p>
+  </div>
+
+  <div class="field">
     <label><?= e(t('trip.form.visibility_label')) ?></label>
     <div class="field-radio-group">
       <label>

@@ -101,14 +101,14 @@ final class VideoController
             throw new HttpNotFoundException($request);
         }
 
-        $this->entryAccess->requireEditableEntry($request, (int) $video['day_entry_id']);
+        [$trip] = $this->entryAccess->requireEditableEntry($request, (int) $video['day_entry_id']);
 
         $path = $this->storage->posterPath($this->storageId($video));
         if (!is_file($path)) {
             return $this->json($response, ['ok' => false, 'error' => t('media.caption_error')], 404);
         }
 
-        $caption = $this->visionCaption->describe((string) file_get_contents($path), 'image/webp');
+        $caption = $this->visionCaption->describe((string) file_get_contents($path), 'image/webp', $trip['people_notes']);
         if ($caption === null) {
             return $this->json($response, ['ok' => false, 'error' => t('media.caption_error')], 502);
         }

@@ -33,34 +33,17 @@ X Nachtrag Y"), nicht hier.
 
 ## Ideen-Backlog (noch nicht angefangen)
 
-- **Track-Player: optionale, nicht-destruktive Track-Glättung für schlechten
-  Empfang (z. B. im Flughafengebäude).** Am echten Track der Moldau-Reise
-  (20.08., Frankfurt-Abflug) bestätigt: 09:06-09:11 Uhr springt der Track
-  15,6 km in 5,6 Min., 09:19-09:25 Uhr springt er 85,8 km in 5,6 Min. -
-  beides physikalisch unmöglich (920 km/h bzw. 167 km/h "zu Fuß am
-  Flughafen"), also eindeutig GPS-Ausreißer durch schlechten Empfang im
-  Gebäude, nicht echte Bewegung. Stefans Idee: eine Glättung, die die
-  ORIGINALDATEN nicht anfasst (kann man vorher nicht testen/rückgängig
-  machen), sondern nur eine VIRTUELLE, umschaltbare Ansicht glatt
-  darstellt - z. B. ein Toggle "geglättet anzeigen" auf der Karte/im
-  Track-Player, das Ausreißer-Punkte (unplausible Geschwindigkeit)
-  client- oder serverseitig für die Anzeige herausfiltert/interpoliert,
-  ohne `trip_track_points` zu verändern. Zusätzliche Idee: an genau
-  solchen Stellen könnte Google-Timeline-Daten (WLAN-Ortung drinnen)
-  zuverlässiger sein als der Handy-GPS-Tracker - eine Quellen-Priorisierung
-  oder ein Datenabgleich für exakt diese Lücken wäre denkbar, sobald
-  Vergleichsdaten für dasselbe Zeitfenster vorliegen. Noch nicht umgesetzt -
-  wartet auf eine Entscheidung, wie genau "virtuell glätten" bedient werden
-  soll (automatisch ab welcher Plausibilitätsschwelle vs. manuell markierte
-  Bereiche) und optional auf einen Timeline-Datenvergleich für denselben
-  Zeitraum. **Update (Nachtrag 38)**: am echten importierten Track direkt
-  bestätigt - im Terminal-Bereich sind auch abseits der beiden oben
-  genannten Sprünge durchgehend scharfe Zickzack-Linien im Rohdaten-Track
-  sichtbar. Nebeneffekt ohne diese Glättung: die vorausschauende Kamera
-  des Track-Players pendelt in so einem dichten Rauschbereich zwischen
-  nah und weit, weil ihr Vorschau-Fenster (max. 80 Punkte) darin nicht
-  bis zum eigentlichen Abflug reicht - dürfte sich mit dieser Glättung
-  von selbst erledigen.
+- **Zurückgestellt: Google-Timeline-Datenabgleich für GPS-Lücken.** Die
+  eigentliche virtuelle Track-Glättung ist umgesetzt (Nachtrag 39,
+  `TrackSmoothingService::filterOutliers()` - nie destruktiv,
+  Original-Trackpunkte bleiben unangetastet, Route-editieren zeigt weiter
+  die echten Rohdaten). Offen bleibt Stefans Zusatzidee: an Stellen mit
+  schlechtem GPS-Empfang könnten Google-Timeline-Daten (WLAN-Ortung
+  drinnen) zuverlässiger sein als der Handy-GPS-Tracker - eine
+  Quellen-Priorisierung oder ein Datenabgleich für schlecht abgedeckte
+  Zeitfenster wäre denkbar, sobald Vergleichsdaten vorliegen. Kein
+  akuter Bedarf mehr, da der reine Ausreißer-Filter beim echten Test
+  (Moldau-Reise) schon gut funktioniert hat.
 
 - **Optionale Zusatzidee zum Track-Player: Tageslicht-Farbverlauf.**
   Statt einer einzelnen "abgelaufen"-Farbe könnte der Track sich mit dem
@@ -79,3 +62,40 @@ X Nachtrag Y"), nicht hier.
 ```
 - **Kurztitel.** Ein bis zwei Sätze: was, warum, evtl. wie.
 ```
+### Google Gemini 
+...muss zu KI Provider Auswahl hinzugefügt werden.
+Schaue im GCMystSolver, da wurde Gemini auch verwendet und für Vision und Websuche aktiviert mit nativer Unterstützung.
+
+### KI-Unterstützung
+Für die KI-Generierung gibt es folgende Funktionen:
+
+1. KI generiere Fotobeschreibung -> Einmal drücken, für alle Fotos, die noch keine Caption haben, werden Captions generiert. Man 
+Nicht parallel, sondern seriell. Wenn die erste 429 oder Fehlermeldung kommt. Eine Minute warten und dann 12 sec zwischen einzelnen Aufrufen (5 / min). Wenn 429 oder Fehler bleibt, auch Backup-Modell switchen. 
+
+2. KI generiere Tagebucheintrag
+- Nimmt Reisebeschreibung (Mensch)
+- Nimmt das Wetter ("Es war ein warmer, sonniger Tag mit Temperaturen von 20-24°C und ...". Bei Wetterumschwung ab einer bestimmten Zeit: "Gegen 16:00 Uhr kam plötzlich ein Gewitter auf...") 
+- Nimmt die Stimmungsbewertung: ("Die Stimmung war super...")
+- Nimmt bestätigte Sehenswürdigkeiten (inkl. Geocaches)
+- Nimmt Personennamen aus Personenbeschreibung
+- Nimmt Personennamen aus den Fotos (siehe AI Media Analyzer um das EXIF oder XMP-Tag zu finden)
+- Nimmt die Beschreibung der Bilder aus der Fotobeschreibung.
+- Versucht aus der Fotobeschreibung eine Handlung/Verb für die Personen abzuleiten, z.B.:
+  -- Essen fotographiert: "Wir gingen lecker Mittagessen in <Restaurant>", "... Pizzaessen", "... Kuchen essen", "... Eis essen", "Wir holen uns ein Waffeleis..."
+  -- Wilde Tiere fotographiert: "Wir sahen <Tierart>"
+  -- Geocache: "Wir fanden den Tradi 'GC12345 Lüneburgs Stolz' in einem Baum"
+- Nimmt die Personenbeschreibung und versucht die Personen in Fotos den Beschreibungen zuzuordnen ("Purple hair" -> Christin, "Bald man" -> Stefan)
+- Wenn Geocaches in der Nähe der Spur (<50m) sind, dann diese zum Zeitpunkt der nächsten Annäherung erwähnen in Beschreibung. Da matched dann bestimmt auch ein Foto (Petling/Munitionskiste)
+ 
+- Generiert eine längere Beschreibung (2-3 Seiten). Jede Pause und jede Sehenswürdigkeit bekommt mindestens einen Satz.  
+- Die Gesamtbeschreibung soll sich flüssig lesen lassen. Falls viele Caches auf engem Raum geloggt wurden (>3 in einem Kilometer Umkreis, in < 40 min), dann werden die Geocaches als Liste aufgeführt. Format: HH:mm GCcode GCname (cache_type).
+Pausen werden wieder normal beschrieben.
+
+3. KI generiere Reisebeschreibung: 
+- Kürzt die (KI-)Tagebuchbeschreibungen massiv zusammen, damit ein Text von ca. 1/2 Seite herauskommt.
+
+4. Vorschlag für Titel und Tags machen 
+- Kürzt KI-Reisebeschreibung auf einen Satz
+
+Titel könnte z.B. lauten "Franzis Umzug von Langen über Darmstadt nach Lüneburg und Geocachen in Lauenburg"
+Siehe https://citiontour.com/share/e357a450c7014ba28c9dd72233f7541389501112304e6b45842e3b4448712adf
