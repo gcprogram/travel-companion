@@ -183,20 +183,91 @@ final class PoiController
         $body = (array) $request->getParsedBody();
         $username = trim((string) ($body['gc_username'] ?? ''));
 
-        $fieldNotes = [];
+        $fieldNotesRaw = [];
         $notesFile = $files['field_notes'] ?? null;
         if ($notesFile !== null && $notesFile->getError() === UPLOAD_ERR_OK) {
-            $parsed = $this->fieldNotes->parse($notesFile->getStream()->getContents());
-            $fieldNotes = $this->filterFieldNotesToTripRange($parsed, $trip);
+            $fieldNotesRaw = $this->fieldNotes->parse($notesFile->getStream()->getContents());
         }
 
-        $documents = $this->extractGpxDocuments($file);
+        $result = $this->processGeocachingImport($file->getStream()->getContents(), $username, $fieldNotesRaw, $trip);
+        $this->flashGeocachingImportResult($result);
+        return $this->redirectToMap($request, $response, $trip);
+    }
+
+    public function importGpxChunk(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->requireEditable($request, (int) $args['id']);
+
+        $body = (array) $request->getParsedBody();
+        $uploadId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($body['upload_id'] ?? '')) ?? '';
+        $chunkIndex = (int) ($body['chunk_index'] ?? -1);
+        $chunkCount = (int) ($body['chunk_count'] ?? 0);
+
+        if ($uploadId === '' || $chunkIndex < 0 || $chunkCount < 1 || $chunkIndex >= $chunkCount) {
+            return $this->json($response, ['error' => 'invalid_request'], 422);
+        }
+
+        $chunk = $request->getUploadedFiles()['chunk'] ?? null;
+        if (!$chunk instanceof UploadedFileInterface || $chunk->getError() !== UPLOAD_ERR_OK) {
+            return $this->json($response, ['error' => 'upload_failed'], 422);
+        }
+
+        $tmpPath = sys_get_temp_dir() . '/tcgpx_' . $uploadId . '.part';
+        $handle = fopen($tmpPath, $chunkIndex === 0 ? 'wb' : 'ab');
+        if ($handle === false) {
+            return $this->json($response, ['error' => 'server_error'], 500);
+        }
+        $stream = $chunk->getStream()->detach();
+        stream_copy_to_stream($stream, $handle);
+        fclose($handle);
+        if (is_resource($stream)) {
+            fclose($stream);
+        }
+
+        if ($chunkIndex < $chunkCount - 1) {
+            return $this->json($response, ['status' => 'chunk_received']);
+        }
+
+        $username = trim((string) ($body['gc_username'] ?? ''));
+        $fieldNotesRaw = [];
+        $notesBase64 = (string) ($body['field_notes_base64'] ?? '');
+        if ($notesBase64 !== '') {
+            $decoded = base64_decode($notesBase64, true);
+            if ($decoded !== false) {
+                $fieldNotesRaw = $this->fieldNotes->parse($decoded);
+            }
+        }
+
+        $contents = (string) file_get_contents($tmpPath);
+        unlink($tmpPath);
+
+        $result = $this->processGeocachingImport($contents, $username, $fieldNotesRaw, $trip);
+        $this->flashGeocachingImportResult($result);
+
+        $location = WizardNav::preserve('/trip/' . $trip['slug'] . '/map', $request);
+        return $this->json($response, ['ok' => true, 'redirect' => $location]);
+    }
+
+    /**
+     * Shared by the (legacy, still-working) single-shot upload and the
+     * chunked one: everything from "GPX/ZIP bytes in hand" to "relevant
+     * caches upserted". Never destructive - a cache excluded by either
+     * filter below just isn't imported, nothing already stored is touched.
+     *
+     * @param array<string, array{type: 'found'|'dnf', date: string}> $fieldNotesRaw unfiltered, as parsed from field_notes.txt
+     * @param array<string, mixed> $trip
+     * @return array{imported: int, droppedByDistance: int, droppedByDate: int, zipEmpty: bool}
+     */
+    private function processGeocachingImport(string $contents, string $username, array $fieldNotesRaw, array $trip): array
+    {
+        $fieldNotes = $this->filterFieldNotesToTripRange($fieldNotesRaw, $trip);
+
+        $documents = $this->extractGpxDocumentsFromContents($contents);
         if ($documents === []) {
-            $this->flash->add('error', t('trip.map.geocaching_gpx_zip_empty'));
-            return $this->redirectToMap($request, $response, $trip);
+            return ['imported' => 0, 'droppedByDistance' => 0, 'droppedByDate' => 0, 'zipEmpty' => true];
         }
 
-        // A Pocket Query ZIP's companion -wpts.gpx (extractGpxDocuments()
+        // A Pocket Query ZIP's companion -wpts.gpx (extractGpxDocumentsFromContents()
         // sorts it after the main file) only ever fills in a cache the
         // main file didn't already resolve, or backs up a found/DNF
         // signal the main file's own log matching missed - it never
@@ -213,6 +284,27 @@ final class PoiController
         }
         $caches = array_values($combined);
         $relevant = array_values(array_filter($caches, static fn (array $c): bool => $c['found'] || $c['dnf']));
+
+        // A "myfinds"-style export can carry a lifetime of finds far outside
+        // this one trip. Keep only those whose found/DNF date falls within
+        // the trip's own date range (plus fuzz) - and, since the whole
+        // point here is to exclude irrelevant history, drop entries with no
+        // confirmable date at all once the trip has dates to filter against.
+        $droppedByDate = 0;
+        $dateRange = $this->tripDateRangeWithFuzz($trip);
+        if ($dateRange !== null) {
+            [$rangeStart, $rangeEnd] = $dateRange;
+            $before = count($relevant);
+            $relevant = array_values(array_filter($relevant, static function (array $c) use ($rangeStart, $rangeEnd): bool {
+                $dateStr = $c['found'] ? $c['foundDate'] : $c['dnfDate'];
+                if ($dateStr === null) {
+                    return false;
+                }
+                $date = new \DateTimeImmutable($dateStr);
+                return $date >= $rangeStart && $date <= $rangeEnd;
+            }));
+            $droppedByDate = $before - count($relevant);
+        }
 
         // A Pocket Query/field-notes combo has no location awareness of its
         // own - it matches purely by GC code and date, so a find from a
@@ -248,19 +340,59 @@ final class PoiController
             );
         }
 
-        if ($relevant === [] && $droppedByDistance > 0) {
-            $this->flash->add('error', t('trip.map.geocaching_gpx_all_too_far', ['count' => (string) $droppedByDistance]));
-        } elseif ($relevant === []) {
+        return [
+            'imported' => count($relevant),
+            'droppedByDistance' => $droppedByDistance,
+            'droppedByDate' => $droppedByDate,
+            'zipEmpty' => false,
+        ];
+    }
+
+    /**
+     * @param array{imported: int, droppedByDistance: int, droppedByDate: int, zipEmpty: bool} $result
+     */
+    private function flashGeocachingImportResult(array $result): void
+    {
+        $imported = $result['imported'];
+        $droppedByDistance = $result['droppedByDistance'];
+        $droppedByDate = $result['droppedByDate'];
+
+        if ($result['zipEmpty']) {
+            $this->flash->add('error', t('trip.map.geocaching_gpx_zip_empty'));
+        } elseif ($imported === 0 && $droppedByDistance === 0 && $droppedByDate === 0) {
             $this->flash->add('error', t('trip.map.geocaching_gpx_none_found'));
+        } elseif ($imported === 0 && $droppedByDate > 0 && $droppedByDistance === 0) {
+            $this->flash->add('error', t('trip.map.geocaching_gpx_all_out_of_range', ['count' => (string) $droppedByDate]));
+        } elseif ($imported === 0) {
+            $this->flash->add('error', t('trip.map.geocaching_gpx_all_too_far', ['count' => (string) ($droppedByDistance + $droppedByDate)]));
+        } elseif ($droppedByDistance > 0 && $droppedByDate > 0) {
+            $this->flash->add('success', t('trip.map.geocaching_gpx_imported_with_dropped_full', [
+                'count' => (string) $imported,
+                'dropped_distance' => (string) $droppedByDistance,
+                'dropped_date' => (string) $droppedByDate,
+            ]));
+        } elseif ($droppedByDate > 0) {
+            $this->flash->add('success', t('trip.map.geocaching_gpx_imported_with_dropped_date', [
+                'count' => (string) $imported,
+                'dropped' => (string) $droppedByDate,
+            ]));
         } elseif ($droppedByDistance > 0) {
             $this->flash->add('success', t('trip.map.geocaching_gpx_imported_with_dropped', [
-                'count' => (string) count($relevant),
+                'count' => (string) $imported,
                 'dropped' => (string) $droppedByDistance,
             ]));
         } else {
-            $this->flash->add('success', t('trip.map.geocaching_gpx_imported', ['count' => (string) count($relevant)]));
+            $this->flash->add('success', t('trip.map.geocaching_gpx_imported', ['count' => (string) $imported]));
         }
-        return $this->redirectToMap($request, $response, $trip);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function json(ResponseInterface $response, array $data, int $status = 200): ResponseInterface
+    {
+        $response->getBody()->write((string) json_encode($data, JSON_THROW_ON_ERROR));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
     }
 
     /**
@@ -312,9 +444,8 @@ final class PoiController
      *
      * @return list<string>
      */
-    private function extractGpxDocuments(UploadedFileInterface $file): array
+    private function extractGpxDocumentsFromContents(string $contents): array
     {
-        $contents = $file->getStream()->getContents();
         if (!str_starts_with($contents, "PK\x03\x04")) {
             return [$contents];
         }
@@ -658,22 +789,35 @@ final class PoiController
      */
     private function filterFieldNotesToTripRange(array $notes, array $trip): array
     {
-        $start = $this->validDateOrNull($trip['date_start'] ?? null);
-        $end = $this->validDateOrNull($trip['date_end'] ?? null);
-        if ($start === null && $end === null) {
+        $dateRange = $this->tripDateRangeWithFuzz($trip);
+        if ($dateRange === null) {
             return $notes; // Trip has no dates set yet - nothing to filter against.
         }
-
-        // A few days' slack in both directions: logging can lag the actual
-        // find by up to a day or two, and the trip's own dates are
-        // themselves auto-filled/approximate.
-        $rangeStart = ($start !== null ? new \DateTimeImmutable($start) : new \DateTimeImmutable($end))->modify('-3 days');
-        $rangeEnd = ($end !== null ? new \DateTimeImmutable($end) : new \DateTimeImmutable($start))->modify('+3 days');
+        [$rangeStart, $rangeEnd] = $dateRange;
 
         return array_filter($notes, static function (array $note) use ($rangeStart, $rangeEnd): bool {
             $date = new \DateTimeImmutable($note['date']);
             return $date >= $rangeStart && $date <= $rangeEnd;
         });
+    }
+
+    /**
+     * @param array<string, mixed> $trip
+     * @return array{0: \DateTimeImmutable, 1: \DateTimeImmutable}|null null if the trip has no dates set yet to filter against
+     */
+    private function tripDateRangeWithFuzz(array $trip): ?array
+    {
+        $start = $this->validDateOrNull($trip['date_start'] ?? null);
+        $end = $this->validDateOrNull($trip['date_end'] ?? null);
+        if ($start === null && $end === null) {
+            return null;
+        }
+
+        $fuzzDays = $this->settings->getInt('poi.geocache_import_date_fuzz_days');
+        $rangeStart = ($start !== null ? new \DateTimeImmutable($start) : new \DateTimeImmutable($end))->modify("-{$fuzzDays} days");
+        $rangeEnd = ($end !== null ? new \DateTimeImmutable($end) : new \DateTimeImmutable($start))->modify("+{$fuzzDays} days");
+
+        return [$rangeStart, $rangeEnd];
     }
 
     /**
