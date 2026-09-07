@@ -86,12 +86,12 @@ final class Settings
         // get their own 'ai.slot.<name>' key with no schema change needed.
         // See AiProviderResolver.
         'ai.slot.main' => '0',
-        // Reserved for the planned photo-description feature (generating
-        // trip/sight/geocache context from what's actually in the images) -
-        // only the slot assignment exists so far, no vision feature reads
-        // it yet. A vision-capable model needs to be picked deliberately
-        // (not every OpenAI-compatible model accepts image input), which is
-        // exactly why this is its own slot rather than reusing 'main'.
+        // Photo/video vision captioning (AiVisionCaptionService, shipped
+        // since Nachtrag 12) and the bulk "generate for all photos" batch
+        // (PhotoCaptionHandler). A vision-capable model needs to be picked
+        // deliberately (not every OpenAI-compatible model accepts image
+        // input), which is why this is its own slot rather than reusing
+        // 'main'.
         'ai.slot.vision' => '0',
         // AiTranslationService's fallback for sight-name translation
         // (PoiNameTranslationService) when GoogleTranslateService is
