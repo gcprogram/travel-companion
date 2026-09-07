@@ -31,9 +31,16 @@ final class GoogleGeminiClient
      *
      * @return list<string>|null model names with the "models/" prefix
      *         stripped (matches what AdminAiProviderController::create()
-     *         expects an admin to then type/pick), or null on failure.
+     *         expects an admin to then type/pick). `status`/`error` are
+     *         only meaningful when `ok` is false - surfaced so the admin
+     *         UI can show the real HTTP status/message instead of a blind
+     *         "bad response" (this is the one troubleshooting-facing call
+     *         site; every other method here stays best-effort/null like
+     *         the rest of the app's AI services).
+     *
+     * @return array{ok: bool, models: list<string>, status: ?int, error: ?string}
      */
-    public function listModels(string $baseUrl, string $apiKey): ?array
+    public function listModels(string $baseUrl, string $apiKey): array
     {
         $ch = curl_init(rtrim($baseUrl, '/') . '/v1beta/models');
         curl_setopt_array($ch, [
@@ -43,21 +50,25 @@ final class GoogleGeminiClient
         ]);
         $body = curl_exec($ch);
         $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
 
-        if ($body === false || $status !== 200) {
-            return null;
+        if ($body === false) {
+            return ['ok' => false, 'models' => [], 'status' => null, 'error' => $curlError];
+        }
+        if ($status !== 200) {
+            return ['ok' => false, 'models' => [], 'status' => $status, 'error' => $this->extractErrorMessage($body)];
         }
 
         try {
             $data = json_decode((string) $body, true, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
-            return null;
+            return ['ok' => false, 'models' => [], 'status' => $status, 'error' => null];
         }
 
         $entries = $data['models'] ?? null;
         if (!is_array($entries)) {
-            return null;
+            return ['ok' => false, 'models' => [], 'status' => $status, 'error' => null];
         }
 
         $models = [];
@@ -67,7 +78,24 @@ final class GoogleGeminiClient
                 $models[] = str_starts_with($name, 'models/') ? substr($name, 7) : $name;
             }
         }
-        return array_values(array_unique($models));
+        return ['ok' => true, 'models' => array_values(array_unique($models)), 'status' => 200, 'error' => null];
+    }
+
+    /**
+     * Google's error body is `{"error": {"message": "...", ...}}` - quite
+     * different from the OpenAI dialect's shape, pulled out separately so
+     * a real Gemini error (e.g. "API key not valid") reaches the admin
+     * legibly instead of a generic "bad response".
+     */
+    private function extractErrorMessage(string $body): ?string
+    {
+        try {
+            $data = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return null;
+        }
+        $message = $data['error']['message'] ?? null;
+        return is_string($message) && $message !== '' ? $message : null;
     }
 
     /**
