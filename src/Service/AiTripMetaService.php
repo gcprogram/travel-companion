@@ -22,8 +22,15 @@ namespace App\Service;
  */
 final class AiTripMetaService
 {
-    public function __construct(private readonly AiProviderResolver $resolver)
-    {
+    private const SYSTEM_PROMPT = 'Du schlägst für ein privates Reisetagebuch einen kurzen, einprägsamen deutschen '
+        . 'Reisetitel und 3-6 kurze Tags (je 1-2 Wörter, Kleinschreibung) vor. '
+        . 'Antworte NUR mit JSON: {"title": "...", "tags": ["...", "..."]}. '
+        . 'Kein Fließtext, keine Erklärung, kein Markdown.';
+
+    public function __construct(
+        private readonly AiProviderResolver $resolver,
+        private readonly GoogleGeminiClient $gemini,
+    ) {
     }
 
     /**
@@ -45,11 +52,16 @@ final class AiTripMetaService
     }
 
     /**
-     * @param array{baseUrl: string, model: string, apiKey: string} $provider
+     * @param array{baseUrl: string, model: string, apiKey: string, provider?: string} $provider
      * @return array{title: ?string, tags: ?list<string>}|null
      */
     private function callProvider(array $provider, string $prompt): ?array
     {
+        if (($provider['provider'] ?? '') === 'google') {
+            $result = $this->gemini->generateText($provider['baseUrl'], $provider['model'], $provider['apiKey'], self::SYSTEM_PROMPT, $prompt, 0.8, 200);
+            return $result !== null ? $this->parseSuggestion($result) : null;
+        }
+
         $ch = curl_init($provider['baseUrl'] . '/chat/completions');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -62,11 +74,7 @@ final class AiTripMetaService
             CURLOPT_POSTFIELDS => json_encode([
                 'model' => $provider['model'],
                 'messages' => [
-                    ['role' => 'system', 'content' =>
-                        'Du schlägst für ein privates Reisetagebuch einen kurzen, einprägsamen deutschen '
-                        . 'Reisetitel und 3-6 kurze Tags (je 1-2 Wörter, Kleinschreibung) vor. '
-                        . 'Antworte NUR mit JSON: {"title": "...", "tags": ["...", "..."]}. '
-                        . 'Kein Fließtext, keine Erklärung, kein Markdown.'],
+                    ['role' => 'system', 'content' => self::SYSTEM_PROMPT],
                     ['role' => 'user', 'content' => $prompt],
                 ],
                 'response_format' => ['type' => 'json_object'],

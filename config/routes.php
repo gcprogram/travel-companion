@@ -120,6 +120,9 @@ return static function (App $app): void {
         $group->post('/photos/{id:[0-9]+}/rotate', [PhotoController::class, 'rotate']);
         $group->post('/photos/{id:[0-9]+}/crop', [PhotoController::class, 'crop']);
         $group->post('/photos/{id:[0-9]+}/rate', [PhotoController::class, 'rate']);
+        $group->post('/trips/{id:[0-9]+}/photos/caption-batch', [PhotoController::class, 'startCaptionBatch']);
+        $group->get('/trips/{id:[0-9]+}/photos/caption-batch/status', [PhotoController::class, 'captionBatchStatus']);
+        $group->post('/trips/{id:[0-9]+}/photos/caption-batch/cancel', [PhotoController::class, 'cancelCaptionBatch']);
 
         // Videos: same rule, plus a plain-form path for adding a YouTube link.
         $group->post('/entries/{entryId:[0-9]+}/videos', [VideoUploadController::class, 'uploadChunk']);
@@ -153,6 +156,7 @@ return static function (App $app): void {
         $group->post('/settings/ai-providers', [AdminAiProviderController::class, 'create']);
         $group->post('/settings/ai-providers/{id:[0-9]+}/delete', [AdminAiProviderController::class, 'delete']);
         $group->post('/settings/ai-providers/{id:[0-9]+}/test', [AdminAiProviderController::class, 'test']);
+        $group->post('/settings/ai-providers/{id:[0-9]+}/test-search', [AdminAiProviderController::class, 'testSearch']);
         $group->post('/settings/ai-providers/fetch-models', [AdminAiProviderController::class, 'fetchModels']);
     })->add(RequireAdmin::class);
 

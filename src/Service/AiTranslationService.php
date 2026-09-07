@@ -35,8 +35,10 @@ namespace App\Service;
  */
 final class AiTranslationService
 {
-    public function __construct(private readonly AiProviderResolver $resolver)
-    {
+    public function __construct(
+        private readonly AiProviderResolver $resolver,
+        private readonly GoogleGeminiClient $gemini,
+    ) {
     }
 
     public function translate(string $text, string $targetLang = 'en'): ?string
@@ -66,10 +68,15 @@ final class AiTranslationService
     }
 
     /**
-     * @param array{baseUrl: string, model: string, apiKey: string} $provider
+     * @param array{baseUrl: string, model: string, apiKey: string, provider?: string} $provider
      */
     private function callProvider(array $provider, string $prompt): ?string
     {
+        if (($provider['provider'] ?? '') === 'google') {
+            $result = $this->gemini->generateText($provider['baseUrl'], $provider['model'], $provider['apiKey'], '', $prompt, 0.2, 300);
+            return $result !== null ? $this->clean($result) : null;
+        }
+
         $ch = curl_init($provider['baseUrl'] . '/chat/completions');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,

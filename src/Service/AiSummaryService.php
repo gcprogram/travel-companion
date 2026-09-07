@@ -29,8 +29,14 @@ namespace App\Service;
  */
 final class AiSummaryService
 {
-    public function __construct(private readonly AiProviderResolver $resolver)
-    {
+    private const SYSTEM_PROMPT = 'Du fasst private Reisetagebuch-Einträge auf Deutsch in 2-3 kurzen, '
+        . 'persönlich geschriebenen Sätzen zusammen. Keine Überschrift, keine Anführungszeichen, '
+        . 'keine Aufzählung - nur Fließtext.';
+
+    public function __construct(
+        private readonly AiProviderResolver $resolver,
+        private readonly GoogleGeminiClient $gemini,
+    ) {
     }
 
     /**
@@ -52,10 +58,23 @@ final class AiSummaryService
     }
 
     /**
-     * @param array{baseUrl: string, model: string, apiKey: string} $provider
+     * @param array{baseUrl: string, model: string, apiKey: string, provider?: string} $provider
      */
     private function callProvider(array $provider, string $prompt): ?string
     {
+        if (($provider['provider'] ?? '') === 'google') {
+            $result = $this->gemini->generateText(
+                $provider['baseUrl'],
+                $provider['model'],
+                $provider['apiKey'],
+                self::SYSTEM_PROMPT,
+                $prompt,
+                0.7,
+                220,
+            );
+            return $result !== null ? mb_substr($result, 0, 2000) : null;
+        }
+
         $ch = curl_init($provider['baseUrl'] . '/chat/completions');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -68,10 +87,7 @@ final class AiSummaryService
             CURLOPT_POSTFIELDS => json_encode([
                 'model' => $provider['model'],
                 'messages' => [
-                    ['role' => 'system', 'content' =>
-                        'Du fasst private Reisetagebuch-Einträge auf Deutsch in 2-3 kurzen, '
-                        . 'persönlich geschriebenen Sätzen zusammen. Keine Überschrift, keine Anführungszeichen, '
-                        . 'keine Aufzählung - nur Fließtext.'],
+                    ['role' => 'system', 'content' => self::SYSTEM_PROMPT],
                     ['role' => 'user', 'content' => $prompt],
                 ],
                 'max_tokens' => 220,

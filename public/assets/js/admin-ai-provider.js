@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', function () {
     body.set('_csrf', csrfToken);
     body.set('base_url', baseUrl);
     body.set('api_key', apiKey);
+    body.set('provider', presetSelect.value);
 
     fetch(fetchUrl, {
       method: 'POST',
@@ -97,16 +98,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var listCsrfToken = list.dataset.csrfToken;
   var testUrlTemplate = list.dataset.testUrlTemplate;
+  var testSearchUrlTemplate = list.dataset.testSearchUrlTemplate;
 
-  list.addEventListener('click', function (event) {
-    var button = event.target.closest('[data-ai-provider-test]');
-    if (!button) {
-      return;
-    }
-
+  function runTest(button, testUrl, onSuccess) {
     var statusEl = button.closest('.ai-provider-list__item').querySelector('[data-ai-provider-test-status]');
-    var testUrl = testUrlTemplate.replace('__ID__', button.dataset.providerId);
-
     button.disabled = true;
     statusEl.textContent = list.dataset.msgTesting;
 
@@ -125,8 +120,7 @@ document.addEventListener('DOMContentLoaded', function () {
           statusEl.textContent = data.error || list.dataset.msgTestError;
           return;
         }
-        statusEl.textContent = list.dataset.msgTestOk
-          .replace('%dms', String(data.latencyMs) + ' ms');
+        onSuccess(statusEl, data);
       })
       .catch(function () {
         statusEl.textContent = list.dataset.msgTestError;
@@ -134,5 +128,27 @@ document.addEventListener('DOMContentLoaded', function () {
       .finally(function () {
         button.disabled = false;
       });
+  }
+
+  list.addEventListener('click', function (event) {
+    var testButton = event.target.closest('[data-ai-provider-test]');
+    if (testButton) {
+      var testUrl = testUrlTemplate.replace('__ID__', testButton.dataset.providerId);
+      runTest(testButton, testUrl, function (statusEl, data) {
+        statusEl.textContent = list.dataset.msgTestOk.replace('%dms', String(data.latencyMs) + ' ms');
+      });
+      return;
+    }
+
+    var searchButton = event.target.closest('[data-ai-provider-test-search]');
+    if (searchButton) {
+      var testSearchUrl = testSearchUrlTemplate.replace('__ID__', searchButton.dataset.providerId);
+      runTest(searchButton, testSearchUrl, function (statusEl, data) {
+        var template = data.searched ? list.dataset.msgTestSearchOkSearched : list.dataset.msgTestSearchOkNotSearched;
+        statusEl.textContent = template
+          .replace('%dms', String(data.latencyMs) + ' ms')
+          .replace('%d', String(data.sourceCount));
+      });
+    }
   });
 });

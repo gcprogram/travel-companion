@@ -9,6 +9,7 @@ use App\Job\DayEntrySuggestDescriptionHandler;
 use App\Job\DayEntrySummarizeHandler;
 use App\Job\EntryLocateHandler;
 use App\Job\GeocodeResolveHandler;
+use App\Job\PhotoCaptionHandler;
 use App\Job\PhotoInterpolatePositionsHandler;
 use App\Job\PingHandler;
 use App\Job\PhotoProcessHandler;
@@ -85,6 +86,7 @@ return [
         $worker->register('day_entry.suggest_description', $c->get(DayEntrySuggestDescriptionHandler::class));
         $worker->register('trip.suggest_meta', $c->get(TripSuggestMetaHandler::class));
         $worker->register('trip.suggest_description', $c->get(TripSuggestDescriptionHandler::class));
+        $worker->register('photo.caption', $c->get(PhotoCaptionHandler::class));
 
         return $worker;
     },

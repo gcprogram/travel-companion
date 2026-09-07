@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Repository\AiProviderConfigRepository;
 use App\Service\AiProviderResolver;
+use App\Service\GoogleGeminiClient;
 use App\Service\Settings;
 use App\Support\Flash;
 use Psr\Http\Message\ResponseInterface;
@@ -16,13 +17,16 @@ use Psr\Http\Message\ServerRequestInterface;
  * /admin/settings: add/delete, plus the "fetch available models" step
  * (GCToolkit-android's own three-step provider->key->models UX, ported
  * here). Gated by RequireAdmin at the route-group level, same as
- * AdminSettingsController.
+ * AdminSettingsController. fetchModels()/test()/testSearch() all branch on
+ * the 'google' provider dialect (GoogleGeminiClient) - every other preset
+ * still speaks the OpenAI-compatible dialect directly.
  */
 final class AdminAiProviderController
 {
     public function __construct(
         private readonly AiProviderConfigRepository $providers,
         private readonly Settings $settings,
+        private readonly GoogleGeminiClient $gemini,
         private readonly Flash $flash,
     ) {
     }
@@ -99,6 +103,15 @@ final class AdminAiProviderController
         $baseUrl = rtrim((string) $config['base_url'], '/');
         $started = microtime(true);
 
+        if ((string) $config['provider'] === 'google') {
+            $result = $this->gemini->generateText($baseUrl, (string) $config['model'], $apiKey, '', 'Reply with only the single word: OK', 0.2, 400, 55);
+            $latencyMs = (int) round((microtime(true) - $started) * 1000);
+            if ($result === null) {
+                return $this->json($response, ['ok' => false, 'error' => t('admin.settings_ai_test_empty_response'), 'latencyMs' => $latencyMs], 502);
+            }
+            return $this->json($response, ['ok' => true, 'latencyMs' => $latencyMs, 'sample' => mb_substr($result, 0, 80)], 200);
+        }
+
         $ch = curl_init($baseUrl . '/chat/completions');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -171,21 +184,70 @@ final class AdminAiProviderController
     }
 
     /**
+     * "Web-Search testen" - only rendered/reachable for a 'google' config
+     * (see templates/admin/settings.php): no product feature consumes web
+     * search yet, this just proves the grounding tool actually works for
+     * the saved key/model before anything is built on top of it. Reports
+     * `searched=false` as a distinct (not necessarily broken) outcome - a
+     * 200 response with no grounding metadata means the model answered
+     * without feeling the need to search, not that the request failed.
+     */
+    public function testSearch(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $id = (int) $args['id'];
+        $config = $this->providers->findById($id);
+        if ($config === null || (string) $config['provider'] !== 'google') {
+            return $this->json($response, ['ok' => false, 'error' => t('admin.settings_ai_test_not_found')], 404);
+        }
+
+        $apiKey = $this->settings->getSecret('ai.provider.' . $id . '.api_key');
+        if ($apiKey === null) {
+            return $this->json($response, ['ok' => false, 'error' => t('admin.settings_ai_test_no_key')], 422);
+        }
+
+        $baseUrl = rtrim((string) $config['base_url'], '/');
+        $started = microtime(true);
+        $result = $this->gemini->searchGrounded($baseUrl, (string) $config['model'], $apiKey, 'What is today\'s date?');
+        $latencyMs = (int) round((microtime(true) - $started) * 1000);
+
+        if ($result['text'] === null) {
+            return $this->json($response, ['ok' => false, 'error' => t('admin.settings_ai_test_empty_response'), 'latencyMs' => $latencyMs], 502);
+        }
+
+        return $this->json($response, [
+            'ok' => true,
+            'latencyMs' => $latencyMs,
+            'searched' => $result['searched'],
+            'sourceCount' => count($result['sources']),
+        ], 200);
+    }
+
+    /**
      * Called via fetch() from the settings page while adding a new
      * provider, before it's saved - takes the base URL/key straight from
-     * the form fields as currently typed. GET {base_url}/models with a
-     * Bearer token, same OpenAI-compatible dialect the actual chat calls
-     * use (AiSummaryService/AiTripMetaService) - this app doesn't speak
-     * Anthropic's/Google's native dialects yet, see AiProviderPresets.
+     * the form fields as currently typed. Branches on the preset picked in
+     * the form (Google's native dialect vs. everyone else's OpenAI-
+     * compatible GET {base_url}/models with a Bearer token) - see
+     * AiProviderPresets.
      */
     public function fetchModels(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $body = (array) $request->getParsedBody();
         $baseUrl = rtrim(trim((string) ($body['base_url'] ?? '')), '/');
         $apiKey = trim((string) ($body['api_key'] ?? ''));
+        $provider = trim((string) ($body['provider'] ?? ''));
 
         if ($baseUrl === '' || $apiKey === '') {
             return $this->json($response, ['ok' => false, 'error' => t('admin.settings_ai_fetch_missing')], 422);
+        }
+
+        if ($provider === 'google') {
+            $models = $this->gemini->listModels($baseUrl, $apiKey);
+            if ($models === null) {
+                return $this->json($response, ['ok' => false, 'error' => t('admin.settings_ai_fetch_bad_response')], 502);
+            }
+            sort($models);
+            return $this->json($response, ['ok' => true, 'models' => $models], 200);
         }
 
         $ch = curl_init($baseUrl . '/models');

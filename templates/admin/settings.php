@@ -243,8 +243,11 @@
 <?php if ($aiProviders !== []): ?>
   <ul class="ai-provider-list" data-ai-provider-list data-csrf-token="<?= e($csrf->token()) ?>"
       data-test-url-template="/admin/settings/ai-providers/__ID__/test"
+      data-test-search-url-template="/admin/settings/ai-providers/__ID__/test-search"
       data-msg-testing="<?= e(t('admin.settings_ai_test_testing')) ?>"
       data-msg-test-ok="<?= e(t('admin.settings_ai_test_ok')) ?>"
+      data-msg-test-search-ok-searched="<?= e(t('admin.settings_ai_test_search_ok_searched')) ?>"
+      data-msg-test-search-ok-not-searched="<?= e(t('admin.settings_ai_test_search_ok_not_searched')) ?>"
       data-msg-test-error="<?= e(t('admin.settings_ai_fetch_error')) ?>">
     <?php foreach ($aiProviders as $config): ?>
       <li class="ai-provider-list__item">
@@ -257,6 +260,11 @@
           <button type="button" class="btn btn-ghost btn-small" data-ai-provider-test data-provider-id="<?= (int) $config['id'] ?>">
             <?= e(t('admin.settings_ai_provider_test')) ?>
           </button>
+          <?php if ($config['provider'] === 'google'): ?>
+            <button type="button" class="btn btn-ghost btn-small" data-ai-provider-test-search data-provider-id="<?= (int) $config['id'] ?>">
+              <?= e(t('admin.settings_ai_provider_test_search')) ?>
+            </button>
+          <?php endif; ?>
           <form method="post" action="/admin/settings/ai-providers/<?= (int) $config['id'] ?>/delete"
                 data-confirm="<?= e(t('admin.settings_ai_provider_delete_confirm', ['label' => $config['label']])) ?>">
             <?= $csrf->field() ?>

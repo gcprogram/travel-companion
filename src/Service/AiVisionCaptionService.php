@@ -14,17 +14,21 @@ namespace App\Service;
  * ever accepting what BLIP produced (PhotoController::caption()/
  * VideoController::caption(), caption_source='vision_ai' vs 'exif_import').
  *
- * Same OpenAI-compatible chat-completions dialect as every other AI
- * feature in this app (image content sent as a base64 data URL in the
- * message, the standard way OpenAI/most compatible providers accept
- * inline images) - no new provider dialect needed, but the assigned model
- * does need to actually support image input, which is why this has its
- * own slot rather than reusing 'main' (not every chat model does).
+ * Speaks the OpenAI-compatible chat-completions dialect (image content as
+ * a base64 data URL) for most providers, same as every other AI feature in
+ * this app - but branches to GoogleGeminiClient's native dialect for a
+ * 'google' provider config, since that's the one that actually needs
+ * proper vision support as a genuinely independent fallback (see
+ * PhotoCaptionHandler). Either way, the assigned model does need to
+ * actually support image input, which is why this has its own slot rather
+ * than reusing 'main' (not every chat model does).
  */
 final class AiVisionCaptionService
 {
-    public function __construct(private readonly AiProviderResolver $resolver)
-    {
+    public function __construct(
+        private readonly AiProviderResolver $resolver,
+        private readonly GoogleGeminiClient $gemini,
+    ) {
     }
 
     /**
@@ -41,10 +45,8 @@ final class AiVisionCaptionService
      */
     public function describe(string $imageBytes, string $mimeType, ?string $peopleNotes = null): ?string
     {
-        $dataUrl = 'data:' . $mimeType . ';base64,' . base64_encode($imageBytes);
-
         foreach ($this->resolver->resolveChain('vision') as $provider) {
-            $result = $this->callProvider($provider, $dataUrl, $peopleNotes);
+            $result = $this->callProvider($provider, $imageBytes, $mimeType, $peopleNotes);
             if ($result !== null) {
                 return $result;
             }
@@ -54,9 +56,24 @@ final class AiVisionCaptionService
     }
 
     /**
-     * @param array{baseUrl: string, model: string, apiKey: string} $provider
+     * Same as describe(), but calls exactly ONE given provider instead of
+     * blindly trying the whole chain - used by PhotoCaptionHandler, which
+     * needs to know precisely which provider succeeded/failed to drive its
+     * own rate-limit/backup-model bookkeeping (AiRateLimitRepository).
+     * describe() itself is untouched and keeps its whole-chain behaviour
+     * for the manual single-photo button.
+     *
+     * @param array{baseUrl: string, model: string, apiKey: string, provider: string} $provider
      */
-    private function callProvider(array $provider, string $dataUrl, ?string $peopleNotes): ?string
+    public function describeWith(array $provider, string $imageBytes, string $mimeType, ?string $peopleNotes = null): ?string
+    {
+        return $this->callProvider($provider, $imageBytes, $mimeType, $peopleNotes);
+    }
+
+    /**
+     * @param array{baseUrl: string, model: string, apiKey: string, provider?: string} $provider
+     */
+    private function callProvider(array $provider, string $imageBytes, string $mimeType, ?string $peopleNotes): ?string
     {
         $instruction = 'Describe this travel photo in one or two concise, natural sentences '
             . 'for a travel diary caption - what is shown, and anything notable about '
@@ -70,6 +87,20 @@ final class AiVisionCaptionService
                 . "Never guess a name you're not reasonably confident about, and never mention anyone "
                 . 'whose description does not match what is actually visible.';
         }
+
+        if (($provider['provider'] ?? '') === 'google') {
+            $result = $this->gemini->describeImage(
+                $provider['baseUrl'],
+                $provider['model'],
+                $provider['apiKey'],
+                $imageBytes,
+                $mimeType,
+                $instruction,
+            );
+            return $result !== null ? $this->clean($result) : null;
+        }
+
+        $dataUrl = 'data:' . $mimeType . ';base64,' . base64_encode($imageBytes);
         $ch = curl_init($provider['baseUrl'] . '/chat/completions');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
