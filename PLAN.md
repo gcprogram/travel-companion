@@ -25,13 +25,16 @@ X Nachtrag Y"), nicht hier.
   Smiley-Badge (~1/3 Icongröße, obere rechte Ecke), rein informativ, kein
   eigener Bestätigen/Ablehnen-Fluss nötig.
 
-- **Kleine Doku-Korrektur**: der Kommentar bei `ai.slot.vision` in
-  `src/Service/Settings.php` beschreibt die Bildbeschreibungs-Funktion
-  noch als "geplant, noch nicht gebaut" - ist aber seit Nachtrag 12
-  (`AiVisionCaptionService`) längst umgesetzt. Beim nächsten Anfassen der
-  Datei den Kommentar korrigieren/entfernen.
-
 ## Ideen-Backlog (noch nicht angefangen)
+
+- **Video-Beschreibungen aus Einzelbild-Sampling** (Stefans Ask, optional
+  für die Zukunft). c:geo/AI-MediaAnalyzer liefern teils schon Caption-/
+  Transkript-Tags fürs ganze Video (XMP/EXIF), aber keine Beschreibung
+  einzelner Szenen. Idee: alle x Sekunden (Default x=20) ein Frame
+  extrahieren und per Vision-KI beschreiben lassen, um Videos in der
+  Tagesbeschreibung so reichhaltig wie Fotos einzubinden. Bis dahin nutzt
+  die Tagesbeschreibung weiterhin nur das vorhandene Video-Caption/
+  Transkript (aus AI-MediaAnalyzer-Import) und den Video-Ort.
 
 - **Zurückgestellt: Google-Timeline-Datenabgleich für GPS-Lücken.** Die
   eigentliche virtuelle Track-Glättung ist umgesetzt (Nachtrag 39,
@@ -62,15 +65,13 @@ X Nachtrag Y"), nicht hier.
 ```
 - **Kurztitel.** Ein bis zwei Sätze: was, warum, evtl. wie.
 ```
-### Google Gemini 
-...muss zu KI Provider Auswahl hinzugefügt werden.
-Schaue im GCMystSolver, da wurde Gemini auch verwendet und für Vision und Websuche aktiviert mit nativer Unterstützung.
-
 ### KI-Unterstützung
 Für die KI-Generierung gibt es folgende Funktionen:
 
-1. KI generiere Fotobeschreibung -> Einmal drücken, für alle Fotos, die noch keine Caption haben, werden Captions generiert. Man 
-Nicht parallel, sondern seriell. Wenn die erste 429 oder Fehlermeldung kommt. Eine Minute warten und dann 12 sec zwischen einzelnen Aufrufen (5 / min). Wenn 429 oder Fehler bleibt, auch Backup-Modell switchen. 
+1. ~~KI generiere Fotobeschreibung~~ **Umgesetzt** (Nachtrag 41: Bulk-
+   Caption-Batch über die Job-Queue mit adaptivem Rate-Limiting +
+   Backup-Modell-Wechsel; Google Gemini als zweiter, nativer Provider-
+   Dialekt für Vision/Web-Search). Details in HANDOVER.md.
 
 2. KI generiere Tagebucheintrag
 - Nimmt Reisebeschreibung (Mensch)
