@@ -25,6 +25,26 @@ namespace App\Service;
  */
 final class GoogleGeminiClient
 {
+    // Newer Gemini models (observed live: gemini-3.6-flash) spend hidden
+    // "thinking" tokens out of the SAME maxOutputTokens budget before ever
+    // emitting the actual answer - a request for e.g. 200 tokens can burn
+    // all 200 on thinking and return empty/truncated text with
+    // finishReason=MAX_TOKENS, even though the model works fine. Thinking
+    // usage scales with prompt complexity, not just answer length: a
+    // trivial one-line prompt measured ~200-320 thinking tokens live, a
+    // realistic day-description prompt measured ~2800-3200. Google's own
+    // thinkingConfig.thinkingBudget doesn't reliably cap this either
+    // (tested live: requesting a budget of 64 still produced ~200 thinking
+    // tokens, and budget=0 was rejected outright for this model with a
+    // 400). The robust fix is the same one already used for NVIDIA's
+    // reasoning models elsewhere in this app: give the ceiling generous
+    // headroom above whatever answer length the caller actually wants,
+    // rather than trying to control/predict the thinking budget itself -
+    // a high ceiling costs nothing when the model finishes on its own
+    // (finishReason=STOP), it only bounds the pathological case.
+    private const THINKING_HEADROOM = 6000;
+    private const MAX_OUTPUT_TOKENS_CAP = 32768;
+
     /**
      * GET {base}/v1beta/models - used by the "add provider" form's "fetch
      * models" step, before anything is saved.
@@ -118,7 +138,7 @@ final class GoogleGeminiClient
             'contents' => [
                 ['role' => 'user', 'parts' => [['text' => $userPrompt]]],
             ],
-            'generationConfig' => ['temperature' => $temperature, 'maxOutputTokens' => $maxTokens],
+            'generationConfig' => ['temperature' => $temperature, 'maxOutputTokens' => $this->withThinkingHeadroom($maxTokens)],
         ];
         if (trim($systemPrompt) !== '') {
             $body['system_instruction'] = ['parts' => [['text' => $systemPrompt]]];
@@ -151,11 +171,16 @@ final class GoogleGeminiClient
                     ['text' => $instruction],
                 ],
             ]],
-            'generationConfig' => ['temperature' => 0.4, 'maxOutputTokens' => $maxTokens],
+            'generationConfig' => ['temperature' => 0.4, 'maxOutputTokens' => $this->withThinkingHeadroom($maxTokens)],
         ];
 
         $data = $this->callGenerateContent($baseUrl, $model, $apiKey, $body, $timeout);
         return $data !== null ? $this->extractText($data) : null;
+    }
+
+    private function withThinkingHeadroom(int $maxTokens): int
+    {
+        return min(self::MAX_OUTPUT_TOKENS_CAP, $maxTokens + self::THINKING_HEADROOM);
     }
 
     /**
@@ -172,7 +197,7 @@ final class GoogleGeminiClient
         $body = [
             'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]],
             'tools' => [['google_search' => new \stdClass()]],
-            'generationConfig' => ['temperature' => 0.3, 'maxOutputTokens' => 500],
+            'generationConfig' => ['temperature' => 0.3, 'maxOutputTokens' => $this->withThinkingHeadroom(500)],
         ];
 
         $data = $this->callGenerateContent($baseUrl, $model, $apiKey, $body, $timeout);
