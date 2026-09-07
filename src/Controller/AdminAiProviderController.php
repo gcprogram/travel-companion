@@ -242,10 +242,14 @@ final class AdminAiProviderController
         }
 
         if ($provider === 'google') {
-            $models = $this->gemini->listModels($baseUrl, $apiKey);
-            if ($models === null) {
-                return $this->json($response, ['ok' => false, 'error' => t('admin.settings_ai_fetch_bad_response')], 502);
+            $result = $this->gemini->listModels($baseUrl, $apiKey);
+            if (!$result['ok']) {
+                $error = $result['error'] ?? ($result['status'] !== null
+                    ? t('admin.settings_ai_fetch_http_error', ['status' => (string) $result['status']])
+                    : t('admin.settings_ai_fetch_bad_response'));
+                return $this->json($response, ['ok' => false, 'error' => $error], 502);
             }
+            $models = $result['models'];
             sort($models);
             return $this->json($response, ['ok' => true, 'models' => $models], 200);
         }
