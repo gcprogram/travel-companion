@@ -121,8 +121,8 @@ $lng = $entry['lng'] ?? null;
               data-source="ai-day-description-text"><?= e(t('entry.form.ai_description_apply')) ?></button>
     </div>
   <?php endif; ?>
-  <div class="field">
-    <form method="post" action="/entries/<?= (int) $entry['id'] ?>/suggest-description">
+  <div class="ai-summary">
+    <form method="post" action="/entries/<?= (int) $entry['id'] ?>/suggest-description" class="ai-description-form">
       <?= $csrf->field() ?>
       <label for="entry-ai-description-depth"><?= e(t('entry.form.ai_description_depth_label')) ?></label>
       <select id="entry-ai-description-depth" name="depth">

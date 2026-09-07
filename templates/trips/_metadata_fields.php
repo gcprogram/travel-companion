@@ -111,7 +111,7 @@ $action = $isEdit ? '/trips/' . (int) $trip['id'] : '/trips';
    */ ?>
   <?php if (!empty($trip['ai_title_suggestion']) || !empty($trip['ai_tags_suggestion'])): ?>
     <div class="ai-summary">
-      <p class="ai-summary__label"><?= e(t('trip.form.ai_suggestion_label')) ?></p>
+      <p class="ai-summary__label"><?= e(t('trip.form.ai_suggestion_label_meta')) ?></p>
       <?php if (!empty($trip['ai_title_suggestion'])): ?>
         <p class="ai-summary__text">
           <?= e(t('trip.form.ai_suggested_title')) ?>: <strong id="ai-title-text"><?= e($trip['ai_title_suggestion']) ?></strong>
@@ -128,7 +128,7 @@ $action = $isEdit ? '/trips/' . (int) $trip['id'] : '/trips';
       <?php endif; ?>
     </div>
   <?php endif; ?>
-  <div class="field">
+  <div class="ai-summary">
     <form method="post" action="/trips/<?= (int) $trip['id'] ?>/suggest-meta">
       <?= $csrf->field() ?>
       <button type="submit" class="btn btn-ghost btn-small"><?= e(t('trip.form.ai_suggest_generate')) ?></button>
@@ -138,7 +138,7 @@ $action = $isEdit ? '/trips/' . (int) $trip['id'] : '/trips';
 
   <?php if (!empty($trip['ai_description_suggestion'])): ?>
     <div class="ai-summary">
-      <p class="ai-summary__label"><?= e(t('trip.form.ai_suggestion_label')) ?></p>
+      <p class="ai-summary__label"><?= e(t('trip.form.ai_suggestion_label_description')) ?></p>
       <p class="ai-summary__text">
         <?= e(t('trip.form.ai_suggested_description')) ?>:
         <span id="ai-description-text" class="ai-summary__multiline"><?= e($trip['ai_description_suggestion']) ?></span>
@@ -147,7 +147,7 @@ $action = $isEdit ? '/trips/' . (int) $trip['id'] : '/trips';
       </p>
     </div>
   <?php endif; ?>
-  <div class="field">
+  <div class="ai-summary">
     <form method="post" action="/trips/<?= (int) $trip['id'] ?>/suggest-description" class="ai-description-form">
       <?= $csrf->field() ?>
       <button type="submit" class="btn btn-ghost btn-small"><?= e(t('trip.form.ai_generate_description')) ?></button>
