@@ -628,6 +628,7 @@ return [
     'admin.settings_ai_fetch_missing' => 'Basis-URL und API-Key werden zum Abrufen benötigt.',
     'admin.settings_ai_fetch_http_error' => 'Anbieter antwortete mit Status :status.',
     'admin.settings_ai_fetch_bad_response' => 'Antwort des Anbieters konnte nicht gelesen werden.',
+    'admin.settings_ai_session_expired' => 'Deine Sitzung ist abgelaufen. Bitte die Seite neu laden und erneut einloggen.',
     'admin.settings_ai_provider_test' => 'Testen',
     'admin.settings_ai_provider_test_search' => 'Web-Search testen',
     'admin.settings_ai_test_testing' => 'Teste …',
