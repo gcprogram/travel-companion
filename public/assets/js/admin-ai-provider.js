@@ -13,6 +13,21 @@ document.addEventListener('DOMContentLoaded', function () {
     return;
   }
 
+  // RequireAdmin deliberately returns a plain 404 (not a login redirect) for
+  // a non-admin/expired session - the admin area shouldn't reveal its own
+  // existence to a stranger. That's invisible to a real admin whose own
+  // session just timed out though: fetch().json() would otherwise throw on
+  // Slim's plain 404 HTML page and fall into the generic "fetch failed"
+  // message, leaving no hint that logging in again is all that's needed.
+  function readJsonOrSessionExpired(response) {
+    if (response.status === 404) {
+      var err = new Error('session_expired');
+      err.sessionExpired = true;
+      throw err;
+    }
+    return response.json();
+  }
+
   var presetSelect = form.querySelector('[data-ai-provider-preset]');
   var baseUrlInput = form.querySelector('[data-ai-provider-base-url]');
   var keyInput = form.querySelector('[data-ai-provider-key]');
@@ -63,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function () {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body,
     })
-      .then(function (response) { return response.json(); })
+      .then(readJsonOrSessionExpired)
       .then(function (data) {
         if (!data.ok) {
           fetchStatus.textContent = data.error || form.dataset.msgFetchError;
@@ -83,8 +98,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         fetchStatus.textContent = form.dataset.msgFetchFound.replace('%d', String(data.models.length));
       })
-      .catch(function () {
-        fetchStatus.textContent = form.dataset.msgFetchError;
+      .catch(function (err) {
+        fetchStatus.textContent = (err && err.sessionExpired) ? form.dataset.msgSessionExpired : form.dataset.msgFetchError;
       })
       .finally(function () {
         updateFetchButtonState();
@@ -114,7 +129,7 @@ document.addEventListener('DOMContentLoaded', function () {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body,
     })
-      .then(function (response) { return response.json(); })
+      .then(readJsonOrSessionExpired)
       .then(function (data) {
         if (!data.ok) {
           statusEl.textContent = data.error || list.dataset.msgTestError;
@@ -122,8 +137,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         onSuccess(statusEl, data);
       })
-      .catch(function () {
-        statusEl.textContent = list.dataset.msgTestError;
+      .catch(function (err) {
+        statusEl.textContent = (err && err.sessionExpired) ? list.dataset.msgSessionExpired : list.dataset.msgTestError;
       })
       .finally(function () {
         button.disabled = false;

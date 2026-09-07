@@ -248,7 +248,8 @@
       data-msg-test-ok="<?= e(t('admin.settings_ai_test_ok')) ?>"
       data-msg-test-search-ok-searched="<?= e(t('admin.settings_ai_test_search_ok_searched')) ?>"
       data-msg-test-search-ok-not-searched="<?= e(t('admin.settings_ai_test_search_ok_not_searched')) ?>"
-      data-msg-test-error="<?= e(t('admin.settings_ai_fetch_error')) ?>">
+      data-msg-test-error="<?= e(t('admin.settings_ai_fetch_error')) ?>"
+      data-msg-session-expired="<?= e(t('admin.settings_ai_session_expired')) ?>">
     <?php foreach ($aiProviders as $config): ?>
       <li class="ai-provider-list__item">
         <div>
@@ -281,7 +282,8 @@
       data-csrf-token="<?= e($csrf->token()) ?>"
       data-msg-fetching="<?= e(t('admin.settings_ai_fetch_fetching')) ?>"
       data-msg-fetch-error="<?= e(t('admin.settings_ai_fetch_error')) ?>"
-      data-msg-fetch-found="<?= e(t('admin.settings_ai_fetch_found')) ?>">
+      data-msg-fetch-found="<?= e(t('admin.settings_ai_fetch_found')) ?>"
+      data-msg-session-expired="<?= e(t('admin.settings_ai_session_expired')) ?>">
   <?= $csrf->field() ?>
 
   <div class="field">

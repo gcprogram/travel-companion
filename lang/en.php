@@ -628,6 +628,7 @@ return [
     'admin.settings_ai_fetch_missing' => 'Base URL and API key are required to fetch models.',
     'admin.settings_ai_fetch_http_error' => 'Provider responded with status :status.',
     'admin.settings_ai_fetch_bad_response' => 'Could not read the provider\'s response.',
+    'admin.settings_ai_session_expired' => 'Your session has expired. Please reload the page and log in again.',
     'admin.settings_ai_provider_test' => 'Test',
     'admin.settings_ai_provider_test_search' => 'Test web search',
     'admin.settings_ai_test_testing' => 'Testing …',
