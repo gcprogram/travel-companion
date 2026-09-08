@@ -5,21 +5,31 @@ declare(strict_types=1);
 namespace App\Service;
 
 /**
- * Fetches weather from Open-Meteo. Free, no API key. The forecast endpoint
- * (rather than the archive endpoint) is used deliberately, because the ERA5
- * archive only fills in after about 5 days – diary entries are usually
- * written during or right after the trip.
+ * Fetches weather from Open-Meteo. Free, no API key. Tries the FORECAST
+ * endpoint first (covers roughly the last ~90 days through the next ~16,
+ * including today - the common case, a diary entry written during or right
+ * after the trip) and falls back to the ARCHIVE endpoint (ERA5 reanalysis,
+ * back to 1940, but only filled in for dates more than ~5 days old) on a
+ * non-2xx response - specifically for a diary entry added long after the
+ * trip actually happened (e.g. an old trip only just entered into the app),
+ * whose date has since aged out of the forecast endpoint's rolling window
+ * entirely (Stefan's real case: a trip from October 2024 got no weather at
+ * all, discovered when the forecast endpoint started rejecting it with
+ * "start_date is out of allowed range"). Trying forecast first rather than
+ * branching on the entry's own age keeps this correct without hardcoding
+ * Open-Meteo's rolling window boundary, which shifts every day.
  */
 final class WeatherService
 {
-    private const ENDPOINT = 'https://api.open-meteo.com/v1/forecast';
+    private const FORECAST_ENDPOINT = 'https://api.open-meteo.com/v1/forecast';
+    private const ARCHIVE_ENDPOINT = 'https://archive-api.open-meteo.com/v1/archive';
 
     /**
      * @return array{temp_c: float, code: int}|null
      */
     public function fetchDaily(float $lat, float $lng, string $date): ?array
     {
-        $url = self::ENDPOINT . '?' . http_build_query([
+        $query = http_build_query([
             'latitude' => $lat,
             'longitude' => $lng,
             'start_date' => $date,
@@ -28,7 +38,7 @@ final class WeatherService
             'timezone' => 'UTC',
         ]);
 
-        $data = $this->request($url);
+        $data = $this->requestWithFallback($query);
         $temp = $data['daily']['temperature_2m_mean'][0] ?? null;
         $code = $data['daily']['weathercode'][0] ?? null;
 
@@ -54,7 +64,7 @@ final class WeatherService
      */
     public function fetchHourly(float $lat, float $lng, string $date): array
     {
-        $url = self::ENDPOINT . '?' . http_build_query([
+        $query = http_build_query([
             'latitude' => $lat,
             'longitude' => $lng,
             'start_date' => $date,
@@ -63,7 +73,7 @@ final class WeatherService
             'timezone' => 'auto',
         ]);
 
-        $data = $this->request($url);
+        $data = $this->requestWithFallback($query);
         $times = $data['hourly']['time'] ?? [];
 
         $byHour = [];
@@ -80,6 +90,21 @@ final class WeatherService
             ];
         }
         return $byHour;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function requestWithFallback(string $query): array
+    {
+        try {
+            return $this->request(self::FORECAST_ENDPOINT . '?' . $query);
+        } catch (\RuntimeException) {
+            // Most likely the date has aged out of the forecast endpoint's
+            // rolling window (too far in the past) - archive covers that
+            // case back to 1940, just without a same-day/near-future range.
+            return $this->request(self::ARCHIVE_ENDPOINT . '?' . $query);
+        }
     }
 
     /**
