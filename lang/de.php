@@ -387,6 +387,7 @@ return [
     'entry.delete' => 'Löschen',
     'entry.weather_hourly_toggle' => 'Stündliches Wetter anzeigen',
     'entry.weather_hour' => 'Zeit',
+    'entry.weather_place' => 'Ort',
     'entry.weather_temp' => 'Temp.',
     'entry.weather_feels_like' => 'Gefühlt',
     'entry.weather_rain' => 'Regen',

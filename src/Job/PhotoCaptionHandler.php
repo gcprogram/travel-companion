@@ -7,6 +7,7 @@ namespace App\Job;
 use App\Repository\AiRateLimitRepository;
 use App\Repository\DayEntryRepository;
 use App\Repository\PhotoRepository;
+use App\Repository\PoiMediaRepository;
 use App\Repository\TripRepository;
 use App\Service\AiProviderResolver;
 use App\Service\AiVisionCaptionService;
@@ -63,6 +64,7 @@ final class PhotoCaptionHandler implements JobHandlerInterface
         private readonly AiVisionCaptionService $visionCaption,
         private readonly AiProviderResolver $resolver,
         private readonly AiRateLimitRepository $rateLimit,
+        private readonly PoiMediaRepository $poiMedia,
     ) {
     }
 
@@ -118,11 +120,17 @@ final class PhotoCaptionHandler implements JobHandlerInterface
             return; // Genuinely nothing to caption - not a rate-limit matter.
         }
 
+        $address = !empty($photo['ai_address']) ? (string) $photo['ai_address'] : null;
+        $poiByPhoto = $this->poiMedia->findPoiByPhotoForTrip((int) $trip['id']);
+        $nearbyPoiName = $poiByPhoto[$photoId]['name'] ?? null;
+
         $caption = $this->visionCaption->describeWith(
             $provider,
             (string) file_get_contents($path),
             'image/jpeg',
             $trip['people_notes'],
+            $address,
+            $nearbyPoiName,
         );
 
         if ($caption !== null) {
