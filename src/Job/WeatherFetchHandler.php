@@ -8,6 +8,7 @@ use App\Repository\DayEntryRepository;
 use App\Repository\DayEntryWeatherHourRepository;
 use App\Repository\PhotoRepository;
 use App\Repository\TrackRepository;
+use App\Service\ReverseGeocodingService;
 use App\Service\WeatherService;
 use Psr\Log\LoggerInterface;
 
@@ -24,18 +25,31 @@ use Psr\Log\LoggerInterface;
  * 18:00 in different places; a single query for the whole day would just
  * be wrong for most of it.
  *
- * Hours are grouped by location first (rounded to ~1km) so a day mostly
- * spent in one place costs one Open-Meteo call, not up to 24 - each
- * distinct location still only needs one "whole day, hour by hour" request
- * to cover every hour assigned to it.
+ * Every row is anchored on a real UTC instant (Stefan's find: the previous
+ * version compared an implicitly-UTC "hour of day" target against
+ * Open-Meteo's timezone=auto per-location LOCAL time - silently wrong for
+ * a day that crosses timezones, since "hour 14" at a Frankfurt bucket and
+ * "hour 14" at an Ulaanbaatar bucket aren't the same moment). The window
+ * covered starts at the day's first known point (rounded down to the
+ * hour) and steps forward one UTC hour at a time - one row per hour,
+ * deliberately never compacted/grouped - until local 23:00 at the LAST
+ * point's own location, which can be well over 24 UTC hours for a trip
+ * travelling west (Stefan's example: Germany GMT+1 to San Francisco
+ * GMT-7).
  */
 final class WeatherFetchHandler implements JobHandlerInterface
 {
     // Rounding to 2 decimal degrees is roughly 1km at mid latitudes - close
-    // enough that hours a few minutes apart on the same street don't each
-    // trigger their own API call, coarse enough to still separate distinct
-    // stops on a touring day.
+    // enough that points a few minutes apart on the same street share a
+    // bucket (and its one Open-Meteo call), coarse enough to still separate
+    // distinct stops on a touring day.
     private const LOCATION_ROUNDING = 2;
+
+    // Requested on both sides of the diary date so a segment's own local
+    // calendar date - which can differ from entry_date once a trip has
+    // crossed timezones - is still comfortably covered; wider than any
+    // real-world UTC offset (max ±14h) needs.
+    private const RANGE_PADDING_DAYS = 1;
 
     public function __construct(
         private readonly DayEntryRepository $entries,
@@ -43,6 +57,7 @@ final class WeatherFetchHandler implements JobHandlerInterface
         private readonly TrackRepository $tracks,
         private readonly DayEntryWeatherHourRepository $weatherHours,
         private readonly WeatherService $weather,
+        private readonly ReverseGeocodingService $geocoding,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -84,55 +99,128 @@ final class WeatherFetchHandler implements JobHandlerInterface
      */
     private function fetchHourly(array $entry, int $entryId, float $fallbackLat, float $fallbackLng, string $date): void
     {
-        $points = $this->pointsForDay((int) $entry['trip_id'], $entryId);
+        $points = $this->pointsForDay((int) $entry['trip_id'], $entryId, $date, $fallbackLat, $fallbackLng);
+        usort($points, static fn (array $a, array $b): int => $a['atUtc'] <=> $b['atUtc']);
 
-        // hour => [lat, lng] of whichever point is nearest in time to that hour.
-        $locationByHour = [];
-        for ($hour = 0; $hour < 24; $hour++) {
-            $locationByHour[$hour] = $this->nearestPointForHour($points, $date, $hour) ?? ['lat' => $fallbackLat, 'lng' => $fallbackLng];
+        // Consecutive points sharing a rounded bucket become one segment -
+        // a day that returns to an earlier bucket later gets a second,
+        // separate segment (correct: it's a real second visit), but the
+        // per-bucket Open-Meteo fetch below is still cached across segments
+        // sharing the same bucket, so a same-day return trip costs no extra
+        // call.
+        $segments = [];
+        $currentBucket = null;
+        foreach ($points as $p) {
+            $bucket = round($p['lat'], self::LOCATION_ROUNDING) . ',' . round($p['lng'], self::LOCATION_ROUNDING);
+            if ($bucket !== $currentBucket) {
+                $segments[] = ['bucket' => $bucket, 'lat' => $p['lat'], 'lng' => $p['lng']];
+                $currentBucket = $bucket;
+            }
         }
 
-        // Group hours by rounded location so each distinct spot is only
-        // queried once for its whole day, not once per hour.
-        $hoursByBucket = [];
-        $bucketLocation = [];
-        foreach ($locationByHour as $hour => $loc) {
-            $bucket = round($loc['lat'], self::LOCATION_ROUNDING) . ',' . round($loc['lng'], self::LOCATION_ROUNDING);
-            $hoursByBucket[$bucket][] = $hour;
-            $bucketLocation[$bucket] = $loc;
+        $rangeStart = (new \DateTimeImmutable($date, new \DateTimeZone('UTC')))->modify('-' . self::RANGE_PADDING_DAYS . ' days');
+        $rangeEnd = (new \DateTimeImmutable($date, new \DateTimeZone('UTC')))->modify('+' . self::RANGE_PADDING_DAYS . ' days');
+
+        /** @var array<string, array{offsetSeconds: int, byUtcHour: array<string, array<string, mixed>>}> $weatherByBucket */
+        $weatherByBucket = [];
+        /** @var array<string, ?string> $nameByBucket */
+        $nameByBucket = [];
+        foreach ($segments as $seg) {
+            $bucket = $seg['bucket'];
+            if (isset($weatherByBucket[$bucket])) {
+                continue;
+            }
+            $range = $this->weather->fetchHourlyRange($seg['lat'], $seg['lng'], $rangeStart->format('Y-m-d'), $rangeEnd->format('Y-m-d'));
+            $byUtcHour = [];
+            foreach ($range['hours'] as $h) {
+                $local = \DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $h['localTime'], new \DateTimeZone('UTC'));
+                if ($local === false) {
+                    continue;
+                }
+                $utc = $local->modify('-' . $range['offsetSeconds'] . ' seconds');
+                $byUtcHour[$utc->format('Y-m-d H:00:00')] = $h;
+            }
+            $weatherByBucket[$bucket] = ['offsetSeconds' => $range['offsetSeconds'], 'byUtcHour' => $byUtcHour];
+
+            try {
+                $nameByBucket[$bucket] = $this->locationLabel($seg['lat'], $seg['lng']);
+            } catch (\Throwable $e) {
+                $nameByBucket[$bucket] = null;
+                $this->logger->warning('Weather-hour location naming failed (non-fatal)', ['error' => $e->getMessage()]);
+            }
+        }
+
+        if ($points === [] || $segments === []) {
+            return;
+        }
+
+        // Window: first point's UTC time rounded down to the hour, through
+        // local 23:00 at the LAST point's own location - not a fixed UTC
+        // day, so a westward-travelling day naturally runs past 24 hours.
+        $firstPoint = $points[0];
+        $lastPoint = $points[count($points) - 1];
+        $lastBucket = round($lastPoint['lat'], self::LOCATION_ROUNDING) . ',' . round($lastPoint['lng'], self::LOCATION_ROUNDING);
+        $lastOffset = $weatherByBucket[$lastBucket]['offsetSeconds'] ?? 0;
+
+        $windowStart = $firstPoint['atUtc']->setTime((int) $firstPoint['atUtc']->format('H'), 0, 0);
+        $lastLocal = $lastPoint['atUtc']->modify("+{$lastOffset} seconds");
+        $windowEndLocal = $lastLocal->setTime(23, 0, 0);
+        $windowEnd = $windowEndLocal->modify('-' . $lastOffset . ' seconds');
+        if ($windowEnd < $windowStart) {
+            $windowEnd = $windowStart;
         }
 
         $rows = [];
-        foreach ($hoursByBucket as $bucket => $hours) {
-            $loc = $bucketLocation[$bucket];
-            $hourlyData = $this->weather->fetchHourly($loc['lat'], $loc['lng'], $date);
-            foreach ($hours as $hour) {
-                $w = $hourlyData[$hour] ?? null;
-                $rows[] = [
-                    'hour' => $hour,
-                    'lat' => $loc['lat'],
-                    'lng' => $loc['lng'],
-                    'tempC' => $w['tempC'] ?? null,
-                    'feelsLikeC' => $w['feelsLikeC'] ?? null,
-                    'precipitationProbability' => $w['precipitationProbability'] ?? null,
-                    'weatherCode' => $w['weatherCode'] ?? null,
-                    'windSpeedKmh' => $w['windSpeedKmh'] ?? null,
-                    'windDirectionDeg' => $w['windDirectionDeg'] ?? null,
-                ];
-            }
+        $cursor = $windowStart;
+        while ($cursor <= $windowEnd) {
+            $nearest = $this->nearestPointTo($points, $cursor);
+            $bucket = round($nearest['lat'], self::LOCATION_ROUNDING) . ',' . round($nearest['lng'], self::LOCATION_ROUNDING);
+            $bucketWeather = $weatherByBucket[$bucket] ?? null;
+            $w = $bucketWeather['byUtcHour'][$cursor->format('Y-m-d H:00:00')] ?? null;
+            $offsetSeconds = $bucketWeather['offsetSeconds'] ?? 0;
+            $localHour = (int) $cursor->modify("+{$offsetSeconds} seconds")->format('H');
+
+            $rows[] = [
+                'hour' => $localHour,
+                'lat' => $nearest['lat'],
+                'lng' => $nearest['lng'],
+                'observedAtUtc' => $cursor->format('Y-m-d H:i:s'),
+                'utcOffsetSeconds' => $offsetSeconds,
+                'locationName' => $nameByBucket[$bucket] ?? null,
+                'tempC' => $w['tempC'] ?? null,
+                'feelsLikeC' => $w['feelsLikeC'] ?? null,
+                'precipitationProbability' => $w['precipitationProbability'] ?? null,
+                'weatherCode' => $w['weatherCode'] ?? null,
+                'windSpeedKmh' => $w['windSpeedKmh'] ?? null,
+                'windDirectionDeg' => $w['windDirectionDeg'] ?? null,
+            ];
+            $cursor = $cursor->modify('+1 hour');
         }
 
         $this->weatherHours->replaceForEntry($entryId, $rows);
     }
 
+    private function locationLabel(float $lat, float $lng): ?string
+    {
+        $result = $this->geocoding->placeLabel($lat, $lng);
+        $name = $result['name'];
+        $country = $result['country'];
+        if ($name !== null && $country !== null) {
+            return $name . ', ' . $country;
+        }
+        return $name ?? $country;
+    }
+
     /**
      * Every point with a known time on this entry's day: the trip's track,
      * plus this entry's own geotagged photos (which may be more precise for
-     * a stop the track missed, e.g. GPS off indoors).
+     * a stop the track missed, e.g. GPS off indoors). Falls back to the
+     * entry's single fixed location (as a synthetic noon-UTC point) when
+     * neither exists, matching the old single-location behaviour.
      *
-     * @return list<array{lat: float, lng: float, at: string}>
+     * @return list<array{lat: float, lng: float, atUtc: \DateTimeImmutable}>
      */
-    private function pointsForDay(int $tripId, int $entryId): array
+    private function pointsForDay(int $tripId, int $entryId, string $date, float $fallbackLat, float $fallbackLng): array
     {
         $points = [];
 
@@ -140,41 +228,56 @@ final class WeatherFetchHandler implements JobHandlerInterface
         if ($track !== null) {
             foreach ($this->tracks->findPoints((int) $track['id']) as $p) {
                 if ($p['recorded_at'] !== null) {
-                    $points[] = ['lat' => (float) $p['lat'], 'lng' => (float) $p['lng'], 'at' => (string) $p['recorded_at']];
+                    $points[] = [
+                        'lat' => (float) $p['lat'],
+                        'lng' => (float) $p['lng'],
+                        'atUtc' => new \DateTimeImmutable((string) $p['recorded_at'], new \DateTimeZone('UTC')),
+                    ];
                 }
             }
         }
 
         foreach ($this->photos->findByEntry($entryId) as $photo) {
             if ($photo['lat'] !== null && $photo['lng'] !== null && $photo['taken_at'] !== null) {
-                $points[] = ['lat' => (float) $photo['lat'], 'lng' => (float) $photo['lng'], 'at' => (string) $photo['taken_at']];
+                $points[] = [
+                    'lat' => (float) $photo['lat'],
+                    'lng' => (float) $photo['lng'],
+                    // taken_at is only genuinely UTC when the camera wrote an
+                    // EXIF offset (see PhotoProcessHandler::parseExifDateTime())
+                    // - a known, accepted imprecision, not fixed here; GPX
+                    // recorded_at above is the reliable source for a
+                    // multi-timezone day.
+                    'atUtc' => new \DateTimeImmutable((string) $photo['taken_at'], new \DateTimeZone('UTC')),
+                ];
             }
+        }
+
+        if ($points === []) {
+            $points[] = [
+                'lat' => $fallbackLat,
+                'lng' => $fallbackLng,
+                'atUtc' => new \DateTimeImmutable($date . ' 12:00:00', new \DateTimeZone('UTC')),
+            ];
         }
 
         return $points;
     }
 
     /**
-     * @param list<array{lat: float, lng: float, at: string}> $points
-     * @return array{lat: float, lng: float}|null
+     * @param list<array{lat: float, lng: float, atUtc: \DateTimeImmutable}> $points
+     * @return array{lat: float, lng: float}
      */
-    private function nearestPointForHour(array $points, string $date, int $hour): ?array
+    private function nearestPointTo(array $points, \DateTimeImmutable $target): array
     {
-        if ($points === []) {
-            return null;
-        }
-
-        $target = strtotime(sprintf('%s %02d:30:00', $date, $hour));
-        $best = null;
-        $bestDiff = null;
+        $best = $points[0];
+        $bestDiff = abs($target->getTimestamp() - $best['atUtc']->getTimestamp());
         foreach ($points as $p) {
-            $diff = abs(strtotime($p['at']) - $target);
-            if ($bestDiff === null || $diff < $bestDiff) {
+            $diff = abs($target->getTimestamp() - $p['atUtc']->getTimestamp());
+            if ($diff < $bestDiff) {
                 $bestDiff = $diff;
                 $best = $p;
             }
         }
-
-        return $best !== null ? ['lat' => $best['lat'], 'lng' => $best['lng']] : null;
+        return ['lat' => $best['lat'], 'lng' => $best['lng']];
     }
 }

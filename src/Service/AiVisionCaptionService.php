@@ -42,11 +42,27 @@ final class AiVisionCaptionService
      *        anyone it can confidently match instead of just saying
      *        "a person". Never persisted here, never shown to viewers -
      *        purely a per-call prompt addition.
+     * @param ?string $address this photo's own already-known, reverse-
+     *        geocoded location (`photos.ai_address`) - when given, the
+     *        model is told to use it directly rather than guess a broader
+     *        location from indirect visual cues (Stefan's real example: the
+     *        model wrote "somewhere in Germany" from license plates and
+     *        building style in shot, when the exact city was already known
+     *        from GPS).
+     * @param ?string $nearbyPoiName name of a sight/geocache this photo is
+     *        already assigned to (PoiMediaRepository, existing ~150m
+     *        match), if any - lets the model mention it by name instead of
+     *        describing it generically.
      */
-    public function describe(string $imageBytes, string $mimeType, ?string $peopleNotes = null): ?string
-    {
+    public function describe(
+        string $imageBytes,
+        string $mimeType,
+        ?string $peopleNotes = null,
+        ?string $address = null,
+        ?string $nearbyPoiName = null,
+    ): ?string {
         foreach ($this->resolver->resolveChain('vision') as $provider) {
-            $result = $this->callProvider($provider, $imageBytes, $mimeType, $peopleNotes);
+            $result = $this->callProvider($provider, $imageBytes, $mimeType, $peopleNotes, $address, $nearbyPoiName);
             if ($result !== null) {
                 return $result;
             }
@@ -65,20 +81,44 @@ final class AiVisionCaptionService
      *
      * @param array{baseUrl: string, model: string, apiKey: string, provider: string} $provider
      */
-    public function describeWith(array $provider, string $imageBytes, string $mimeType, ?string $peopleNotes = null): ?string
-    {
-        return $this->callProvider($provider, $imageBytes, $mimeType, $peopleNotes);
+    public function describeWith(
+        array $provider,
+        string $imageBytes,
+        string $mimeType,
+        ?string $peopleNotes = null,
+        ?string $address = null,
+        ?string $nearbyPoiName = null,
+    ): ?string {
+        return $this->callProvider($provider, $imageBytes, $mimeType, $peopleNotes, $address, $nearbyPoiName);
     }
 
     /**
      * @param array{baseUrl: string, model: string, apiKey: string, provider?: string} $provider
      */
-    private function callProvider(array $provider, string $imageBytes, string $mimeType, ?string $peopleNotes): ?string
-    {
+    private function callProvider(
+        array $provider,
+        string $imageBytes,
+        string $mimeType,
+        ?string $peopleNotes,
+        ?string $address = null,
+        ?string $nearbyPoiName = null,
+    ): ?string {
         $instruction = 'Describe this travel photo in one or two concise, natural sentences '
             . 'for a travel diary caption - what is shown, and anything notable about '
             . 'the place, scene, or people. No markdown, no quotation marks, no preamble '
             . 'like "This image shows" - just the description itself.';
+        if ($address !== null && trim($address) !== '') {
+            $instruction .= ' This photo\'s known location is: ' . trim($address) . '.';
+            if ($nearbyPoiName !== null && trim($nearbyPoiName) !== '') {
+                $instruction .= ' It was taken near/at the sight or geocache "' . trim($nearbyPoiName) . '".';
+            }
+            $instruction .= ' State this specific place directly if relevant to the caption - never guess '
+                . 'a broader or different location from indirect visual cues (e.g. license plates, '
+                . 'architecture style) when the exact place is already given above.';
+        } elseif ($nearbyPoiName !== null && trim($nearbyPoiName) !== '') {
+            $instruction .= ' This photo was taken near/at the sight or geocache "' . trim($nearbyPoiName) . '" - '
+                . 'mention it by name if relevant to the caption.';
+        }
         if ($peopleNotes !== null && trim($peopleNotes) !== '') {
             $instruction .= ' The traveller has described the people who might appear in their photos '
                 . "(one \"Name=description\" per line):\n" . trim($peopleNotes)

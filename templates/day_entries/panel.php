@@ -56,6 +56,7 @@
         <thead>
           <tr>
             <th><?= e(t('entry.weather_hour')) ?></th>
+            <th><?= e(t('entry.weather_place')) ?></th>
             <th></th>
             <th><?= e(t('entry.weather_temp')) ?></th>
             <th><?= e(t('entry.weather_feels_like')) ?></th>
@@ -64,9 +65,24 @@
           </tr>
         </thead>
         <tbody>
+          <?php $previousOffset = null; ?>
           <?php foreach ($weatherHours as $wh): ?>
+            <?php
+              $offset = $wh['utc_offset_seconds'] !== null ? (int) $wh['utc_offset_seconds'] : null;
+              // GMT tag only where the offset actually changes from the row
+              // before it (Stefan's ask) - never on the first row, and never
+              // repeated on every same-zone row afterwards.
+              $showOffset = $offset !== null && $previousOffset !== null && $offset !== $previousOffset;
+              $previousOffset = $offset;
+            ?>
             <tr>
               <td><?= sprintf('%02d:00', (int) $wh['hour']) ?></td>
+              <td>
+                <?php if ($showOffset): ?>
+                  <span class="weather-hours__gmt">GMT<?= $offset >= 0 ? '+' : '' ?><?= (int) round($offset / 3600) ?></span>
+                <?php endif; ?>
+                <?= e((string) ($wh['location_name'] ?? '–')) ?>
+              </td>
               <td><?= $wh['weather_code'] !== null ? weather_emoji((int) $wh['weather_code']) : '' ?></td>
               <td><?= $wh['temp_c'] !== null ? e(number_format((float) $wh['temp_c'], 0)) . '°C' : '–' ?></td>
               <td><?= $wh['feels_like_c'] !== null ? e(number_format((float) $wh['feels_like_c'], 0)) . '°C' : '–' ?></td>

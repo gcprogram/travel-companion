@@ -27,6 +27,20 @@ X Nachtrag Y"), nicht hier.
 
 ## Ideen-Backlog (noch nicht angefangen)
 
+- **MCC-Tag als Zeitzone-Hinweis bei Fotos ohne EXIF-Offset** (Stefans
+  Ask). `photos.taken_at` ist nur dann echtes UTC, wenn die Kamera einen
+  EXIF-Zeitzonen-Offset geschrieben hat (`PhotoProcessHandler::
+  parseExifDateTime()`) - sonst wird lokale Wanduhrzeit fälschlich als
+  UTC übernommen. Manche Smartphone-Fotos tragen zusätzlich ein MCC-Tag
+  (Mobile Country Code, z. B. "Peru (716)", "Czech Rep. (230)"), das bei
+  Vorhandensein einen groben Standort-/Zeitzone-Hinweis geben könnte,
+  wenn der EXIF-Offset fehlt. Eigener Aufwand (MCC-Code-zu-Land/Zeitzone-
+  Tabelle) - noch nicht begonnen. Zusätzliche Warnung dazu: eine Kamera
+  im Flugmodus schreibt während des ganzen Flugs weiter die Abflug-
+  Zeitzone in den Offset, auch nach der Landung - für Flugreisen bleiben
+  GPX-Trackpunkte (zuverlässig UTC, `GpxParser::normalizeTime()`) die
+  verlässlichere Quelle.
+
 - **Video-Beschreibungen aus Einzelbild-Sampling** (Stefans Ask, optional
   für die Zukunft). c:geo/AI-MediaAnalyzer liefern teils schon Caption-/
   Transkript-Tags fürs ganze Video (XMP/EXIF), aber keine Beschreibung

@@ -9,6 +9,13 @@
  * entry's date, which trip-map.js listens for to switch the map between the
  * full trip and a single day's track/pins - the two files don't know about
  * each other beyond that event.
+ *
+ * The header's weather badge (data-weather-summary-toggle) sits inside this
+ * same clickable header, so a click on it used to just collapse/expand the
+ * whole card like any other part of the header - confusing when the intent
+ * was "show me the hourly weather", not "close this entry". Clicking it
+ * now always ends with the card open AND its hourly weather detail
+ * (.weather-hours) expanded, never collapsed.
  */
 document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('[data-day-entry-card]').forEach(function (card) {
@@ -22,7 +29,25 @@ document.addEventListener('DOMContentLoaded', function () {
     var entryDate = card.dataset.entryDate;
     var loaded = false;
 
-    toggle.addEventListener('click', function () {
+    function openWeatherHours() {
+      var details = body.querySelector('.weather-hours');
+      if (details) {
+        details.open = true;
+        details.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    toggle.addEventListener('click', function (event) {
+      var weatherClick = event.target.closest('[data-weather-summary-toggle]') !== null;
+
+      if (weatherClick && !body.hidden) {
+        // Already open - a weather click should never close it, just
+        // (re-)reveal the hourly detail.
+        event.stopPropagation();
+        openWeatherHours();
+        return;
+      }
+
       var willOpen = body.hidden;
       body.hidden = !willOpen;
       card.classList.toggle('is-open', willOpen);
@@ -40,11 +65,16 @@ document.addEventListener('DOMContentLoaded', function () {
           .then(function (html) {
             body.innerHTML = html;
             loaded = true;
+            if (weatherClick) {
+              openWeatherHours();
+            }
           })
           .catch(function (err) {
             console.error('Diary entry panel fetch failed:', err);
             body.innerHTML = '<p class="empty-state">' + (card.dataset.msgError || '') + '</p>';
           });
+      } else if (willOpen && weatherClick) {
+        openWeatherHours();
       }
 
       window.dispatchEvent(new CustomEvent('day-entry-toggle', { detail: { date: entryDate, open: willOpen } }));

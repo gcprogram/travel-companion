@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Job;
 
 use App\Repository\DayEntryRepository;
+use App\Repository\DayEntryWeatherHourRepository;
 use App\Repository\PhotoRepository;
 use App\Repository\PoiMediaRepository;
 use App\Repository\PoiRepository;
@@ -36,6 +37,7 @@ final class DayEntrySuggestDescriptionHandler implements JobHandlerInterface
         private readonly PoiRepository $pois,
         private readonly PoiMediaRepository $poiMedia,
         private readonly PoiApproachService $poiApproach,
+        private readonly DayEntryWeatherHourRepository $weatherHours,
         private readonly AiDayDescriptionService $ai,
     ) {
     }
@@ -147,6 +149,7 @@ final class DayEntrySuggestDescriptionHandler implements JobHandlerInterface
                 ? weather_description((int) $entry['weather_code'])
                     . ($entry['weather_temp_c'] !== null ? ', ' . number_format((float) $entry['weather_temp_c'], 0) . ' °C' : '')
                 : null,
+            'weatherTimeline' => $this->buildWeatherTimeline($id),
             'existingTitle' => $entry['title'],
             'existingBody' => $entry['body'],
             'sights' => $sights,
@@ -159,5 +162,47 @@ final class DayEntrySuggestDescriptionHandler implements JobHandlerInterface
         }
 
         $this->entries->updateAiDescriptionSuggestion($id, $suggestion);
+    }
+
+    /**
+     * Hour-by-hour weather timeline for the prompt (Stefan's ask: let the AI
+     * place a weather SHIFT at the right moment, e.g. "sunny photo at 15:15,
+     * thunderstorm from 16:00" - the single daily summary above can't do
+     * that). Full resolution, one line per row from
+     * DayEntryWeatherHourRepository (already UTC-anchored/one-row-per-hour,
+     * see WeatherFetchHandler) - same GMT-only-on-change rule as the
+     * hourly table in templates/day_entries/panel.php, so the two views of
+     * the same data read consistently.
+     *
+     * @return list<string>
+     */
+    private function buildWeatherTimeline(int $entryId): array
+    {
+        $lines = [];
+        $previousOffset = null;
+        foreach ($this->weatherHours->findByEntry($entryId) as $wh) {
+            $offset = $wh['utc_offset_seconds'] !== null ? (int) $wh['utc_offset_seconds'] : null;
+            $showOffset = $offset !== null && $previousOffset !== null && $offset !== $previousOffset;
+            $previousOffset = $offset;
+
+            $parts = [sprintf('%02d:00 Uhr', (int) $wh['hour'])];
+            if ($showOffset) {
+                $parts[] = 'GMT' . ($offset >= 0 ? '+' : '') . (int) round($offset / 3600);
+            }
+            if (!empty($wh['location_name'])) {
+                $parts[] = (string) $wh['location_name'];
+            }
+            $condition = $wh['weather_code'] !== null ? weather_description((int) $wh['weather_code']) : null;
+            $tail = array_filter([
+                $condition,
+                $wh['temp_c'] !== null ? number_format((float) $wh['temp_c'], 0) . ' °C' : null,
+            ]);
+            $line = implode(' ', $parts);
+            if ($tail !== []) {
+                $line .= ': ' . implode(', ', $tail);
+            }
+            $lines[] = $line;
+        }
+        return $lines;
     }
 }

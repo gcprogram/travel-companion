@@ -60,7 +60,10 @@ final class AiDayDescriptionService
             . 'Deutsch, basierend NUR auf den gegebenen Fakten - nichts erfinden, keine Orte/'
             . 'Ereignisse hinzudichten, die nicht genannt sind. Falls schon ein von einem Menschen '
             . 'geschriebener Text für diesen Tag vorliegt, dessen Ton/Inhalt aufgreifen und '
-            . 'sinnvoll erweitern statt ihn zu ignorieren. Fließtext, keine Überschrift, keine '
+            . 'sinnvoll erweitern statt ihn zu ignorieren. Falls ein stündlicher Wetterverlauf '
+            . 'angegeben ist, einen Wetterumschwung (z. B. Sonne am Nachmittag, ab einer bestimmten '
+            . 'Uhrzeit Regen/Gewitter) an der zeitlich passenden Stelle der Erzählung erwähnen, statt '
+            . 'nur den einen Tageswert zu nennen. Fließtext, keine Überschrift, keine '
             . 'Aufzählung, keine Anführungszeichen. ' . $instruction;
 
         if (($provider['provider'] ?? '') === 'google') {
@@ -121,6 +124,17 @@ final class AiDayDescriptionService
         }
         if ($context['weather'] !== null) {
             $lines[] = 'Wetter: ' . $context['weather'];
+        }
+        if (!empty($context['weatherTimeline'])) {
+            $lines[] = '';
+            // Full hour-by-hour resolution, GMT-Zone nur wo sie sich
+            // ändert (siehe DayEntrySuggestDescriptionHandler) - erlaubt
+            // der KI, einen Wetterumschwung zeitlich exakt einzubauen
+            // (Stefans Ask), statt nur den einen Tageswert oben zu kennen.
+            $lines[] = 'Wetterverlauf über den Tag (stündlich, Ortszeit):';
+            foreach ($context['weatherTimeline'] as $line) {
+                $lines[] = '- ' . $line;
+            }
         }
         if ($context['existingTitle'] !== null && $context['existingTitle'] !== '') {
             $lines[] = 'Bisheriger Titel: ' . $context['existingTitle'];

@@ -8,6 +8,7 @@ use App\Repository\DayEntryRepository;
 use App\Repository\JobRepository;
 use App\Repository\PhotoCaptionBatchRepository;
 use App\Repository\PhotoRepository;
+use App\Repository\PoiMediaRepository;
 use App\Repository\TripRepository;
 use App\Service\AiVisionCaptionService;
 use App\Service\DayEntryAccess;
@@ -33,6 +34,7 @@ final class PhotoController
         private readonly AiVisionCaptionService $visionCaption,
         private readonly JobRepository $jobs,
         private readonly PhotoCaptionBatchRepository $captionBatches,
+        private readonly PoiMediaRepository $poiMedia,
         private readonly Flash $flash,
     ) {
     }
@@ -130,7 +132,24 @@ final class PhotoController
             return $this->json($response, ['ok' => false, 'error' => t('media.caption_error')], 404);
         }
 
-        $caption = $this->visionCaption->describe((string) file_get_contents($path), 'image/jpeg', $trip['people_notes']);
+        // Already-known facts the model shouldn't have to guess at from
+        // visual cues (a license plate, building style, ...) - Stefan's
+        // concrete complaint: the model wrote "a German city" from the
+        // architecture/license plates in shot, when the exact city was
+        // already known from GPS. ai_address is set by PhotoProcessHandler
+        // before status ever becomes 'ready', so it's always available by
+        // the time this endpoint can even be called.
+        $address = !empty($photo['ai_address']) ? (string) $photo['ai_address'] : null;
+        $poiByPhoto = $this->poiMedia->findPoiByPhotoForTrip((int) $trip['id']);
+        $nearbyPoiName = $poiByPhoto[(int) $photo['id']]['name'] ?? null;
+
+        $caption = $this->visionCaption->describe(
+            (string) file_get_contents($path),
+            'image/jpeg',
+            $trip['people_notes'],
+            $address,
+            $nearbyPoiName,
+        );
         if ($caption === null) {
             return $this->json($response, ['ok' => false, 'error' => t('media.caption_error')], 502);
         }

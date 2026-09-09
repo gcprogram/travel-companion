@@ -29,7 +29,8 @@ final class DayEntryWeatherHourRepository
      * - re-fetching is always a full day's worth of hours, never a partial
      * update, so there's nothing to merge.
      *
-     * @param list<array{hour: int, lat: float, lng: float, tempC: ?float, feelsLikeC: ?float,
+     * @param list<array{hour: int, lat: float, lng: float, observedAtUtc: string,
+     *     utcOffsetSeconds: int, locationName: ?string, tempC: ?float, feelsLikeC: ?float,
      *     precipitationProbability: ?int, weatherCode: ?int, windSpeedKmh: ?float, windDirectionDeg: ?int}> $hours
      */
     public function replaceForEntry(int $entryId, array $hours): void
@@ -40,13 +41,16 @@ final class DayEntryWeatherHourRepository
 
             $insert = $this->pdo->prepare(
                 'INSERT INTO day_entry_weather_hours
-                    (day_entry_id, hour, lat, lng, temp_c, feels_like_c, precipitation_probability, weather_code, wind_speed_kmh, wind_direction_deg)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                    (day_entry_id, hour, observed_at_utc, utc_offset_seconds, location_name, lat, lng, temp_c, feels_like_c, precipitation_probability, weather_code, wind_speed_kmh, wind_direction_deg)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             foreach ($hours as $h) {
                 $insert->execute([
                     $entryId,
                     $h['hour'],
+                    $h['observedAtUtc'],
+                    $h['utcOffsetSeconds'],
+                    $h['locationName'],
                     $h['lat'],
                     $h['lng'],
                     $h['tempC'],

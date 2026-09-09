@@ -50,37 +50,41 @@ final class WeatherService
     }
 
     /**
-     * One calendar day, hour by hour, at a single lat/lng - the caller
-     * (WeatherFetchHandler) is responsible for splitting a day across
-     * several calls if the traveller was in more than one place.
-     * timezone=auto asks Open-Meteo to return each hour already in the
-     * local time of the queried coordinates (the appropriate "local time"
-     * for a travel diary about that place), rather than UTC needing
-     * conversion here or client-side.
+     * Hour-by-hour weather at a single lat/lng across a LOCAL calendar date
+     * range - the caller (WeatherFetchHandler) is responsible for splitting
+     * a travel day across several calls when the traveller was in more than
+     * one place, and for requesting enough of a date range to cover the
+     * actual UTC window it needs (a day that crosses timezones can need
+     * hours from a "local calendar date" other than the diary entry's own
+     * `entry_date`). `timezone=auto` asks Open-Meteo to return each hour
+     * already in local time for the queried coordinates AND the numeric
+     * `utc_offset_seconds` for that same moment - the caller uses that
+     * offset to convert every row to a real UTC instant itself, this
+     * service makes no assumption about which "hour of day" scheme the
+     * result will be filed under.
      *
-     * @return array<int, array{tempC: ?float, feelsLikeC: ?float, precipitationProbability: ?int, weatherCode: ?int, windSpeedKmh: ?float, windDirectionDeg: ?int}>
-     *         keyed by local hour of day (0-23); missing hours (e.g. a date
-     *         outside the forecast window) are simply absent from the array
+     * @return array{offsetSeconds: int, hours: list<array{localTime: string, tempC: ?float, feelsLikeC: ?float, precipitationProbability: ?int, weatherCode: ?int, windSpeedKmh: ?float, windDirectionDeg: ?int}>}
+     *         localTime is Open-Meteo's own "YYYY-MM-DDTHH:MM" local string
      */
-    public function fetchHourly(float $lat, float $lng, string $date): array
+    public function fetchHourlyRange(float $lat, float $lng, string $startDate, string $endDate): array
     {
         $query = http_build_query([
             'latitude' => $lat,
             'longitude' => $lng,
-            'start_date' => $date,
-            'end_date' => $date,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
             'hourly' => 'temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m,winddirection_10m',
             'timezone' => 'auto',
         ]);
 
         $data = $this->requestWithFallback($query);
         $times = $data['hourly']['time'] ?? [];
+        $offsetSeconds = (int) ($data['utc_offset_seconds'] ?? 0);
 
-        $byHour = [];
+        $hours = [];
         foreach ($times as $i => $time) {
-            // "2026-07-25T14:00" - the hour is the two digits after 'T'.
-            $hour = (int) substr((string) $time, 11, 2);
-            $byHour[$hour] = [
+            $hours[] = [
+                'localTime' => (string) $time,
                 'tempC' => $this->numOrNull($data['hourly']['temperature_2m'][$i] ?? null),
                 'feelsLikeC' => $this->numOrNull($data['hourly']['apparent_temperature'][$i] ?? null),
                 'precipitationProbability' => $this->intOrNull($data['hourly']['precipitation_probability'][$i] ?? null),
@@ -89,7 +93,7 @@ final class WeatherService
                 'windDirectionDeg' => $this->intOrNull($data['hourly']['winddirection_10m'][$i] ?? null),
             ];
         }
-        return $byHour;
+        return ['offsetSeconds' => $offsetSeconds, 'hours' => $hours];
     }
 
     /**

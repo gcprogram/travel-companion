@@ -131,6 +131,38 @@ final class ReverseGeocodingService
     }
 
     /**
+     * Coarse "which city/region is this" label - deliberately NOT
+     * reverseGeocode()'s landmark-aware, street-address-precise result
+     * (e.g. "Binding-Schirn (Braubachstraße 41, 60311 Frankfurt am
+     * Main)"), which is far too granular for labelling an hour of weather
+     * (WeatherFetchHandler). Settlement name only (city/town/village/...),
+     * falling back to progressively broader administrative levels for a
+     * sparse rural/flight-path point where no settlement is close -
+     * exactly the "Region X" / country-only degradation Stefan's ask
+     * wants for a point over open country or high above it.
+     *
+     * @return array{name: ?string, country: ?string}
+     */
+    public function placeLabel(float $lat, float $lng): array
+    {
+        $data = $this->nominatimReverseRaw($lat, $lng);
+        if ($data === null) {
+            return ['name' => null, 'country' => null];
+        }
+
+        $address = is_array($data['address'] ?? null) ? $data['address'] : [];
+        $name = $this->firstStringOf($address, [
+            'city', 'town', 'village', 'municipality', 'hamlet',
+            'county', 'state_district', 'state', 'region',
+        ]);
+        if ($name !== null) {
+            $name = $this->nameLocalizer->localize($name);
+        }
+
+        return ['name' => $name, 'country' => $this->pickCountry($data)];
+    }
+
+    /**
      * @return array{name: ?string, country: ?string}
      */
     private function reverseGeocodeViaNominatim(float $lat, float $lng): array

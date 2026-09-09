@@ -185,7 +185,7 @@
           </span>
           <?php $weatherSummary = $weatherSummaryByEntry[(int) $entry['id']] ?? ['day' => null, 'night' => null]; ?>
           <?php if ($weatherSummary['day'] !== null || $weatherSummary['night'] !== null): ?>
-            <span class="day-entry-card__weather-summary">
+            <span class="day-entry-card__weather-summary" data-weather-summary-toggle>
               <?php if ($weatherSummary['day'] !== null): ?>
                 <span title="<?= e(t('entry.weather_day')) ?>">
                   <?= weather_emoji($weatherSummary['day']['code']) ?> <?= e(number_format($weatherSummary['day']['tempC'], 0)) ?>°C
