@@ -125,7 +125,6 @@ final class WeatherService
         $body = curl_exec($ch);
         $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
-        curl_close($ch);
 
         if ($body === false) {
             throw new \RuntimeException('Open-Meteo request failed: ' . $error);

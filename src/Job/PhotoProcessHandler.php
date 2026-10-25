@@ -391,7 +391,10 @@ final class PhotoProcessHandler implements JobHandlerInterface
             if ($altitude !== null) {
                 // Ref byte: 0 = above sea level, 1 = below. PHP's exif
                 // extension surfaces it as a raw single-byte string.
-                $belowSeaLevel = isset($exif['GPSAltitudeRef']) && ord((string) $exif['GPSAltitudeRef']) === 1;
+                // First byte only: ord() on an empty/multi-byte string is
+                // deprecated as of PHP 8.5.
+                $altitudeRef = isset($exif['GPSAltitudeRef']) ? substr((string) $exif['GPSAltitudeRef'], 0, 1) : '';
+                $belowSeaLevel = $altitudeRef !== '' && ord($altitudeRef) === 1;
                 $result['altitude'] = round($belowSeaLevel ? -$altitude : $altitude, 1);
             }
         }

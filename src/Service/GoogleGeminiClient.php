@@ -71,7 +71,6 @@ final class GoogleGeminiClient
         $body = curl_exec($ch);
         $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
-        curl_close($ch);
 
         if ($body === false) {
             return ['ok' => false, 'models' => [], 'status' => null, 'error' => $curlError];
@@ -249,7 +248,6 @@ final class GoogleGeminiClient
         ]);
         $responseBody = curl_exec($ch);
         $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         if ($responseBody === false || $status !== 200) {
             return null;

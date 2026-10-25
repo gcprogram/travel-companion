@@ -170,7 +170,6 @@ final class AiVisionCaptionService
         ]);
         $body = curl_exec($ch);
         $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         if ($body === false || $status !== 200) {
             return null;

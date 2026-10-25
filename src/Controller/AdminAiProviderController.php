@@ -148,7 +148,6 @@ final class AdminAiProviderController
         $body = curl_exec($ch);
         $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
-        curl_close($ch);
         $latencyMs = (int) round((microtime(true) - $started) * 1000);
 
         if ($body === false) {
@@ -266,7 +265,6 @@ final class AdminAiProviderController
         $responseBody = curl_exec($ch);
         $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
-        curl_close($ch);
 
         if ($responseBody === false) {
             return $this->json($response, ['ok' => false, 'error' => $error], 502);
