@@ -71,7 +71,7 @@ $action = $isEdit ? '/trips/' . (int) $trip['id'] : '/trips';
     </div>
     <?php if ($isEdit): ?>
       <p class="field-hint">
-        <a href="/trip/<?= e($trip['slug']) ?>#share-tokens"><?= e(t('trip.form.visibility_shared_link')) ?></a>
+        <a href="/trip/<?= e($trip['slug']) ?>/manage#share-tokens"><?= e(t('trip.form.visibility_shared_link')) ?></a>
       </p>
     <?php endif; ?>
   </div>

@@ -106,6 +106,6 @@ final class ShareController
      */
     private function redirectToTrip(ResponseInterface $response, array $trip): ResponseInterface
     {
-        return $response->withHeader('Location', '/trip/' . $trip['slug'])->withStatus(302);
+        return $response->withHeader('Location', '/trip/' . $trip['slug'] . '/manage#share-tokens')->withStatus(302);
     }
 }

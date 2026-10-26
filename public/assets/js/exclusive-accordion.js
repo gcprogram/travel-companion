@@ -48,3 +48,23 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 });
+
+// Deep link: /trip/<slug>/manage#share-tokens opens the section that
+// contains (or is) the element with that id.
+document.addEventListener('DOMContentLoaded', function () {
+  if (!window.location.hash) {
+    return;
+  }
+  var target;
+  try {
+    target = document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
+  } catch (e) {
+    return;
+  }
+  var section = target ? target.closest('[data-accordion-section]') : null;
+  var toggle = section ? section.querySelector('[data-accordion-toggle]') : null;
+  if (toggle && toggle.getAttribute('aria-expanded') !== 'true') {
+    toggle.click();
+    section.scrollIntoView();
+  }
+});

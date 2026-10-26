@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Repository\PoiMediaRepository;
 use App\Repository\PoiRepository;
+use App\Repository\ShareTokenRepository;
 use App\Repository\TripRepository;
 use App\Service\PoiApproachService;
 use App\Service\PoiDiscoveryService;
@@ -14,6 +15,7 @@ use App\Service\StorageQuotaService;
 use App\Service\TrackPlayerConfig;
 use App\Service\TripAccess;
 use App\Service\TripRouteSummaryService;
+use App\Support\Env;
 use App\Support\View;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -48,6 +50,7 @@ final class TripManageController
         private readonly TripRouteSummaryService $routeSummary,
         private readonly StorageQuotaService $storage,
         private readonly TrackPlayerConfig $trackPlayerConfig,
+        private readonly ShareTokenRepository $shareTokens,
     ) {
     }
 
@@ -67,7 +70,15 @@ final class TripManageController
             ];
         }
 
+        // Plain, non-token-aware check: sharing is managed by the real
+        // owner/admin only, never by someone who got in via an edit share
+        // token (same rule as the old share block on the trip page).
+        $canManageSharing = $this->access->canEdit($trip, $user);
+
         return $this->view->render($response, 'trips/manage', [
+            'canManageSharing' => $canManageSharing,
+            'shareTokens' => $canManageSharing ? $this->shareTokens->findByTrip((int) $trip['id']) : [],
+            'shareBaseUrl' => rtrim((string) Env::get('APP_URL', ''), '/') . '/share/',
             'trip' => $trip,
             'errors' => [],
             'canEdit' => true, // requireEditable() below already gated this

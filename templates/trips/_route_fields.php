@@ -95,6 +95,7 @@
                  data-msg-error="<?= e(t('trip.map.folder_error')) ?>"
                  class="visually-hidden">
         </div>
+        <p class="field-hint route-upload-table__hint"><?= e(t('trip.map.track_method_photos_folder_note')) ?></p>
         <p class="field-hint route-upload-table__hint" data-track-folder-status><?= e(t('trip.map.track_method_photos_hint')) ?></p>
       </div>
 

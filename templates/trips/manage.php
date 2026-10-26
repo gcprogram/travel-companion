@@ -53,20 +53,14 @@
 
 <?php include __DIR__ . '/_track_player.php'; ?>
 
-<?php if ($canEdit): ?>
-  <p class="page-actions">
-    <a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/review"><?= e(t('trip.map.stays_review_link')) ?></a>
-  </p>
-<?php endif; ?>
-
 <div data-accordion-group>
   <div class="accordion-section" data-accordion-section>
     <button type="button" class="accordion-section__toggle" data-accordion-toggle aria-expanded="false">
-      <?= e(t('trip.manage.section_metadata')) ?>
+      <?= e(t('trip.manage.section_photos')) ?>
       <span class="accordion-section__chevron" aria-hidden="true">▸</span>
     </button>
     <div class="accordion-section__body" data-accordion-body hidden>
-      <?php include __DIR__ . '/_metadata_fields.php'; ?>
+      <?php include __DIR__ . '/_photos_fields.php'; ?>
     </div>
   </div>
 
@@ -82,11 +76,11 @@
 
   <div class="accordion-section" data-accordion-section>
     <button type="button" class="accordion-section__toggle" data-accordion-toggle aria-expanded="false">
-      <?= e(t('trip.manage.section_photos')) ?>
+      <?= e(t('trip.manage.section_metadata')) ?>
       <span class="accordion-section__chevron" aria-hidden="true">▸</span>
     </button>
     <div class="accordion-section__body" data-accordion-body hidden>
-      <?php include __DIR__ . '/_photos_fields.php'; ?>
+      <?php include __DIR__ . '/_metadata_fields.php'; ?>
     </div>
   </div>
 
@@ -96,7 +90,19 @@
       <span class="accordion-section__chevron" aria-hidden="true">▸</span>
     </button>
     <div class="accordion-section__body" data-accordion-body hidden>
+      <p class="field-hint"><?= e(t('trip.manage.pois_review_hint')) ?></p>
+      <p><a class="btn btn-ghost" href="/trip/<?= e($trip['slug']) ?>/review"><?= e(t('trip.map.stays_review_link')) ?></a></p>
       <?php include __DIR__ . '/_pois_fields.php'; ?>
+    </div>
+  </div>
+
+  <div class="accordion-section" data-accordion-section id="share-tokens">
+    <button type="button" class="accordion-section__toggle" data-accordion-toggle aria-expanded="false">
+      <?= e(t('trip.manage.section_share')) ?>
+      <span class="accordion-section__chevron" aria-hidden="true">▸</span>
+    </button>
+    <div class="accordion-section__body" data-accordion-body hidden>
+      <?php include __DIR__ . '/_share_fields.php'; ?>
     </div>
   </div>
 </div>
