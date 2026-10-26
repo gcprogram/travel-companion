@@ -63,7 +63,7 @@
   <div class="accordion-section" data-accordion-section>
     <button type="button" class="accordion-section__toggle" data-accordion-toggle aria-expanded="false">
       <?= e(t('trip.manage.section_metadata')) ?>
-      <span class="accordion-section__chevron" aria-hidden="true">▾</span>
+      <span class="accordion-section__chevron" aria-hidden="true">▸</span>
     </button>
     <div class="accordion-section__body" data-accordion-body hidden>
       <?php include __DIR__ . '/_metadata_fields.php'; ?>
@@ -73,7 +73,7 @@
   <div class="accordion-section" data-accordion-section>
     <button type="button" class="accordion-section__toggle" data-accordion-toggle aria-expanded="false">
       <?= e(t('trip.manage.section_route')) ?>
-      <span class="accordion-section__chevron" aria-hidden="true">▾</span>
+      <span class="accordion-section__chevron" aria-hidden="true">▸</span>
     </button>
     <div class="accordion-section__body" data-accordion-body hidden>
       <?php include __DIR__ . '/_route_fields.php'; ?>
@@ -83,7 +83,7 @@
   <div class="accordion-section" data-accordion-section>
     <button type="button" class="accordion-section__toggle" data-accordion-toggle aria-expanded="false">
       <?= e(t('trip.manage.section_photos')) ?>
-      <span class="accordion-section__chevron" aria-hidden="true">▾</span>
+      <span class="accordion-section__chevron" aria-hidden="true">▸</span>
     </button>
     <div class="accordion-section__body" data-accordion-body hidden>
       <?php include __DIR__ . '/_photos_fields.php'; ?>
@@ -93,7 +93,7 @@
   <div class="accordion-section" data-accordion-section>
     <button type="button" class="accordion-section__toggle" data-accordion-toggle aria-expanded="false">
       <?= e(t('trip.manage.section_pois')) ?>
-      <span class="accordion-section__chevron" aria-hidden="true">▾</span>
+      <span class="accordion-section__chevron" aria-hidden="true">▸</span>
     </button>
     <div class="accordion-section__body" data-accordion-body hidden>
       <?php include __DIR__ . '/_pois_fields.php'; ?>

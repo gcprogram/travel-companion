@@ -181,7 +181,7 @@
                 <?= str_repeat('★', $ratingRounded) . str_repeat('☆', 5 - $ratingRounded) ?>
               </span>
             <?php endif; ?>
-            <span class="day-entry-card__chevron" aria-hidden="true">▾</span>
+            <span class="day-entry-card__chevron" aria-hidden="true">▸</span>
           </span>
           <?php $weatherSummary = $weatherSummaryByEntry[(int) $entry['id']] ?? ['day' => null, 'night' => null]; ?>
           <?php if ($weatherSummary['day'] !== null || $weatherSummary['night'] !== null): ?>

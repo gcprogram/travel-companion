@@ -370,11 +370,11 @@ form.auth-form { max-width: 420px; }
 }
 
 .day-entry-card__chevron {
-  margin-left: auto;
+  order: -1;
   color: var(--color-muted);
   transition: transform 0.15s ease;
 }
-.day-entry-card.is-open .day-entry-card__chevron { transform: rotate(-180deg); }
+.day-entry-card.is-open .day-entry-card__chevron { transform: rotate(90deg); }
 
 .day-entry-card__body[hidden] { display: none; }
 .day-entry-card__loading { color: var(--color-muted); font-size: 0.9rem; }
@@ -405,11 +405,25 @@ form.auth-form { max-width: 420px; }
 }
 
 .accordion-section__chevron {
-  margin-left: auto;
+  order: -1;
+  margin-right: 0.5rem;
   color: var(--color-muted);
   transition: transform 0.15s ease;
 }
-.accordion-section.is-open .accordion-section__chevron { transform: rotate(-180deg); }
+.accordion-section.is-open .accordion-section__chevron { transform: rotate(90deg); }
+
+/* Every native <details>: triangle in front, right when closed, down when open. */
+summary { list-style: none; cursor: pointer; }
+summary::-webkit-details-marker { display: none; }
+summary::before {
+  content: "B8";
+  display: inline-block;
+  width: 1em;
+  margin-right: 0.25rem;
+  color: var(--color-muted);
+  transition: transform 0.15s ease;
+}
+details[open] > summary::before { transform: rotate(90deg); }
 
 .accordion-section__body { margin-top: var(--space-2); }
 .accordion-section__body[hidden] { display: none; }
