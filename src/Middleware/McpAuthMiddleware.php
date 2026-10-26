@@ -31,7 +31,13 @@ final class McpAuthMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
+        // Some Apache/FastCGI setups (e.g. Plesk) strip the Authorization
+        // header from the request; it then only survives as a server variable.
         $header = $request->getHeaderLine('Authorization');
+        if ($header === '') {
+            $server = $request->getServerParams();
+            $header = (string) ($server['HTTP_AUTHORIZATION'] ?? $server['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+        }
         if (!str_starts_with($header, 'Bearer ')) {
             return $this->unauthorized();
         }
