@@ -71,6 +71,10 @@
           </label>
         </div>
         <p class="field-hint route-upload-table__hint" data-timeline-status><?= e(t('trip.map.track_method_timeline_hint')) ?></p>
+        <details class="field-hint route-upload-table__hint">
+          <summary><?= e(t('trip.map.timeline_howto_title')) ?></summary>
+          <p><?= e(t('trip.map.timeline_howto')) ?></p>
+        </details>
         <div data-timeline-summary hidden>
           <ul class="stay-list" data-timeline-visits></ul>
         </div>

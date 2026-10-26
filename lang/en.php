@@ -245,6 +245,8 @@ return [
     'trip.map.track_method_photos_hint' => "Photos with a GPS position that you upload to this trip automatically fill in stretches of the track with no coverage — no extra step needed.",
     'trip.map.track_method_timeline' => 'From Google Timeline (location history)',
     'trip.map.track_method_timeline_hint' => "The Timeline.json export file is processed entirely in your browser, none of it is uploaded as a whole — only the points and stays within the chosen date range are kept.",
+    'trip.map.timeline_howto_title' => "How to export your Google Timeline",
+    'trip.map.timeline_howto' => "Since 2024 your Timeline is stored only on your phone (no longer on Google's web servers). Android: Settings → Location → Location services → Timeline → \"Export Timeline data\", save the Timeline.json file and copy it to your PC. iPhone: Google Maps → profile picture → \"Your Timeline\" → settings (gear) → \"Export Timeline data\". Requirement: Timeline was switched on during the trip. Then choose the file here and enter the trip's date range.",
     'trip.map.timeline_file_label' => 'Choose Timeline.json',
     'trip.map.timeline_from_label' => 'From',
     'trip.map.timeline_to_label' => 'To',

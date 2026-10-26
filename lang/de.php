@@ -245,6 +245,8 @@ return [
     'trip.map.track_method_photos_hint' => 'Fotos mit GPS-Position, die du zu dieser Reise hochlädst, ergänzen den Track automatisch an Stellen ohne Abdeckung — kein zusätzlicher Schritt nötig.',
     'trip.map.track_method_timeline' => 'Aus Google Timeline (Standortverlauf)',
     'trip.map.track_method_timeline_hint' => 'Die Timeline.json-Exportdatei wird komplett im Browser verarbeitet, nichts davon wird als Ganzes hochgeladen — nur die im gewählten Zeitraum liegenden Punkte und Aufenthalte werden übernommen.',
+    'trip.map.timeline_howto_title' => 'So exportierst du die Google Timeline',
+    'trip.map.timeline_howto' => 'Die Timeline liegt seit 2024 nur noch auf deinem Smartphone (nicht mehr bei Google im Web). Android: Einstellungen → Standort → Standortdienste → Zeitachse → „Zeitachsendaten exportieren“, dann die Datei Timeline.json speichern und auf den PC übertragen. iPhone: Google Maps → Profilbild → „Deine Zeitachse“ → Einstellungen (Zahnrad) → „Zeitachsendaten exportieren“. Voraussetzung: Die Zeitachse war während der Reise eingeschaltet. Die Datei dann hier auswählen und den Zeitraum der Reise eingeben.',
     'trip.map.timeline_file_label' => 'Timeline.json auswählen',
     'trip.map.timeline_from_label' => 'Von',
     'trip.map.timeline_to_label' => 'Bis',
