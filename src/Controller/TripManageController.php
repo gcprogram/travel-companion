@@ -13,6 +13,7 @@ use App\Service\PoiDiscoveryService;
 use App\Service\Settings;
 use App\Service\StorageQuotaService;
 use App\Service\TrackPlayerConfig;
+use App\Service\TripMediaStatsService;
 use App\Service\TripAccess;
 use App\Service\TripRouteSummaryService;
 use App\Support\Env;
@@ -51,6 +52,7 @@ final class TripManageController
         private readonly StorageQuotaService $storage,
         private readonly TrackPlayerConfig $trackPlayerConfig,
         private readonly ShareTokenRepository $shareTokens,
+        private readonly TripMediaStatsService $mediaStats,
     ) {
     }
 
@@ -76,6 +78,7 @@ final class TripManageController
         $canManageSharing = $this->access->canEdit($trip, $user);
 
         return $this->view->render($response, 'trips/manage', [
+            'mediaStats' => $this->mediaStats->forTrip((int) $trip['id']),
             'canManageSharing' => $canManageSharing,
             'shareTokens' => $canManageSharing ? $this->shareTokens->findByTrip((int) $trip['id']) : [],
             'shareBaseUrl' => rtrim((string) Env::get('APP_URL', ''), '/') . '/share/',

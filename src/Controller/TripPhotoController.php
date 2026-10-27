@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Repository\TripRepository;
 use App\Service\TripAccess;
+use App\Service\TripMediaStatsService;
 use App\Support\View;
 use App\Support\WizardNav;
 use Psr\Http\Message\ResponseInterface;
@@ -29,6 +30,7 @@ final class TripPhotoController
         private readonly View $view,
         private readonly TripRepository $trips,
         private readonly TripAccess $access,
+        private readonly TripMediaStatsService $mediaStats,
     ) {
     }
 
@@ -36,9 +38,12 @@ final class TripPhotoController
     {
         $trip = $this->requireViewable($request, (string) $args['slug']);
 
+        $canEdit = $this->access->canEdit($trip, $request->getAttribute('user'), $request);
+
         return $this->view->render($response, 'trips/photos', [
             'trip' => $trip,
-            'canEdit' => $this->access->canEdit($trip, $request->getAttribute('user'), $request),
+            'canEdit' => $canEdit,
+            'mediaStats' => $canEdit ? $this->mediaStats->forTrip((int) $trip['id']) : null,
             'wizard' => WizardNav::isActive($request),
             'headExtra' => '<link rel="stylesheet" href="/assets/js/vendor/leaflet.css">',
         ]);

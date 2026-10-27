@@ -25,6 +25,30 @@ final class VideoRepository
     }
 
     /**
+     * Per-date upload statistics for the trip-level upload box: item count and
+     * stored bytes per diary-entry date (references to a deduplicated file
+     * count as an item but cost 0 bytes, same as the storage quota).
+     *
+     * @return array<string, array{count: int, bytes: int}> keyed by entry_date
+     */
+    public function statsByDateForTrip(int $tripId): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT e.entry_date, COUNT(*) AS n, COALESCE(SUM(p.bytes), 0) AS bytes
+             FROM videos p JOIN day_entries e ON e.id = p.day_entry_id
+             WHERE e.trip_id = ?
+             AND p.type = "upload"
+             GROUP BY e.entry_date'
+        );
+        $stmt->execute([$tripId]);
+        $out = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $out[(string) $row['entry_date']] = ['count' => (int) $row['n'], 'bytes' => (int) $row['bytes']];
+        }
+        return $out;
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     public function findById(int $id): ?array
