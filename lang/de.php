@@ -202,6 +202,7 @@ return [
     'trip.photos.stats_videos' => 'Videos',
     'trip.photos.stats_storage' => 'Speicher',
     'trip.photos.stats_total' => 'Gesamt',
+    'trip.photos.stats_pending' => ':count Datei(en) werden noch verarbeitet – Speicher und Zahlen aktualisieren sich automatisch.',
     'trip.photos.stats_hint' => 'Speicher = was die Dateien auf dem Server belegen (verkleinerte Fotos, komprimierte Videos). Bereits vorhandene Duplikate kosten keinen zusätzlichen Platz. Stand beim Laden der Seite.',
     'trip.photos.status_resolving' => 'Tag wird bestimmt für :filename …',
     'trip.manage.heading' => 'Reise einrichten: :title',

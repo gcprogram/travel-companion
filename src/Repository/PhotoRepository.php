@@ -29,12 +29,13 @@ final class PhotoRepository
      * stored bytes per diary-entry date (references to a deduplicated file
      * count as an item but cost 0 bytes, same as the storage quota).
      *
-     * @return array<string, array{count: int, bytes: int}> keyed by entry_date
+     * @return array<string, array{count: int, bytes: int, pending: int}> keyed by entry_date
      */
     public function statsByDateForTrip(int $tripId): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT e.entry_date, COUNT(*) AS n, COALESCE(SUM(p.bytes), 0) AS bytes
+            'SELECT e.entry_date, COUNT(*) AS n, COALESCE(SUM(p.bytes), 0) AS bytes,
+                    COALESCE(SUM(p.status = "pending"), 0) AS pending
              FROM photos p JOIN day_entries e ON e.id = p.day_entry_id
              WHERE e.trip_id = ?
              GROUP BY e.entry_date'
@@ -42,7 +43,7 @@ final class PhotoRepository
         $stmt->execute([$tripId]);
         $out = [];
         foreach ($stmt->fetchAll() as $row) {
-            $out[(string) $row['entry_date']] = ['count' => (int) $row['n'], 'bytes' => (int) $row['bytes']];
+            $out[(string) $row['entry_date']] = ['count' => (int) $row['n'], 'bytes' => (int) $row['bytes'], 'pending' => (int) $row['pending']];
         }
         return $out;
     }

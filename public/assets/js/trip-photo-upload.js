@@ -147,6 +147,39 @@ document.addEventListener('DOMContentLoaded', function () {
     }, Promise.resolve());
   }
 
+  // --- Live upload statistics (the table under the upload buttons) ---
+  // Refreshed right after a batch lands, then polled every few seconds while
+  // files are still 'pending' (the cron job fills in their stored size once
+  // processed), so the storage column doesn't sit at 0 MB and mislead.
+  var statsBox = document.querySelector('[data-media-stats]');
+  var statsTimer = null;
+  var statsPolls = 0;
+
+  function refreshStats() {
+    if (!statsBox) {
+      return;
+    }
+    clearTimeout(statsTimer);
+    fetch(statsBox.dataset.url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
+      .then(function (response) { return response.ok ? response.text() : null; })
+      .then(function (html) {
+        if (html === null) {
+          return;
+        }
+        statsBox.innerHTML = html;
+        var pending = (statsBox.querySelector('[data-stats-pending]') || {}).dataset;
+        if (pending && parseInt(pending.statsPending, 10) > 0 && statsPolls < 60) {
+          statsPolls++;
+          statsTimer = setTimeout(refreshStats, 4000);
+        }
+      })
+      .catch(function () { /* transient - next upload or reload refreshes */ });
+  }
+
+  if (statsBox && parseInt(statsBox.dataset.pending, 10) > 0) {
+    statsTimer = setTimeout(refreshStats, 4000);
+  }
+
   function startSync() {
     if (progress) {
       progress.hidden = false;
@@ -175,8 +208,8 @@ document.addEventListener('DOMContentLoaded', function () {
       // exactly like the upload lost everything, when the ones that made
       // it through are already safe on the server.
       if (result.synced > 0 && !result.authRequired) {
-        window.location.reload();
-        return;
+        statsPolls = 0;
+        refreshStats();
       }
       if (result.authRequired) {
         status.textContent = status.dataset.msgLoginRequired || status.dataset.msgError || '';
@@ -249,7 +282,8 @@ document.addEventListener('DOMContentLoaded', function () {
     OfflineQueue.sync({ csrfToken: csrfField.value, force: force }).then(function (result) {
       renderSyncStatus();
       if (result.synced > 0 && !result.authRequired) {
-        window.location.reload();
+        statsPolls = 0;
+        refreshStats();
       }
     });
   }

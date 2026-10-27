@@ -50,6 +50,23 @@ final class TripPhotoController
     }
 
     /**
+     * HTML fragment of just the statistics table - polled by
+     * trip-photo-upload.js after an upload. Edit-gated like the upload
+     * widget the table lives in.
+     */
+    public function mediaStats(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $trip = $this->trips->findById((int) $args['id']);
+        if ($trip === null || !$this->access->canEdit($trip, $request->getAttribute('user'), $request)) {
+            throw new HttpNotFoundException($request);
+        }
+
+        return $this->view->render($response, 'trips/_media_stats', [
+            'mediaStats' => $this->mediaStats->forTrip((int) $trip['id']),
+        ], layout: null)->withHeader('Cache-Control', 'no-store');
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function requireViewable(ServerRequestInterface $request, string $slug): array

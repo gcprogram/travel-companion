@@ -202,6 +202,7 @@ return [
     'trip.photos.stats_videos' => 'Videos',
     'trip.photos.stats_storage' => 'Storage',
     'trip.photos.stats_total' => 'Total',
+    'trip.photos.stats_pending' => ':count file(s) still being processed – figures update automatically.',
     'trip.photos.stats_hint' => 'Storage = what the files occupy on the server (downsized photos, compressed videos). Duplicates already present cost no extra space. As of page load.',
     'trip.photos.status_resolving' => 'Working out the day for :filename …',
     'trip.manage.heading' => 'Set up trip: :title',
